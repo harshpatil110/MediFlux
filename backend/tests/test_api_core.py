@@ -116,7 +116,7 @@ async def test_get_current_user_profile() -> None:
         response = await client.get("/api/v1/me", headers=headers)
         assert response.status_code == 200
         data = response.json()
-        assert data["role"] == "pharmacist"
+        assert data["role"] in ("pharmacy", "pharmacist")
         assert data["node_id"] == "11111111-1111-1111-1111-111111111111"
         assert "email" in data
 

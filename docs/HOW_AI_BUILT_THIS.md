@@ -17,7 +17,7 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 2. **Backend Configuration & Tooling**:
    - Created `backend/pyproject.toml` with Python 3.11+ dependencies: `fastapi`, `uvicorn`, `pydantic`, `pydantic-settings`, `httpx`, `langgraph`, `supabase`, `sse-starlette`, `tenacity`, `pytest`, `pytest-asyncio`, and `ruff`.
    - Configured `ruff` and `pytest` settings in `pyproject.toml`.
-   - Created minimal FastAPI application in `backend/app/main.py` with CORS middleware and `/health` endpoint returning `{"status": "ok", "app": "MediFlux Backend", "version": "0.1.0"}`.
+   - Created minimal FastAPI application in `backend/app/main.py` with CORS middleware and `/health` endpoint.
    - Implemented `backend/tests/test_health.py` validating the `/health` endpoint.
 3. **Frontend Application Setup**:
    - Initialized Vite + React 18 + TypeScript + Tailwind CSS structure under `frontend/`.
@@ -33,7 +33,7 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 ### Verification Status
 - [x] Monorepo directories and package `__init__.py` files verified.
 - [x] Backend FastAPI `/health` endpoint operational and returning HTTP 200.
-- [x] Pytest suite executed and passing cleanly (`2 passed`).
+- [x] Pytest suite executed and passing cleanly.
 - [x] Ruff linter executed and passing with 0 errors.
 - [x] Frontend package configured and build verification clean.
 - [x] Startup scripts executable.
@@ -81,6 +81,44 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] Concurrency-safe atomic PL/pgSQL routines (`apply_sale`, `apply_return`, `apply_expiry`) implemented.
 - [x] B-Tree and HNSW vector search indexes defined.
 - [x] Comprehensive documentation in `docs/schema.md` and `docs/specs/task-2-spec.md`.
+
+---
+
+## Task 3: Authentication, Roles, and Row-Level Security (RLS)
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Security Migration & Function (`supabase/migrations/003_auth_and_rls.sql`)**:
+   - Created PostgreSQL function `visible_node_ids()` (`SECURITY DEFINER`, `search_path = public`).
+   - Implemented recursive CTE hierarchy query down `nodes.parent_id`, allowing admin global visibility and scoping other roles to their node and all downstream child nodes.
+   - Enabled Row-Level Security on: `nodes`, `profiles`, `inventory`, `batches`, `audit_ledger`, and `events`.
+   - Defined SELECT, INSERT, and UPDATE policies ensuring per-node tenant isolation.
+   - Strictly enforced **Audit Ledger and Events Immutability**: created SELECT and INSERT policies only; omitted UPDATE and DELETE policies for authenticated role to guarantee tamper-proof audit trails.
+2. **Demo User Seeding (`scripts/seed_demo_users.py`)**:
+   - Programmatically provisions 5 demo users in Supabase Auth via Admin API: `admin`, `manufacturer`, `distributor`, `stockist`, `pharmacy`.
+   - Populates and links the `profiles` table to respective node IDs idempotently.
+3. **Backend Security Module (`app/core/security.py`)**:
+   - Defined `CurrentUser`, `AgentActor`, and unified `Actor` data structures.
+   - Implemented `get_current_user` for JWT verification and claim extraction.
+   - Implemented flexible `get_actor` supporting both `Authorization: Bearer <token>` (human users) and `X-API-Key` (automated agents).
+   - Created `get_user_db_client` and `get_service_db_client` factory dependencies.
+4. **Automated Test Suite (`tests/test_rls_and_auth.py`)**:
+   - Verified cross-pharmacy read isolation (empty results on cross-node query).
+   - Verified stockist downstream child pharmacy visibility and parent distributor exclusion.
+   - Verified immutability rejection on audit ledger modification.
+   - Verified 401 Unauthorized handling on missing or invalid tokens and API keys.
+
+### Verification Status
+- [x] SQL migration `003_auth_and_rls.sql` exists and defines valid RLS policies.
+- [x] Recursive `visible_node_ids()` verified for parent-child downstream traversal.
+- [x] RLS enabled on `nodes`, `profiles`, `inventory`, `batches`, `audit_ledger`, and `events`.
+- [x] Strict immutability verified for `audit_ledger` (no update/delete policies).
+- [x] Demo seed script created in `scripts/seed_demo_users.py`.
+- [x] Security dependencies implemented in `app/core/security.py`.
+- [x] All 7 test cases in `tests/test_rls_and_auth.py` pass cleanly.
 
 ---
 
@@ -133,7 +171,4 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] Health endpoint returns HTTP 200 with status info.
 - [x] Initial endpoints created: `/api/v1/me`, `/api/v1/nodes`, `/api/v1/products`, `/api/v1/inventory`.
 - [x] OpenAPI interactive documentation generated at `/docs`.
-- [x] All 18 pytest tests pass cleanly with 0 failures and 0 linter warnings.
-
-
-
+- [x] All 25 pytest tests pass cleanly with 0 failures and 0 linter warnings.
