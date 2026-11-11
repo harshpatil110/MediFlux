@@ -14,23 +14,30 @@ class Settings(BaseSettings):
     )
 
     # Project metadata
-    PROJECT_NAME: str = "MediFlux Backend"
-    VERSION: str = "0.1.0"
+    PROJECT_NAME: str = "Pharma Supply Chain API"
+    VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
 
-    # CORS origins
+    # CORS origins (Vite dev servers, Tauri desktop origins)
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "tauri://localhost",
+        "http://tauri.localhost",
     ]
 
-    # Supabase credentials
+    # Supabase credentials & JWT secret
     SUPABASE_URL: str = Field(default="", description="Supabase project URL")
     SUPABASE_ANON_KEY: str = Field(default="", description="Supabase public anon key")
     SUPABASE_SERVICE_ROLE_KEY: str = Field(
         default="", description="Supabase service role secret key"
+    )
+    SUPABASE_JWT_SECRET: str = Field(
+        default="mediflux-super-secret-jwt-key-2026",
+        description="Supabase JWT secret for token verification",
     )
 
     # LLM Provider credentials
@@ -54,4 +61,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

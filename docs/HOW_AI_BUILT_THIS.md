@@ -82,4 +82,58 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] B-Tree and HNSW vector search indexes defined.
 - [x] Comprehensive documentation in `docs/schema.md` and `docs/specs/task-2-spec.md`.
 
+---
+
+## Task 4: FastAPI Core Skeleton
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Core Configuration (`core/config.py`)**:
+   - Configured `pydantic-settings` with project metadata, version `1.0.0`, environment, CORS origins (supporting Vite dev servers and Tauri desktop wrappers), and Supabase JWT secrets.
+2. **Correlation ID & Structured Logging (`core/middleware.py`, `core/logging.py`)**:
+   - Implemented `CorrelationIdMiddleware` to extract incoming `X-Correlation-ID` or generate a new UUID4.
+   - Wired `contextvars.ContextVar` into Python logging filter so all log records output `[%(correlation_id)s]`.
+   - Outgoing HTTP responses expose `X-Correlation-ID`.
+   - Intercepted unhandled exceptions at the ASGI boundary to ensure standard 500 error envelopes without leaking sensitive stack traces.
+3. **Standardized Error Handling (`core/exceptions.py`, `core/handlers.py`)**:
+   - Defined custom exceptions: `AppException`, `NotFoundError`, `UnauthorizedError`, `ForbiddenError`, `ValidationError`, `ConflictError`.
+   - Configured global exception handlers formatting all errors into:
+     ```json
+     {
+       "error": {
+         "code": "ERROR_CODE_STRING",
+         "message": "Human readable description",
+         "details": {}
+       }
+     }
+     ```
+   - Handled `AppException`, `StarletteHTTPException`, `FastAPIHTTPException`, `RequestValidationError`, and uncaught `Exception`.
+4. **Shared Schemas & Pagination (`schemas/common.py`, `schemas/base.py`)**:
+   - Implemented `PaginationParams` and generic `PaginatedResponse[T]` supporting cursor pagination.
+   - Created standardized domain schemas for `UserProfile`, `NodeResponse`, `ProductResponse`, and `InventoryItemResponse`.
+5. **Initial RLS-Protected Endpoints (`api/v1/endpoints/`)**:
+   - `GET /api/v1/me`: Returns authenticated profile, role, and node association.
+   - `GET /api/v1/nodes`: Lists supply chain nodes visible to the caller with cursor pagination.
+   - `GET /api/v1/products`: Product catalog listing with search and cold-chain filters.
+   - `GET /api/v1/inventory`: Returns RLS-restricted inventory records scoped to the caller's node and visible downstream nodes.
+6. **Main Application & OpenAPI Documentation (`main.py`)**:
+   - Configured lifespan manager with startup and shutdown hooks.
+   - Integrated OpenAPI tags metadata and grouped documentation accessible at `/docs`.
+   - Configured CORS middleware.
+7. **Automated Testing Suite (`tests/test_api_core.py`)**:
+   - 12 comprehensive unit and integration tests verifying health probes, correlation ID propagation, 401 error format, 422 validation format, 404 envelope, custom exceptions, unhandled 500 error masking, RLS inventory scoping, node hierarchy visibility, and product search.
+
+### Verification Status
+- [x] Config module correctly loads settings using `pydantic-settings`.
+- [x] Correlation ID middleware registered and propagates `X-Correlation-ID` header.
+- [x] Custom exception handlers format all errors into `{ "error": { "code", "message", "details" } }`.
+- [x] Health endpoint returns HTTP 200 with status info.
+- [x] Initial endpoints created: `/api/v1/me`, `/api/v1/nodes`, `/api/v1/products`, `/api/v1/inventory`.
+- [x] OpenAPI interactive documentation generated at `/docs`.
+- [x] All 18 pytest tests pass cleanly with 0 failures and 0 linter warnings.
+
+
 

@@ -3,6 +3,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.config import settings
 from app.main import app
 
 
@@ -16,8 +17,8 @@ async def test_health_endpoint() -> None:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert data["app"] == "MediFlux Backend"
-        assert data["version"] == "0.1.0"
+        assert data["app"] == settings.PROJECT_NAME
+        assert data["version"] == settings.VERSION
 
 
 @pytest.mark.asyncio
@@ -31,4 +32,3 @@ async def test_api_v1_status() -> None:
         data = response.json()
         assert data["status"] == "active"
         assert data["version"] == "v1"
-
