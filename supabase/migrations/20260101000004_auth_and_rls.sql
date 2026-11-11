@@ -209,3 +209,4 @@ CREATE POLICY events_insert_policy ON events
     FOR INSERT
     TO authenticated
     WITH CHECK (node_id IN (SELECT visible_node_ids()));
+

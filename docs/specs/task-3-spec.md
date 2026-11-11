@@ -74,3 +74,4 @@ Enforce per-node data isolation and hierarchical role-based access control acros
 - [x] Demo seed script `scripts/seed_demo_users.py` created and runnable.
 - [x] Security dependencies export `CurrentUser`, `get_current_user`, `get_actor`, `get_user_db_client`, `get_service_db_client`.
 - [x] Test suite `tests/test_rls_and_auth.py` passes cleanly (`pytest`).
+
