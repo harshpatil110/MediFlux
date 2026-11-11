@@ -73,3 +73,4 @@ class ConflictError(AppException):
 
     def __init__(self, message: str = "Resource conflict", details: dict[str, Any] | None = None) -> None:
         super().__init__(message=message, code=self.code, status_code=self.status_code, details=details)
+

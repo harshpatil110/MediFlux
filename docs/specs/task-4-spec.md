@@ -80,3 +80,4 @@ Establish the foundational FastAPI application architecture, middleware stack, s
 - [x] Endpoints `/api/v1/me`, `/api/v1/nodes`, `/api/v1/products`, and `/api/v1/inventory` implemented with RLS scoping.
 - [x] OpenAPI interactive documentation accessible at `/docs` with custom tags.
 - [x] Test suite `tests/test_api_core.py` passes with 0 failures (`pytest`).
+
