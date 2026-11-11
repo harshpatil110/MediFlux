@@ -94,3 +94,4 @@ CREATE INDEX IF NOT EXISTS idx_demand_signals_embedding
 CREATE INDEX IF NOT EXISTS idx_reg_notifications_embedding 
     ON reg_notifications 
     USING hnsw (embedding vector_cosine_ops);
+

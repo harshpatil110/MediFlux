@@ -57,3 +57,4 @@ Establish the relational data foundations for MediFlux, creating PostgreSQL migr
 - [x] Performance B-Tree indexes and HNSW vector cosine indexes defined in migration 3.
 - [x] Detailed documentation created in `docs/schema.md`.
 - [x] Audit log updated in `docs/HOW_AI_BUILT_THIS.md`.
+

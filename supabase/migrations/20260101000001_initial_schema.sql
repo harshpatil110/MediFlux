@@ -439,3 +439,4 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
     error TEXT,
     delivered_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
+

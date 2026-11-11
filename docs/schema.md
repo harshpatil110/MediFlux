@@ -214,3 +214,4 @@ apply_expiry(
 | `idx_batches_product` | `batches` | B-Tree | `product_id` | Product-to-batch lineage lookups |
 | `idx_demand_signals_embedding`| `demand_signals`| HNSW | `embedding vector_cosine_ops` | Nearest-neighbor demand pattern clustering |
 | `idx_reg_notifications_embedding`| `reg_notifications`| HNSW | `embedding vector_cosine_ops` | RAG semantic retrieval for CDSCO regulatory notices |
+
