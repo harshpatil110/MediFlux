@@ -33,9 +33,53 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 ### Verification Status
 - [x] Monorepo directories and package `__init__.py` files verified.
 - [x] Backend FastAPI `/health` endpoint operational and returning HTTP 200.
-- [x] Pytest suite executed and passing cleanly (`1 passed`).
+- [x] Pytest suite executed and passing cleanly (`2 passed`).
 - [x] Ruff linter executed and passing with 0 errors.
 - [x] Frontend package configured and build verification clean.
 - [x] Startup scripts executable.
 - [x] Strict prohibition of Redis, Docker, WASM, and Redpanda documented in `AGENTS.md`.
+
+---
+
+## Task 2: Supabase Project and Database Schema
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Initial Schema Migration (`20260101000001_initial_schema.sql`)**:
+   - Enabled PostgreSQL extensions: `uuid-ossp` and `vector` (pgvector).
+   - Created 10 custom enumerations: `node_tier`, `batch_status`, `order_status`, `transfer_status`, `shipment_status`, `production_status`, `module_kind`, `module_status`, `hitl_status`, and `schedule_class`.
+   - Defined 25 relational tables covering all 10 supply chain tiers:
+     - **Network**: `nodes`, `profiles`
+     - **Catalog**: `products`, `batches`
+     - **Inventory**: `inventory` (with `CHECK >= 0` and unique constraint on `(node_id, product_id, batch_id)`), `api_inventory`
+     - **Events**: `events` (with `UNIQUE (event_id)` for idempotency and correlation tracking)
+     - **Operations**: `orders`, `transfers`, `fleet_vehicles`, `shipments`, `credit_accounts`, `settlements`
+     - **Manufacturing**: `production_lines`, `production_batches`, `demand_signals` (with `vector(1536)` embedding)
+     - **Compliance**: `drug_schedules`, `doctor_registry_mock`, `prescriptions`, `compliance_logs`
+     - **Cold Chain**: `sensor_readings`, `quarantine_actions`
+     - **AI Governance**: `agent_runs`, `modules`, `adapters`, `reg_notifications` (with `vector(1536)` embedding), `hitl_tasks`, `audit_ledger`
+     - **Developer Platform**: `api_keys`, `webhook_subscriptions`, `webhook_deliveries`
+2. **Atomic Stored Functions (`20260101000002_atomic_functions.sql`)**:
+   - Implemented `apply_sale`: Atomically decrements quantity with explicit row-level locking (`FOR UPDATE`) to prevent overselling and concurrency collisions.
+   - Implemented `apply_return`: Atomically increments inventory balances with upsert handling on conflict.
+   - Implemented `apply_expiry`: Deducts expired units and automatically transitions batch status to `expired` when network-wide batch inventory reaches 0.
+3. **Optimized Indexes Migration (`20260101000003_indexes.sql`)**:
+   - Created B-Tree performance indexes on high-throughput columns: `events(created_at)`, `events(correlation_id)`, `agent_runs(correlation_id)`, `inventory(node_id, product_id)`, and `batches(product_id)`.
+   - Created HNSW vector cosine distance indexes (`vector_cosine_ops`) on `demand_signals(embedding)` and `reg_notifications(embedding)` for semantic similarity and RAG search.
+4. **Documentation & Specifications**:
+   - Authored comprehensive documentation in `docs/schema.md` detailing every table, foreign key relationship, and atomic stored function signature.
+   - Created `docs/specs/task-2-spec.md` conforming to the spec-driven AI-IDE workflow.
+
+### Verification Status
+- [x] Migration files created under `supabase/migrations/`.
+- [x] All 25 tables defined with UUID primary keys and foreign key constraints.
+- [x] pgvector extension enabled with 1536-dimensional embeddings.
+- [x] Idempotency constraint (`UNIQUE (event_id)`) enforced on `events`.
+- [x] Concurrency-safe atomic PL/pgSQL routines (`apply_sale`, `apply_return`, `apply_expiry`) implemented.
+- [x] B-Tree and HNSW vector search indexes defined.
+- [x] Comprehensive documentation in `docs/schema.md` and `docs/specs/task-2-spec.md`.
+
 
