@@ -25,3 +25,4 @@ async def verify_auth_token(
 
     token = parts[1]
     return token
+

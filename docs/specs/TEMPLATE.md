@@ -44,3 +44,4 @@ A concise statement of what this task accomplishes and its place in the MediFlux
 - [ ] Unit and integration tests written and passing cleanly (`pytest`).
 - [ ] Linter passing with zero warnings or errors (`ruff check .`).
 - [ ] Audit entry recorded in `docs/HOW_AI_BUILT_THIS.md`.
+

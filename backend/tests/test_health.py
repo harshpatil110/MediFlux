@@ -31,3 +31,4 @@ async def test_api_v1_status() -> None:
         data = response.json()
         assert data["status"] == "active"
         assert data["version"] == "v1"
+

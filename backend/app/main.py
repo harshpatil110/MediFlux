@@ -48,3 +48,4 @@ async def health_check() -> dict[str, Any]:
 
 # Include API v1 routes
 app.include_router(api_router, prefix="/api/v1")
+

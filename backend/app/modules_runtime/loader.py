@@ -34,3 +34,4 @@ class SafeModuleLoader:
         module_registry.register(name=module_name, code=source_code)
 
         return namespace
+

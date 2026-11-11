@@ -4,3 +4,4 @@ from app.events.bus import EventBus, event_bus
 from app.events.models import DomainEvent
 
 __all__ = ["DomainEvent", "EventBus", "event_bus"]
+

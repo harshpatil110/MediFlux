@@ -13,3 +13,4 @@ async def get_api_v1_status() -> dict[str, str]:
         "version": "v1",
         "ecosystem": "MediFlux Pharma Network",
     }
+

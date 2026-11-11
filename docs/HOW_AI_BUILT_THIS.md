@@ -38,3 +38,4 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] Frontend package configured and build verification clean.
 - [x] Startup scripts executable.
 - [x] Strict prohibition of Redis, Docker, WASM, and Redpanda documented in `AGENTS.md`.
+

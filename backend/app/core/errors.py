@@ -34,3 +34,4 @@ class ModuleSecurityViolation(MediFluxError):
 
 class EntityNotFoundError(MediFluxError):
     """Raised when a requested resource is not found."""
+

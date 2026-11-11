@@ -21,3 +21,4 @@ class BasePharmaAgent(ABC):
     @abstractmethod
     async def evaluate_state(self) -> dict[str, Any]:
         """Inspect agent's internal state, inventory, and pending orders."""
+

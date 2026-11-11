@@ -88,3 +88,4 @@ class StaticASTGuard(ast.NodeVisitor):
             raise ModuleSecurityViolation(
                 f"Static AST Guard rejected code due to violations: {violation_details}"
             )
+

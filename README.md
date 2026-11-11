@@ -101,3 +101,4 @@ npm run build
 ## Spec-Driven Development
 
 Every task is driven by specifications under `docs/specs/` and tracked in the audit trail `docs/HOW_AI_BUILT_THIS.md`. Consult `AGENTS.md` before making code changes.
+
