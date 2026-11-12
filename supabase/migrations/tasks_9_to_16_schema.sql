@@ -374,3 +374,4 @@ DROP TRIGGER IF EXISTS trg_audit_no_delete ON public.audit_ledger;
 CREATE TRIGGER trg_audit_no_delete
 BEFORE DELETE ON public.audit_ledger
 FOR EACH ROW EXECUTE FUNCTION prevent_audit_tampering();
+

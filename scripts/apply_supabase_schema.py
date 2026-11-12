@@ -164,3 +164,4 @@ if __name__ == "__main__":
         verify_tables()
     else:
         apply_migrations()
+
