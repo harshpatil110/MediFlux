@@ -221,3 +221,50 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] All 10 tests in `test_llm_router.py` pass; total 35 backend tests pass with 0 failures.
 - [x] Linter `ruff check .` passes with 0 warnings/errors.
 
+---
+
+## Task 6: Event Bus, Event Persistence, and SSE Stream
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Domain Event Models (`app/events/models.py`)**:
+   - Defined `EventEnvelope` containing `event_id`, `type`, `node_id`, `correlation_id`, `timestamp`, and `payload`.
+   - Created typed domain event schemas: `SaleEvent`, `ReturnEvent`, `ExpiryEvent`, and `SensorReadingEvent`.
+   - Aliased `DomainEvent = EventEnvelope` and preserved simulator payloads (`DispenseEventPayload`, `ReorderDemandPayload`) for full backwards compatibility.
+2. **Abstract Event Bus & In-Process Implementation (`app/events/bus.py`)**:
+   - Defined abstract base class `EventBus` with `publish(topic, event)` and `subscribe(topic)`.
+   - Built `InProcessEventBus` using thread-safe `asyncio.Queue` per subscription, supporting standard topics: `pos.sales`, `cascade.updates`, `agent.activity`, `hitl`, `coldchain`, `regulatory`, `webhooks`.
+   - Added automated database persistence hook upserting events into PostgreSQL `events` table.
+   - Enforced in-memory idempotency guards to eliminate duplicate bus broadcasts.
+3. **Atomic Inventory Decrement Stored Procedure (`supabase/migrations/004_events_and_inventory_rpc.sql`, `app/events/service.py`)**:
+   - Authored stored function `apply_sale(p_event_id, p_pharmacy_id, p_product_id, p_batch_id, p_quantity, p_correlation_id)`:
+     - Detects duplicate `p_event_id` and exits early with `{ "status": "duplicate", "applied": false }`.
+     - Inserts record into `events` table.
+     - Atomically decrements `inventory.quantity` ensuring non-negative stock balance.
+     - Appends rolling cryptographic hash entry to immutable `audit_ledger`.
+     - Returns `{ "status": "success", "applied": true, "remaining_quantity": ... }`.
+   - Implemented service layer with resilient local transactional fallback for offline development and instantaneous unit test execution.
+4. **Point-of-Sale Ingestion Endpoints (`app/api/v1/endpoints/events.py`)**:
+   - `POST /api/v1/events/sale`: Ultra-fast, zero-LLM retail counter dispense endpoint returning HTTP 202 Accepted.
+   - `POST /api/v1/events/sale/batch`: Batch ingestion endpoint for simulated bulk sales and load testing.
+5. **Server-Sent Events (SSE) Streaming & Replay (`app/events/sse.py`, `app/api/v1/endpoints/stream.py`)**:
+   - `GET /api/v1/stream`: Real-time event streaming powered by `sse-starlette` (`EventSourceResponse`).
+   - Implemented `Last-Event-ID` reconnection replay querying historical events created after the given ID.
+   - Scoped live event stream using caller's `visible_node_ids()` to guarantee cross-tenant privacy between pharmacies.
+   - Configured 15-second heartbeat ping comments and graceful queue cleanup on client disconnect.
+6. **Automated Testing Suite (`tests/test_events_and_sse.py`)**:
+   - Created 7 integration tests verifying sub-second POS ingestion and broadcast (< 1s), duplicate sale idempotency, batch sale ingestion, SSE stream replay via `Last-Event-ID`, cross-node isolation filtering, stream auth protection, and Supabase RPC execution.
+
+### Verification Status
+- [x] Domain models `EventEnvelope`, `SaleEvent`, `ReturnEvent`, `ExpiryEvent`, `SensorReadingEvent` created.
+- [x] `InProcessEventBus` supports topics, async subscriptions, persistence hooks, and duplicate protection.
+- [x] `apply_sale` SQL migration written and tested.
+- [x] `POST /api/v1/events/sale` and `POST /api/v1/events/sale/batch` implemented without LLM overhead.
+- [x] `GET /api/v1/stream` supports `Last-Event-ID` replay, 15-second heartbeats, and node isolation.
+- [x] All 7 tests in `test_events_and_sse.py` pass; total 42 backend tests pass cleanly.
+- [x] `ruff check .` passes with 0 warnings/errors.
+
+
