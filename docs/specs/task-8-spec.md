@@ -57,3 +57,4 @@ The runtime guarantees safety via:
 - **Atomic Hot-Swap & Rollback**: Verifies version creation, test running, activation, and instantaneous rollback.
 - **Bootstrap Verification**: Ingests, tests, and activates all 4 core business rule modules.
 - **API Endpoint Tests**: Verifies listing, version inspection, and rollback over HTTP.
+

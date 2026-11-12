@@ -74,3 +74,4 @@ The Bootstrap Coding Agent compiles these policies into verified, versioned Pyth
   - `unit_price`: Submitted price (float)
   - `ceiling_price`: Statutory ceiling (float)
   - `excess_amount`: Overcharge amount `max(0.0, unit_price - neml_ceiling_price)` (float)
+
