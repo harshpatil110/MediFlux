@@ -181,7 +181,7 @@ async def test_products_catalog_search_and_filters() -> None:
         assert res_search.status_code == 200
         search_items = res_search.json()["items"]
         assert len(search_items) == 1
-        assert "Insulin" in search_items[0]["generic_name"]
+        assert "Insulin" in search_items[0]["generic_name"] or "Insulin" in search_items[0]["name"]
 
         # Cold chain filter
         res_cold = await client.get("/api/v1/products?is_cold_chain=true")

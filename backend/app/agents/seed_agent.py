@@ -338,12 +338,20 @@ class SeedAgent:
             ceiling = float(item.get("neml_ceiling_price", 25.0))
             price = round(ceiling * 0.92, 2)  # Retail selling price slightly below DPCO ceiling
 
+            # Extract generic name by removing strength and dosage form suffixes
+            name_tokens = item["product_name"].split(" ")
+            filtered_tokens = [
+                w for w in name_tokens
+                if not any(c.isdigit() for c in w) and w.lower() not in ("tablets", "capsules", "injection", "syrup", "vials", "drops")
+            ]
+            derived_generic_name = " ".join(filtered_tokens) if filtered_tokens else name_tokens[0]
+
             products.append(
                 SyntheticProduct(
                     id=prod_id,
                     sku=sku,
                     name=item["product_name"],
-                    generic_name=item["product_name"].split(" ")[0],
+                    generic_name=derived_generic_name,
                     schedule_class=sched_class,
                     is_cold_chain=bool(item.get("is_cold_chain", False)),
                     storage_min_c=item.get("min_temp_celsius"),
