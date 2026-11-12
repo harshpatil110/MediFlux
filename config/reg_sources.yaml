@@ -1,0 +1,19 @@
+# Official Indian Pharmaceutical Regulatory Sources Configuration
+sources:
+  - name: mohfw
+    full_name: "Ministry of Health and Family Welfare"
+    url: "https://mohfw.gov.in"
+    fallback_fixture: "fixtures/regulatory/cdsco_track_and_trace_notice.txt"
+    enabled: true
+
+  - name: cdsco
+    full_name: "Central Drugs Standard Control Organization"
+    url: "https://cdsco.gov.in/opencms/opencms/en/Notifications/Gazette-Notifications/"
+    fallback_fixture: "fixtures/regulatory/cdsco_track_and_trace_notice.txt"
+    enabled: true
+
+  - name: nppa
+    full_name: "National Pharmaceutical Pricing Authority / eGazette"
+    url: "https://egazette.gov.in"
+    fallback_fixture: "fixtures/regulatory/nppa_price_ceiling_notice.txt"
+    enabled: true

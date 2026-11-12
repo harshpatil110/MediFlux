@@ -1,0 +1,22 @@
+GOVERNMENT OF INDIA
+DIRECTORATE GENERAL OF HEALTH SERVICES
+CENTRAL DRUGS STANDARD CONTROL ORGANIZATION (CDSCO)
+FDA Bhawan, Kotla Road, New Delhi-110002
+
+NOTIFICATION
+Dated: 14th November 2026
+Ref: CDSCO/ENF/2026/TRK-092
+
+Subject: Mandatory 2D Barcode (GS1 DataMatrix / GTIN) and Serialization Track-and-Trace for Schedule H1 and Cold-Chain Formulations.
+
+In exercise of the powers conferred by section 26A and section 33 of the Drugs and Cosmetics Act, 1940, and Rule 96 of the Drugs Rules, 1945, the Central Government, on the recommendation of the Drugs Technical Advisory Board (DTAB), hereby directs that:
+
+1. Every active manufacturer, distributor, and stockist dispatching Schedule H1 antibiotics and cold-chain formulations shall print or affix a GS1 DataMatrix 2D Barcode on the primary packaging containing:
+   (a) Global Trade Item Number (GTIN);
+   (b) Unique serial identifier;
+   (c) Batch number;
+   (d) Expiry date.
+
+2. All consignments must include validated 'gtin_barcode' and 'batch_no' attributes in the electronic dispatch manifest.
+3. Any consignment lacking serialized barcode attributes or missing verifiable GTIN shall be placed on immediate compliance hold.
+4. Effective Date: Immediate.

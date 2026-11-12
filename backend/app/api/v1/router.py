@@ -13,6 +13,7 @@ from app.api.v1.endpoints.inventory import router as inventory_router
 from app.api.v1.endpoints.modules import router as modules_router
 from app.api.v1.endpoints.nodes import router as nodes_router
 from app.api.v1.endpoints.products import router as products_router
+from app.api.v1.endpoints.regulatory import router as regulatory_router
 from app.api.v1.endpoints.simulator import router as simulator_router
 from app.api.v1.endpoints.stream import router as stream_router
 
@@ -32,6 +33,7 @@ api_router.include_router(modules_router)
 api_router.include_router(simulator_router)
 api_router.include_router(adapters_router)
 api_router.include_router(ingest_router)
+api_router.include_router(regulatory_router)
 
 
 @api_router.get("/status", tags=["System Status"])

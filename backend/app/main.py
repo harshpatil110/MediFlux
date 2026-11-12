@@ -56,6 +56,10 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
         "name": "Live Legacy Ingestion",
         "description": "Restricted-guard translation and real-time ingestion of legacy format payloads.",
     },
+    {
+        "name": "Regulatory Pipeline",
+        "description": "Autonomous regulatory change detection, code mutation, staging testing, and zero-downtime hot-swap.",
+    },
 ]
 
 

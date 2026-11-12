@@ -883,3 +883,65 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] `ruff check backend` clean (0 warnings/errors).
 - [x] `npm --prefix frontend run build` clean.
 - [x] Specification created at `docs/specs/task-17-spec.md`.
+
+---
+
+## Task 18: Regulatory Pipeline (Crawler, Analyst, DevOps Coding Agent, Hot-Swap)
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 4 — Autonomous Edge Operations
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Regulatory Sources & Synthetic Test Fixtures (`config/reg_sources.yaml`, `fixtures/regulatory/`, `backend/fixtures/regulatory/`)**:
+   - Configured official Indian healthcare regulatory bodies (MoHFW, CDSCO, NPPA / Gazette of India) in `reg_sources.yaml`.
+   - Created synthetic notifications mirroring authentic gazette formats:
+     - `nppa_price_ceiling_notice.txt`: DPCO price ceiling notification capping `Paracetamol 500mg` / `PARA-500` at INR 12.50.
+     - `cdsco_track_and_trace_notice.txt`: CDSCO directive mandating 2D DataMatrix GTIN barcodes and batch serialization.
+     - `corrupt_or_untestable_notice.txt`: Ambiguous/corrupt draft notice for verifying low-confidence (<0.70) HITL gating.
+2. **Database Migration (`supabase/migrations/013_regulatory_pipeline.sql`)**:
+   - Updated `reg_notifications` schema with `source`, `content_hash`, `correlation_id`, and `status`.
+   - Created `regulatory_runs` table tracking `notification_id`, `reg_change`, `v_current_code`, `v_new_code`, `diff`, `staged_version`, `active_version`, `test_results`, `status`, and `hitl_task_id`.
+3. **Autonomous Regulatory Multi-Agent Pipeline (`backend/app/graphs/regulatory.py`, `app/agents/graphs/regulatory.py`, `graphs/regulatory.py`)**:
+   - `crawl_regulatory_notice`: Ingestion, normalization, and SHA-256 deduplication.
+   - `analyst_node`: Multi-agent parsing extracting structured `RegChange`. Ambiguous or corrupt notices with confidence < 0.70 pause cleanly to `awaiting_hitl_clarification` (`regulatory_clarification` policy).
+   - `devops_coder_node`: Fetches active v1 code and synthesizes compliant v2 mutations (DPCO price ceiling calculation or GTIN barcode checks) and computes unified diff via `difflib.unified_diff`.
+   - `test_generator_node`: Synthesizes regulatory assertions while retaining 100% of baseline regression test suites.
+   - `staging_test_runner_node`: Validates mutated modules against Task 8 `ASTGuard` (blocking OS, network, and execution escapes) and executes in sandboxed `SubprocessRunner`. Fix loop retries up to `max_attempts` on failure.
+   - `deploy_gate_node`: Gating policy creates pending HITL task (`regulatory_hot_swap`) for pricing and compliance modules or when `REG_AUTO_DEPLOY=False`.
+   - `activate_regulatory_run`: Atomically repoints `module_registry` active version without server restart and writes `REGULATORY_HOT_SWAP_DEPLOYED` to `public.audit_ledger`.
+   - `rollback_regulatory_run`: Instantly restores prior module version and writes `REGULATORY_HOT_SWAP_ROLLED_BACK` to `public.audit_ledger`.
+4. **HITL Policy Integration (`backend/app/core/hitl_policy.py`, `config/hitl_policies.yaml`, `backend/config/hitl_policies.yaml`)**:
+   - Configured `regulatory_hot_swap` policy (authorized roles: `compliance_officer`, `admin`, `pharmacist_in_charge`, `system_admin`, 48h expiry).
+   - Configured `regulatory_clarification` policy (authorized roles: `compliance_officer`, `admin`, 24h expiry).
+5. **REST API Endpoints (`backend/app/api/v1/endpoints/regulatory.py`)**:
+   - `POST /api/v1/regulatory/notifications`: Ingests notice, SHA-256 deduplicates, and runs pipeline.
+   - `GET /api/v1/regulatory/runs/{id}`: Returns run details, parsed `RegChange`, unified diff, and test results.
+   - `POST /api/v1/regulatory/check-now`: On-demand crawler triggering automated source checks.
+   - `POST /api/v1/regulatory/runs/{id}/approve`: Approves HITL task, resolves approval, executes zero-downtime hot-swap, and writes audit record.
+   - `POST /api/v1/regulatory/runs/{id}/rollback`: Restores prior version and writes audit record.
+   - `POST /api/v1/regulatory/price-check`: Direct live pricing verification against active `pricing_engine` module.
+   - `GET /api/v1/regulatory/notifications` & `GET /api/v1/regulatory/runs`: Query catalogs.
+   - Mounted in `backend/app/api/v1/router.py` with OpenAPI tag `"Regulatory Pipeline"`.
+6. **Automated Test Suite (`backend/tests/test_regulatory.py`)**:
+   - 8 comprehensive tests passing:
+     - `test_price_ceiling_notice_to_staging`: Verifies NPPA ceiling notice creates v2 code, passes AST guard, and pauses in staging awaiting HITL approval.
+     - `test_zero_downtime_hot_swap`: Verifies live pricing reflects v1 before approval, switches to v2 price cap immediately after approval without server restart, and records `REGULATORY_HOT_SWAP_DEPLOYED` in `audit_ledger`.
+     - `test_instant_rollback`: Verifies rolling back active v2 immediately restores v1 pricing and records `REGULATORY_HOT_SWAP_ROLLED_BACK` in `audit_ledger`.
+     - `test_guard_rejection_and_max_attempts_safety`: Verifies malicious code injection (`import os`) triggers AST guard rejection, cycles retry loop, and cleanly fails without activation.
+     - `test_low_confidence_gate_to_hitl`: Verifies corrupt/ambiguous notice pauses at `awaiting_hitl_clarification` with confidence < 0.70.
+     - `test_track_and_trace_compliance_mutation`: Verifies CDSCO notice mutates `compliance_validator` to enforce GTIN barcode and batch serialization.
+     - `test_manual_check_now_endpoint`: Verifies manual trigger crawls all configured sources.
+     - `test_notifications_and_runs_catalog_queries`: Verifies query endpoints for notices and pipeline runs.
+
+### Verification Status
+- [x] Regulatory sources configured in `config/reg_sources.yaml` and fixtures created in `fixtures/regulatory/`.
+- [x] Database migration created at `supabase/migrations/013_regulatory_pipeline.sql`.
+- [x] Regulatory multi-agent LangGraph workflow implemented with AST guard, regression preservation, and fix loop.
+- [x] HITL policies `regulatory_hot_swap` and `regulatory_clarification` configured.
+- [x] Zero-downtime hot-swap and instant rollback implemented and cryptographically audited in `audit_ledger`.
+- [x] REST API endpoints mounted under `/api/v1/regulatory`.
+- [x] All 8 tests in `test_regulatory.py` pass; entire backend test suite passes (132/132 tests pass in 42s).
+- [x] `ruff check backend` clean (0 errors/warnings).
+- [x] `npm --prefix frontend run build` clean.
+- [x] Specification created at `docs/specs/task-18-spec.md`.

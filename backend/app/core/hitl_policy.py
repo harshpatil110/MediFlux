@@ -39,6 +39,18 @@ _DEFAULT_POLICIES: dict[str, dict[str, Any]] = {
         "expiry_hours": 24,
         "description": "Approval for bulk inventory replenishment reorders.",
     },
+    "regulatory_hot_swap": {
+        "enabled": True,
+        "required_roles": ["compliance_officer", "admin", "pharmacist_in_charge", "system_admin"],
+        "expiry_hours": 48,
+        "description": "Approval for hot-swapping regulatory-mandated price ceiling or compliance module updates.",
+    },
+    "regulatory_clarification": {
+        "enabled": True,
+        "required_roles": ["compliance_officer", "admin"],
+        "expiry_hours": 24,
+        "description": "Clarification and verification for ambiguous or low-confidence regulatory notices.",
+    },
 }
 
 _cached_policies: dict[str, dict[str, Any]] | None = None
