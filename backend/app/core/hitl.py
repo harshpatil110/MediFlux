@@ -1,11 +1,16 @@
 """Human-in-the-Loop (HITL) core approval workflows, task persistence, audit logging, and graph interruption."""
 
-import hashlib
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from app.core.audit_ledger import (
+    _in_memory_audit_ledger,
+    clear_in_memory_audit_ledger,
+    compute_entry_hash,
+    get_in_memory_audit_ledger,
+)
 from app.core.config import settings
 from app.core.hitl_policy import get_expiry_hours, is_hitl_required
 from app.core.security import get_service_db_client
@@ -14,9 +19,20 @@ from app.events.models import EventEnvelope
 
 logger = logging.getLogger("mediflux.core.hitl")
 
+__all__ = [
+    "clear_in_memory_audit_ledger",
+    "get_in_memory_audit_ledger",
+    "record_audit_log",
+    "request_human_approval",
+    "get_hitl_task",
+    "clear_hitl_tasks",
+    "get_in_memory_hitl_tasks",
+    "register_resumable_graph",
+    "get_resumable_graph",
+]
+
 # In-memory storage for test isolation and offline operation
 _in_memory_hitl_tasks: dict[str, dict[str, Any]] = {}
-_in_memory_audit_ledger: list[dict[str, Any]] = []
 _registered_resumable_graphs: dict[str, tuple[Any, dict[str, Any]]] = {}
 _hitl_decisions: dict[str, dict[str, Any]] = {}
 
@@ -90,16 +106,6 @@ def resolve_hitl_task(task_id: str, status: str = "approved", decision_reason: s
         _in_memory_hitl_tasks[tid]["decided_at"] = datetime.now(UTC).isoformat()
 
 
-def get_in_memory_audit_ledger() -> list[dict[str, Any]]:
-    """Retrieve in-memory audit ledger entries."""
-    return list(_in_memory_audit_ledger)
-
-
-def clear_in_memory_audit_ledger() -> None:
-    """Clear in-memory audit ledger entries."""
-    _in_memory_audit_ledger.clear()
-
-
 # -----------------------------------------------------------------------------
 # Audit Ledger Writer
 # -----------------------------------------------------------------------------
@@ -110,21 +116,42 @@ def record_audit_log(
 ) -> dict[str, Any]:
     """Record an immutable entry in the audit ledger and in-memory store."""
     now_iso = datetime.now(UTC).isoformat()
-    prev_hash = "GENESIS"
+    latest_seq = len(_in_memory_audit_ledger)
+    prev_hash = "0" * 64
     if _in_memory_audit_ledger:
-        prev_hash = _in_memory_audit_ledger[-1].get("current_hash", "GENESIS")
+        prev_hash = str(_in_memory_audit_ledger[-1].get("hash") or _in_memory_audit_ledger[-1].get("current_hash") or ("0" * 64))
 
-    data_to_hash = f"{prev_hash}:{action_type}:{now_iso}:{payload}"
-    cur_hash = hashlib.sha256(data_to_hash.encode("utf-8")).hexdigest()
+    new_seq = latest_seq + 1
+    new_hash = compute_entry_hash(
+        prev_hash=prev_hash,
+        seq=new_seq,
+        ts=now_iso,
+        actor="system",
+        action=action_type,
+        entity_type="hitl_task",
+        entity_id=str(payload.get("task_id", node_id or "system")),
+        payload=payload,
+        explanation="",
+    )
 
     record = {
         "id": str(uuid.uuid4()),
-        "previous_hash": prev_hash,
-        "current_hash": cur_hash,
-        "action_type": action_type,
-        "node_id": node_id if node_id and len(str(node_id)) == 36 else None,
-        "payload": payload,
+        "seq": new_seq,
+        "sequence_id": new_seq,
+        "ts": now_iso,
         "timestamp": now_iso,
+        "actor": "system",
+        "action": action_type,
+        "action_type": action_type,
+        "entity_type": "hitl_task",
+        "entity_id": str(payload.get("task_id", node_id or "system")),
+        "payload": payload,
+        "explanation": "",
+        "prev_hash": prev_hash,
+        "previous_hash": prev_hash,
+        "hash": new_hash,
+        "current_hash": new_hash,
+        "node_id": node_id if node_id and len(str(node_id)) == 36 else None,
     }
 
     if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:

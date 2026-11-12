@@ -44,6 +44,10 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
         "name": "HITL",
         "description": "Human-in-the-Loop approval workflows, tasks, and operator decision checkpoints.",
     },
+    {
+        "name": "Audit Ledger",
+        "description": "Cryptographically verified, tamper-evident hash-chained audit trails.",
+    },
 ]
 
 

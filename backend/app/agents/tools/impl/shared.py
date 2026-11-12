@@ -141,17 +141,58 @@ async def run_module(module_name: str, inputs: dict[str, Any]) -> dict[str, Any]
         }
 
 
+KEY_EXPLANATION_EVENTS = {
+    "HITL_DECISION_SUBMITTED",
+    "BATCH_QUARANTINE",
+    "SCHEDULE_H_OVERRIDE",
+    "MODULE_ACTIVATION",
+    "SETTLEMENT_APPROVED",
+    "HITL_APPROVE",
+    "HITL_REJECT",
+}
+
+
 @tool(
     name="write_audit",
     description="Record an immutable audit ledger entry for compliance and regulatory tracing.",
 )
-async def write_audit(actor_id: str, action: str, details: dict[str, Any]) -> dict[str, Any]:
-    """Record an audit trail entry (prepared for Task 16)."""
-    logger.info("write_audit called by [%s] action=[%s]", actor_id, action)
+async def write_audit(
+    actor_id: str,
+    action: str,
+    details: dict[str, Any] | None = None,
+    entity_type: str = "general",
+    entity_id: str = "",
+    explanation: str = "",
+) -> dict[str, Any]:
+    """Record an audit trail entry backed by cryptographically hash-chained audit ledger."""
+    from app.agents.audit_agent import generate_explanation
+    from app.core.audit_ledger import write_audit_entry
+
+    actual_details = dict(details or {})
+    actual_explanation = explanation
+    if not actual_explanation and action.upper() in KEY_EXPLANATION_EVENTS:
+        actual_explanation = await generate_explanation(
+            actor=actor_id,
+            action=action,
+            entity_type=entity_type,
+            payload=actual_details,
+        )
+
+    entry = await write_audit_entry(
+        actor=actor_id,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id or str(actual_details.get("id") or actual_details.get("entity_id") or "system"),
+        payload=actual_details,
+        explanation=actual_explanation,
+    )
     return {
         "status": "recorded",
+        "seq": entry["seq"],
         "actor_id": actor_id,
         "action": action,
-        "hash": "mock-audit-hash-12345",
+        "hash": entry["hash"],
+        "prev_hash": entry["prev_hash"],
+        "explanation": entry.get("explanation", ""),
     }
 

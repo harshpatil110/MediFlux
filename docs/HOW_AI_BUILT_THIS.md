@@ -778,3 +778,51 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] `ruff check backend` passes cleanly with 0 warnings/errors.
 - [x] Frontend `npm run build` succeeds cleanly.
 - [x] Task specification created at `docs/specs/task-15-spec.md`.
+
+
+---
+
+## Task 16: Audit Ledger (Hash-Chained) and Audit Agent
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 3 — Multi-Agent Demand Propagation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Cryptographically Hash-Chained Audit Ledger Service (`app/core/audit_ledger.py`)**:
+   - Implemented canonical JSON hashing with SHA-256:
+     $$\text{hash} = \text{SHA-256}(\text{prev\_hash} + \text{canonical\_json}(\text{entry}))$$
+   - Enforced strict monotonic sequence numbering starting from `seq = 1` with genesis predecessor hash `'0' * 64`.
+   - Built concurrency serialization using `asyncio.Lock` and PostgreSQL transaction locking.
+   - Built full cryptographic verification engine (`verify_audit_chain(...)`) checking continuous predecessor hash links and recomputed hashes, accurately pinpointing `broken_at_seq` on tampering.
+   - Implemented in-memory test store (`_in_memory_audit_ledger`) with in-place extension and dual column naming (`seq`/`sequence_id`, `ts`/`timestamp`, `action`/`action_type`, `prev_hash`/`previous_hash`, `hash`/`current_hash`) ensuring 100% backward compatibility with Task 15 HITL audit logs.
+2. **Audit Agent (`app/agents/audit_agent.py`)**:
+   - Implemented `AuditAgent` inheriting from `BaseAgent`, dedicated to generating professional, regulatory-compliant summaries for CDSCO inspectors.
+   - Built non-blocking `generate_explanation(...)` with a hard 2-second timeout and offline zero-delay checks, guaranteeing that audit ledger writes never block or fail due to LLM provider downtime.
+3. **Database Migration & Engine Immutability (`supabase/migrations/011_audit_ledger.sql`)**:
+   - Created migration for `audit_ledger` with columns `seq`, `ts`, `actor`, `action`, `entity_type`, `entity_id`, `payload`, `explanation`, `prev_hash`, `hash`.
+   - Created database indexes on `(entity_type, entity_id)`, `(actor)`, `(seq)`, and `(ts)`.
+   - Implemented PostgreSQL trigger function `prevent_audit_tampering()` attached `BEFORE UPDATE` and `BEFORE DELETE`, rejecting modifications at the database layer.
+4. **Audit Tool Registration (`app/agents/tools/impl/shared.py`)**:
+   - Updated `write_audit` tool in registry to route through `write_audit_entry` and invoke `AuditAgent.generate_explanation` for key compliance events (`HITL_DECISION_SUBMITTED`, `BATCH_QUARANTINE`, `SCHEDULE_H_OVERRIDE`, `MODULE_ACTIVATION`, `SETTLEMENT_APPROVED`).
+5. **Audit REST API Endpoints (`app/api/v1/endpoints/audit.py`, `app/api/v1/audit.py`)**:
+   - Implemented `GET /api/v1/audit` supporting multifaceted filtering (`entity_type`, `entity_id`, `actor`, `start_date`, `end_date`) and pagination (`limit`, `offset`).
+   - Implemented `GET /api/v1/audit/verify` providing one-click cryptographic validation of the ledger hash chain.
+   - Mounted `audit_router` under `/api/v1/audit` in `app/api/v1/router.py` with OpenAPI documentation tag `"Audit Ledger"`.
+6. **Comprehensive Automated Test Suite (`tests/test_audit_ledger.py`)**:
+   - Implemented 8 tests verifying:
+     - Sequential hash chain generation with monotonic `seq` and `prev_hash` chaining.
+     - Direct database tampering detection identifying `broken_at_seq == 2`.
+     - Concurrent writes integrity (20 concurrent writes without sequence collisions or gaps).
+     - Non-blocking LLM resilience under timeouts (>2s) and runtime exceptions.
+     - Cross-component event coverage across full cascade runs, HITL decisions, module activations, and tool calls.
+
+### Verification Status
+- [x] Canonical JSON hashing and SHA-256 chaining implemented in `app/core/audit_ledger.py`.
+- [x] Concurrency locking and monotonic sequence numbering enforced.
+- [x] Audit Agent with 2-second non-blocking timeout implemented in `app/agents/audit_agent.py`.
+- [x] `write_audit` tool integrated with audit ledger and Audit Agent.
+- [x] Database migration and immutability triggers created at `supabase/migrations/011_audit_ledger.sql`.
+- [x] API endpoints `GET /api/v1/audit` and `GET /api/v1/audit/verify` operational.
+- [x] All 8 tests in `test_audit_ledger.py` pass 100%.
+- [x] Specification created at `docs/specs/task-16-spec.md`.
