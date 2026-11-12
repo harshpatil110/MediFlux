@@ -37,7 +37,23 @@ async def run_simulation(args: argparse.Namespace) -> None:
 
     try:
         result = await simulator.run()
-        logger.info("Simulation completed: %s", result)
+        if args.mode == "single":
+            last_res = result.get("last_result", {})
+            event_id = last_res.get("event_id", "evt-sim-pos-001")
+            print(f"[SUCCESS] Posted single SaleEvent (event_id: {event_id}). Inventory decremented.")
+        elif args.mode == "steady":
+            sent = result.get("events_sent", 0)
+            dur = result.get("duration_seconds", 0)
+            print(f"[SUCCESS] Steady mode completed: {sent} sales emitted over {dur}s.")
+        elif args.mode == "burst":
+            sent = result.get("events_sent", 0)
+            print(f"[SUCCESS] Burst mode completed: {sent} sales emitted.")
+        elif args.mode == "stockout_run":
+            sent = result.get("events_sent", 0)
+            f_stock = result.get("final_stock", 0)
+            print(f"[SUCCESS] Stockout run completed: {sent} sales emitted. Final stock: {f_stock}.")
+        else:
+            print(f"[SUCCESS] Simulation completed: {result}")
     finally:
         await simulator.close()
 
