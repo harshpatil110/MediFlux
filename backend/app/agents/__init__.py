@@ -27,6 +27,11 @@ from app.agents.pharmacy_agent import (
 )
 from app.agents.seed_agent import SeedAgent, seed_agent
 from app.agents.state import AgentGraphState
+from app.agents.stockist_agent import (
+    BalancingDecision,
+    PeerTransferSpec,
+    StockistAgent,
+)
 from app.agents.testing import FakeLLM
 from app.agents.tools.registry import (
     ToolDefinition,
@@ -41,13 +46,16 @@ from app.agents.tools.registry import (
 __all__ = [
     "AgentDecision",
     "AgentGraphState",
+    "BalancingDecision",
     "BaseAgent",
     "BasePharmaAgent",
     "ExpiryFlag",
     "FakeLLM",
     "FinalAnswerAction",
+    "PeerTransferSpec",
     "PharmacyAgent",
     "ReplenishmentSignal",
+    "StockistAgent",
     "ToolCallAction",
     "ToolDefinition",
     "build_hitl_workflow_graph",

@@ -1,6 +1,6 @@
 """Tools package for MediFlux agents."""
 
-from app.tools import pharmacy_tools
+from app.tools import pharmacy_tools, stockist_tools
 from app.tools.pharmacy_tools import (
     check_prescription_link,
     clear_mock_batches,
@@ -27,29 +27,56 @@ from app.tools.registry import (
     list_tools,
     tool,
 )
+from app.tools.stockist_tools import (
+    clear_in_memory_transfers,
+    clear_mock_cluster_inventory,
+    clear_mock_demand_trends,
+    create_order,
+    create_transfer,
+    get_cluster_inventory,
+    get_demand_trend,
+    get_in_memory_transfers,
+    is_high_priority_drug,
+    list_nodes_in_cluster,
+    set_mock_cluster_inventory,
+    set_mock_demand_trend,
+)
 
 __all__ = [
     "ToolDefinition",
     "check_prescription_link",
+    "clear_in_memory_transfers",
     "clear_mock_batches",
+    "clear_mock_cluster_inventory",
+    "clear_mock_demand_trends",
     "clear_mock_events",
     "clear_mock_inventory",
     "clear_mock_sales",
     "clear_registry",
+    "create_order",
+    "create_transfer",
     "execute_tool",
     "get_agent_tools",
     "get_batches_near_expiry",
+    "get_cluster_inventory",
+    "get_demand_trend",
+    "get_in_memory_transfers",
     "get_inventory",
     "get_recent_sales",
     "get_tool",
+    "is_high_priority_drug",
     "is_scheduled_drug",
+    "list_nodes_in_cluster",
     "list_tools",
     "load_doctor_registry",
     "load_drug_schedules",
     "pharmacy_tools",
     "set_mock_batches",
+    "set_mock_cluster_inventory",
+    "set_mock_demand_trend",
     "set_mock_event",
     "set_mock_inventory",
     "set_mock_sales",
+    "stockist_tools",
     "tool",
 ]

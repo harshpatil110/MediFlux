@@ -20,6 +20,8 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from app.agents.base import BaseAgent
+from app.core.config import settings
+from app.core.security import get_service_db_client
 from app.events.bus import in_process_event_bus
 from app.events.models import EventEnvelope
 from app.events.service import get_in_memory_stock
@@ -342,13 +344,134 @@ async def pharmacy_node(state: CascadeState, router: Any = None) -> dict[str, An
 
 
 async def stockist_node(state: CascadeState, router: Any = None) -> dict[str, Any]:
-    """Stockist Hub Node: Aggregate retail demand and issue restocking replenishment."""
-    return await _execute_tier_node(
+    """Stockist Hub Node: Run StockistAgent for cluster balancing, peer transfers, and escalation."""
+    corr_id = state.get("correlation_id", str(uuid.uuid4()))
+    trace = list(state.get("trace", []))
+    errors = list(state.get("errors", []))
+    perf_start = time.perf_counter()
+    start_time = datetime.now(UTC).isoformat()
+
+    await _publish_telemetry(
+        correlation_id=corr_id,
         tier="stockist",
-        state=state,
-        router=router,
-        summary_template="Stockist hub verified inventory levels and initiated replenishment PO",
+        agent_name="StockistAgent",
+        action="started",
+        status="running",
+        summary="StockistAgent evaluating cluster inventory balances, peer transfers, and distributor escalation",
+        trace_step="enter",
     )
+
+    try:
+        from app.agents.stockist_agent import StockistAgent
+
+        agent = StockistAgent(
+            name="StockistAgent",
+            router=router or llm_router,
+        )
+
+        agent_result = await agent.run(
+            state=state,
+            input_data={
+                "event": state.get("event"),
+                "pharmacy_id": state.get("pharmacy_id"),
+                "pharmacy_result": state.get("pharmacy_result"),
+                "product_id": state.get("product_id"),
+                "quantity": state.get("quantity"),
+                "batch_id": state.get("batch_id"),
+                "correlation_id": corr_id,
+            },
+            correlation_id=corr_id,
+        )
+
+        decision = agent_result.decision if hasattr(agent_result, "decision") else None
+        action = agent_result.get("action", "fulfill_local")
+        priority = agent_result.get("priority", "medium")
+        transfers = agent_result.get("transfers", [])
+        escalation_order_id = agent_result.get("escalation_order_id")
+
+        if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+            try:
+                client = get_service_db_client()
+                if client:
+                    target_status = "allocated" if action in ("fulfill_local", "transfer_from_peer") else "escalated"
+                    client.table("orders").update({"status": target_status}).eq("correlation_id", corr_id).eq("status", "requested").execute()
+            except Exception as db_exc:
+                logger.debug("Updating orders status in stockist_node failed: %s", db_exc)
+
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        summary = f"Stockist balancing completed: action={action}, priority={priority}, transfers={len(transfers)}"
+
+        trace.append({
+            "tier": "stockist",
+            "agent_name": "StockistAgent",
+            "status": "success",
+            "summary": summary,
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="stockist",
+            agent_name="StockistAgent",
+            action="completed",
+            status="success",
+            summary=summary,
+            trace_step="complete",
+            details={
+                "action": action,
+                "priority": priority,
+                "transfers_count": len(transfers),
+                "escalation_order_id": escalation_order_id,
+            },
+        )
+
+        stockist_result_dict = (
+            decision.model_dump()
+            if decision
+            else (agent_result.dict() if hasattr(agent_result, "dict") else dict(agent_result))
+        )
+
+        return {
+            "stockist_result": stockist_result_dict,
+            "trace": trace,
+            "errors": errors,
+        }
+
+    except Exception as exc:
+        logger.error("Stockist node execution error: %s", exc)
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        errors.append({
+            "tier": "stockist",
+            "error": str(exc),
+            "timestamp": datetime.now(UTC).isoformat(),
+        })
+        trace.append({
+            "tier": "stockist",
+            "agent_name": "StockistAgent",
+            "status": "failed",
+            "summary": f"Error in stockist: {exc}",
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="stockist",
+            agent_name="StockistAgent",
+            action="failed",
+            status="failed",
+            summary=f"Stockist execution failed: {exc}",
+            trace_step="error",
+        )
+
+        return {
+            "stockist_result": {"status": "failed", "error": str(exc)},
+            "trace": trace,
+            "errors": errors,
+        }
 
 
 async def distributor_node(state: CascadeState, router: Any = None) -> dict[str, Any]:

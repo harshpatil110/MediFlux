@@ -529,3 +529,56 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] `ruff check .` passes with 0 warnings.
 - [x] Frontend `npm run build` compiles with 0 errors.
 - [x] Specification created at `docs/specs/task-11-spec.md`.
+---
+
+## Task 12: Stockist Tier (Dynamic Balancing Agent)
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 3 — Multi-Agent Demand Propagation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Dynamic Balancing Agent (`app/agents/stockist_agent.py`)**:
+   - Implemented `StockistAgent` inheriting from `BaseAgent`, fulfilling stockist hub cluster balancing intelligence (RFP 3.2).
+   - Defined `PeerTransferSpec` and `BalancingDecision` Pydantic schemas capturing balancing decisions (`fulfill_local`, `transfer_from_peer`, `escalate_to_distributor`), priority ratings, peer transfer lists, and escalation order IDs.
+   - Built `StockistAgentResult` dictionary subclass for dual attribute and dict access across LangGraph nodes and testing fixtures.
+   - Implemented deterministic decision matrix:
+     - `fulfill_local`: local stockist stock >= requested quantity $\rightarrow$ allocated locally.
+     - `transfer_from_peer`: local stockist stock < requested quantity $\rightarrow$ queries cluster inventory, detects peer surplus above safety stock, and generates peer transfer records (`transfers` table).
+     - `escalate_to_distributor`: total cluster inventory < requested quantity $\rightarrow$ generates escalation replenishment order to parent distributor (`orders` table).
+     - Priority boost: elevates priority to `"critical"` or `"high"` for lifesaving and cold-chain medications.
+2. **Dedicated Stockist Telemetry & Balancing Tools (`app/tools/stockist_tools.py`)**:
+   - Implemented 5 dedicated tools decorated with `@tool`:
+     - `list_nodes_in_cluster`: resolves peer stockist nodes within the regional cluster.
+     - `get_cluster_inventory`: aggregates stock, safety stock, and surplus across all cluster stockists.
+     - `get_demand_trend`: evaluates recent consumption velocity, velocity growth rate, and depletion time.
+     - `create_transfer`: inserts peer stock transfer records into the `transfers` table (`status: 'pending'`).
+     - `create_order`: creates escalation replenishment orders targeting the parent distributor in the `orders` table (`status: 'requested'`).
+   - Added `is_high_priority_drug` helper with clinical drug schedule and cold-chain evaluation.
+3. **Tool Registry & Package Re-Exports (`app/tools/__init__.py`, `app/agents/tools/__init__.py`)**:
+   - Unified all stockist balancing tools within `app.tools` and registered them in the global tool registry.
+4. **Cascade Graph Integration (`app/graphs/cascade.py`)**:
+   - Replaced minimal stub `stockist_node` with `StockistAgent.run(state)`.
+   - Wired input context (`event`, `pharmacy_id`, `pharmacy_result`, `product_id`, `quantity`, `correlation_id`).
+   - Integrated automatic order status updates (`'allocated'`, `'escalated'`).
+   - Published entry and exit telemetry (`agent.activity`, `cascade.updates`) for real-time observability.
+5. **Database Migration (`supabase/migrations/007_stockist_transfers.sql`)**:
+   - Created migration extending `transfers` table schema with `priority`, `correlation_id`, `metadata`, and performance indexes.
+6. **Comprehensive Automated Test Suite (`backend/tests/test_stockist_agent.py`)**:
+   - Implemented 6 deterministic unit and integration tests using `FakeLLM` and mock isolation:
+     - `test_fulfill_local`: local stock fulfills order without transfers or escalation.
+     - `test_transfer_from_peer`: deficit covered by peer surplus creates peer transfer.
+     - `test_escalate_to_distributor`: cluster-wide deficit creates distributor escalation order.
+     - `test_lifesaving_priority_elevation`: lifesaving/cold-chain product elevates priority to critical/high.
+     - `test_stockist_tools_direct_execution`: direct tool execution verification.
+     - `test_cascade_graph_invokes_stockist_agent`: full cascade graph execution verifying stockist balancing node and state trace.
+
+### Verification Status
+- [x] `StockistAgent`, `BalancingDecision`, and `PeerTransferSpec` schemas implemented in `app/agents/stockist_agent.py`.
+- [x] Dedicated tools (`list_nodes_in_cluster`, `get_cluster_inventory`, `get_demand_trend`, `create_transfer`, `create_order`) implemented and registered.
+- [x] Cascade graph `stockist_node` in `app/graphs/cascade.py` executes `StockistAgent`.
+- [x] Peer transfers persisted to `transfers` table and escalation orders persisted to `orders` table.
+- [x] All 6 tests in `test_stockist_agent.py` pass; all 89 backend tests pass with 0 failures (100% pass rate).
+- [x] `ruff check .` passes with 0 warnings.
+- [x] Frontend `npm run build` compiles cleanly.
+- [x] Specification created at `docs/specs/task-12-spec.md`.
