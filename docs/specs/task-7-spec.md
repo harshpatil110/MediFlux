@@ -82,3 +82,4 @@ Create the foundational agent framework and LangGraph execution primitives for t
   4. `test_tool_metadata_scoping`: Verified `get_agent_tools` schema scoping.
   5. `test_hitl_interrupt_and_resume_across_process_restart`: Verified HITL interrupt, SQLite state persistence across simulated process exit, and clean resumption.
   6. `test_single_agent_graph_compilation`: Compiled and executed single-agent LangGraph workflow.
+

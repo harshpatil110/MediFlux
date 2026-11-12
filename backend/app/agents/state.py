@@ -16,3 +16,4 @@ class AgentGraphState(TypedDict):
     data: dict[str, Any]
     hitl_pending: bool
     hitl_task_id: str | None
+

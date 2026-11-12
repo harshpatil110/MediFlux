@@ -149,3 +149,4 @@ async def write_audit(actor_id: str, action: str, details: dict[str, Any]) -> di
         "action": action,
         "hash": "mock-audit-hash-12345",
     }
+
