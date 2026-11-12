@@ -22,6 +22,7 @@ dependencies = [
     "sse-starlette>=2.0.0",
     "tenacity>=8.2.3",
     "pyyaml>=6.0.1",
+    "langgraph-checkpoint-sqlite>=3.0.0",
 ]
 
 [project.optional-dependencies]

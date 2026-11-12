@@ -267,4 +267,51 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] All 7 tests in `test_events_and_sse.py` pass; total 42 backend tests pass cleanly.
 - [x] `ruff check .` passes with 0 warnings/errors.
 
+---
+
+## Task 7: Agent Framework (Base Agent, Tools, Traces, HITL Primitives)
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Decision Schemas & Base Agent (`app/agents/base.py`)**:
+   - Defined typed action schemas: `ToolCallAction` (`action_type = "tool_call"`), `FinalAnswerAction` (`action_type = "final_answer"`), and discriminated union `AgentDecision`.
+   - Built `BaseAgent` featuring a bounded step iteration loop (`step < max_steps`), LLM router integration, dynamic tool discovery, and fallback output generation when limits are reached.
+   - Preserved `BasePharmaAgent` for full backwards compatibility.
+2. **Execution Tracing & Activity Broadcasting (`app/agents/base.py`)**:
+   - Every `agent.run()` automatically records an execution trace in `agent_runs` table (`correlation_id`, `graph_name`, `agent_name`, `status`, `input_data`, `output_data`, `tokens_in`, `tokens_out`, `duration_ms`).
+   - Dispatches an `AgentActivityEvent` to the `agent.activity` topic on `InProcessEventBus` for real-time observability.
+3. **Tool Registry & Shared Built-in Tools (`app/agents/tools/`)**:
+   - Built `@tool` decorator extracting argument schemas via Python type hints and Pydantic.
+   - Implemented `get_agent_tools` to scope tool visibility based on an agent's `allowed_tools` list.
+   - Authored initial shared tools: `get_inventory`, `get_recent_sales`, `get_node`, `list_nodes_in_cluster`, `run_module`, and `write_audit`.
+4. **LangGraph Graph Execution & Persistent SQLite Checkpointer (`app/agents/graph.py`, `app/agents/state.py`)**:
+   - Defined `AgentGraphState` TypedDict maintaining messages, trace IDs, node IDs, agent context, and HITL flags.
+   - Integrated `SqliteSaver` and `AsyncSqliteSaver` (`langgraph-checkpoint-sqlite` backed by `checkpoints.db`) to ensure graph state persists across process restarts.
+   - Implemented `build_single_agent_graph` and `build_hitl_workflow_graph`.
+5. **Human-in-the-Loop (HITL) Approval Workflows (`app/agents/hitl.py`)**:
+   - Implemented `request_human_approval`:
+     - Creates pending record in `hitl_tasks`.
+     - Publishes notification to `hitl` topic on Event Bus.
+     - Pauses execution using LangGraph's native `interrupt()` primitive.
+     - Resumes cleanly when human approval decisions are passed via `Command(resume=...)`.
+6. **Deterministic Test Harness (`app/agents/testing.py`)**:
+   - Implemented `FakeLLM` queueing scripted `AgentDecision` models for reproducible, network-free unit tests.
+7. **Automated Testing Suite (`tests/test_agent_framework.py`)**:
+   - Created 6 comprehensive unit and integration tests verifying tool calling, loop termination on `max_steps`, unauthorized tool rejection, tool metadata scoping, HITL interrupts with state resumption after simulated process restarts, and single-agent graph compilation.
+
+### Verification Status
+- [x] `BaseAgent` class with typed decision models and bounded loop created.
+- [x] Tool registry `@tool` and scoping helper `get_agent_tools` implemented.
+- [x] Initial shared tools created: `get_inventory`, `get_recent_sales`, `get_node`, `list_nodes_in_cluster`, `run_module`, `write_audit`.
+- [x] LangGraph state schema and SQLite checkpointer configured with `checkpoints.db`.
+- [x] `request_human_approval` implemented with `hitl_tasks` persistence and `interrupt()` invocation.
+- [x] `FakeLLM` deterministic test harness built.
+- [x] Execution telemetry recorded in `agent_runs` and broadcast to `agent.activity`.
+- [x] All 6 tests in `test_agent_framework.py` pass; total 48 backend tests pass cleanly.
+- [x] `ruff check .` passes with 0 warnings/errors.
+
+
 
