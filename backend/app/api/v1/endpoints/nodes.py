@@ -70,15 +70,16 @@ async def list_nodes(
                 query = query.gt("id", cursor)
             response = query.execute()
             data = response.data or []
-            has_more = len(data) > limit
-            items = [NodeResponse(**row) for row in data[:limit]]
-            next_cursor = items[-1].id if has_more and items else None
-            return PaginatedResponse[NodeResponse](
-                items=items,
-                next_cursor=next_cursor,
-                has_more=has_more,
-                total_count=len(items),
-            )
+            if data:
+                has_more = len(data) > limit
+                items = [NodeResponse(**row) for row in data[:limit]]
+                next_cursor = items[-1].id if has_more and items else None
+                return PaginatedResponse[NodeResponse](
+                    items=items,
+                    next_cursor=next_cursor,
+                    has_more=has_more,
+                    total_count=len(items),
+                )
         except Exception:
             pass  # Fallback to local scoped dataset
 

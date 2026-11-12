@@ -87,32 +87,33 @@ async def list_inventory(
 
             res = query.execute()
             data = res.data or []
-            has_more = len(data) > limit
-            items = []
-            for row in data[:limit]:
-                prod_info = row.get("products") or {}
-                batch_info = row.get("batches") or {}
-                items.append(
-                    InventoryItemResponse(
-                        id=row["id"],
-                        node_id=row["node_id"],
-                        product_id=row["product_id"],
-                        batch_id=row["batch_id"],
-                        quantity=row["quantity"],
-                        reserved=row.get("reserved", 0),
-                        safety_stock=row.get("safety_stock", 10),
-                        updated_at=row.get("updated_at"),
-                        product_name=prod_info.get("name"),
-                        batch_no=batch_info.get("batch_no"),
+            if data:
+                has_more = len(data) > limit
+                items = []
+                for row in data[:limit]:
+                    prod_info = row.get("products") or {}
+                    batch_info = row.get("batches") or {}
+                    items.append(
+                        InventoryItemResponse(
+                            id=row["id"],
+                            node_id=row["node_id"],
+                            product_id=row["product_id"],
+                            batch_id=row["batch_id"],
+                            quantity=row["quantity"],
+                            reserved=row.get("reserved", 0),
+                            safety_stock=row.get("safety_stock", 10),
+                            updated_at=row.get("updated_at"),
+                            product_name=prod_info.get("name"),
+                            batch_no=batch_info.get("batch_no"),
+                        )
                     )
+                next_cursor = items[-1].id if has_more and items else None
+                return PaginatedResponse[InventoryItemResponse](
+                    items=items,
+                    next_cursor=next_cursor,
+                    has_more=has_more,
+                    total_count=len(items),
                 )
-            next_cursor = items[-1].id if has_more and items else None
-            return PaginatedResponse[InventoryItemResponse](
-                items=items,
-                next_cursor=next_cursor,
-                has_more=has_more,
-                total_count=len(items),
-            )
         except Exception:
             pass
 

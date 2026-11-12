@@ -77,6 +77,20 @@ class SensorReadingEvent(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class BatchUpdate(BaseModel):
+    """Canonical production/batch update event model for manufacturer ERP dispatches."""
+
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    node_id: str = Field(..., description="Manufacturing plant or warehouse node ID")
+    product_id: str = Field(..., description="Master catalog product ID / SKU")
+    batch_number: str = Field(..., description="Batch or lot number")
+    quantity: int = Field(..., ge=1, description="Quantity manufactured or dispatched")
+    mfg_date: str | None = Field(default=None, description="Manufacturing date in YYYY-MM-DD")
+    exp_date: str | None = Field(default=None, description="Expiry date in YYYY-MM-DD")
+    status: str = Field(default="released", description="Batch status")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class DispenseEventPayload(BaseModel):
     """Legacy payload emitted when a retail pharmacy counter dispenses a single unit/strip."""
 

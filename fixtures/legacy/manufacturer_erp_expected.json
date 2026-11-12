@@ -1,0 +1,9 @@
+{
+  "node_id": "MFG-PUN-001",
+  "product_id": "AMOX-250",
+  "batch_number": "LOT-AMX-994",
+  "quantity": 5000,
+  "mfg_date": "2026-05-01",
+  "exp_date": "2028-04-30",
+  "status": "released"
+}

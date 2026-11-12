@@ -826,3 +826,60 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] API endpoints `GET /api/v1/audit` and `GET /api/v1/audit/verify` operational.
 - [x] All 8 tests in `test_audit_ledger.py` pass 100%.
 - [x] Specification created at `docs/specs/task-16-spec.md`.
+
+---
+
+## Task 17: Adapter Forge (Self-Evolving API Translators)
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 4 — Autonomous Edge Operations
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Legacy System Fixtures (`fixtures/legacy/` and `backend/fixtures/legacy/`)**:
+   - Created three paired sets of legacy formats and expected canonical outputs:
+     - `pharmacy_billing_sample.csv` + `pharmacy_billing_expected.json` (Retail POS CSV with legacy headers).
+     - `manufacturer_erp_sample.xml` + `manufacturer_erp_expected.json` (Manufacturer ERP XML dispatch).
+     - `nested_legacy_pos_sample.json` + `nested_legacy_pos_expected.json` (Nested legacy POS JSON payload).
+2. **Adapter Forge LangGraph Workflow (`app/graphs/forge.py`, `app/agents/graphs/forge.py`, `graphs/forge.py`)**:
+   - Implemented `ForgeState` tracking multi-agent translation lifecycle, error logs, attempt counters, and real-time SSE progress events.
+   - Built `schema_inspector_node`: auto-detects payload format (`csv`, `xml`, `json`), field inventories, data types, and mapping rules to canonical target schemas (`SaleEvent` or `BatchUpdate`).
+   - Built `adapter_coder_node`: synthesizes self-contained Python adapter modules (`def run(input_data) -> dict:`) with deterministic AST structural synthesizers for CSV, XML, and nested JSON formats.
+   - Built `adapter_tester_node`: validates generated code through Task 8 `ASTGuard` (blocking `os`, `sys`, `subprocess`, `eval`, `exec`, `open`, etc.), executes in sandboxed `SubprocessRunner`, and validates outputs against Pydantic models and expected output dictionaries.
+   - Built fix-loop conditional routing: intercepts test and guard failures, appends detailed diagnostics to `error_logs`, increments attempt counter, emits `step="fixing"` progress events, and self-heals up to `max_attempts` (default 4) before routing to `mark_failed_node`.
+   - Built `register_adapter_node`: registers verified modules into `module_registry` (`kind='adapter'`, `status='active'`), persists metadata in `public.adapters` and memory store, and emits completion telemetry.
+   - Built `mark_failed_node`: records unfixable adapters with `status='failed'` and failure diagnostics.
+3. **Database Migration (`supabase/migrations/012_adapters_forge.sql`)**:
+   - Enhanced `adapters` table with columns (`name`, `version`, `source_code`, `generated_parser_code`, `test_results`, `status`, `target_schema`, `error_logs`, `updated_at`) and performance indexes.
+4. **Live Legacy Ingestion Endpoint (`app/api/v1/endpoints/ingest.py`)**:
+   - Implemented `POST /api/v1/ingest/{adapter_id}`: accepts raw legacy payloads (CSV text, XML, or JSON), executes active adapter inside Task 8 Restricted Execution Guard, validates output canonical schema (`SaleEvent` or `BatchUpdate`), and seamlessly routes to `apply_sale(...)` inventory deduction and `InProcessEventBus` (`pos.sales` or `batch.update`).
+5. **Adapter Marketplace API & Real-Time SSE (`app/api/v1/endpoints/adapters.py`)**:
+   - `POST /api/v1/adapters/generate`: triggers autonomous generation job and returns job status.
+   - `GET /api/v1/adapters/jobs/{job_id}`: returns JSON status or streams SSE events based on `Accept` header.
+   - `GET /api/v1/adapters/jobs/{job_id}/stream`: dedicated SSE stream broadcasting real-time agent progression (`inspecting`, `coding`, `testing`, `fixing`, `registered`, `done`).
+   - `GET /api/v1/adapters`: lists registered active adapters.
+   - `GET /api/v1/adapters/{identifier}`: returns full metadata, source code, test results, and all historical versions.
+   - `POST /api/v1/adapters/{identifier}/rollback`: atomically reverts adapter and `module_registry` to a specified prior version.
+   - Mounted in `app/api/v1/router.py` with OpenAPI tags.
+6. **Comprehensive Automated Test Suite (`tests/test_forge.py`)**:
+   - Created 8 tests verifying:
+     - CSV auto-translation to canonical `SaleEvent`.
+     - XML auto-translation to canonical `BatchUpdate`.
+     - Nested JSON auto-translation to canonical `SaleEvent`.
+     - Static guard violation detection (`import os`), fix-loop retry, and self-healing.
+     - Max attempts exhaustion cleanly marking adapter as `failed`.
+     - Live legacy ingestion cascade decrementing retail stock and emitting `pos.sales`.
+     - Marketplace job generation and real-time SSE stream consumption.
+     - Catalog listing, details lookup, and atomic hot-swap rollback.
+
+### Verification Status
+- [x] Legacy fixtures created in `fixtures/legacy/` and `backend/fixtures/legacy/`.
+- [x] Forge LangGraph workflow implemented and verified across CSV, XML, and JSON payloads.
+- [x] Guard compliance, fix loop, and self-healing tested and passing.
+- [x] Live legacy ingestion endpoint `POST /api/v1/ingest/{adapter_id}` operational.
+- [x] Marketplace API (`/api/v1/adapters`) and real-time SSE streaming operational.
+- [x] Version rollback tested and verified.
+- [x] All 8 tests in `test_forge.py` pass; full backend test suite passes (124/124 tests pass in 37s).
+- [x] `ruff check backend` clean (0 warnings/errors).
+- [x] `npm --prefix frontend run build` clean.
+- [x] Specification created at `docs/specs/task-17-spec.md`.

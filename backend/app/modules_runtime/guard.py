@@ -28,6 +28,8 @@ ALLOWED_MODULES = {
     "re",
     "typing",
     "statistics",
+    "csv",
+    "xml",
 }
 
 # Forbidden dangerous built-in functions
@@ -202,7 +204,7 @@ class SubprocessRunner:
     def execute_module(
         cls,
         source_code: str,
-        input_data: dict[str, Any],
+        input_data: Any,
         timeout: float = 2.0,
     ) -> tuple[dict[str, Any], float]:
         """Execute module in an isolated Python subprocess passing JSON via stdin."""

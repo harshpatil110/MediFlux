@@ -1,0 +1,17 @@
+{
+  "txn_meta": {
+    "outlet_ref": "PHARM-DEL-002",
+    "ts_str": "14-Nov-2026 15:45:00",
+    "terminal_id": "TERM-04"
+  },
+  "basket": {
+    "line_items": [
+      {
+        "sku_code": "AZITH-500",
+        "lot_ref": "AZ-8831",
+        "count": 3,
+        "mrp_paisa": 15000
+      }
+    ]
+  }
+}

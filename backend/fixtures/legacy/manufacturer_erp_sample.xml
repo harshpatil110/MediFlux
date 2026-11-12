@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ERPDispatch>
+  <Header>
+    <PlantCode>MFG-PUN-001</PlantCode>
+    <DocNumber>DISP-2026-8812</DocNumber>
+    <Timestamp>2026-11-14T08:00:00Z</Timestamp>
+  </Header>
+  <BatchDetails>
+    <ItemCode>AMOX-250</ItemCode>
+    <LotNumber>LOT-AMX-994</LotNumber>
+    <MfgDate>20260501</MfgDate>
+    <ExpDate>20280430</ExpDate>
+    <Quantity>5000</Quantity>
+    <Unit>Strips</Unit>
+  </BatchDetails>
+</ERPDispatch>

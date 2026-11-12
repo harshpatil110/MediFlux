@@ -48,6 +48,14 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
         "name": "Audit Ledger",
         "description": "Cryptographically verified, tamper-evident hash-chained audit trails.",
     },
+    {
+        "name": "Adapter Forge & Marketplace",
+        "description": "Self-evolving API translators, code synthesis, testing, and marketplace rollback.",
+    },
+    {
+        "name": "Live Legacy Ingestion",
+        "description": "Restricted-guard translation and real-time ingestion of legacy format payloads.",
+    },
 ]
 
 

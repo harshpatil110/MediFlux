@@ -2,11 +2,13 @@
 
 from fastapi import APIRouter
 
+from app.api.v1.endpoints.adapters import router as adapters_router
 from app.api.v1.endpoints.audit import router as audit_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.cascade import router as cascade_router
 from app.api.v1.endpoints.events import router as events_router
 from app.api.v1.endpoints.hitl import router as hitl_router
+from app.api.v1.endpoints.ingest import router as ingest_router
 from app.api.v1.endpoints.inventory import router as inventory_router
 from app.api.v1.endpoints.modules import router as modules_router
 from app.api.v1.endpoints.nodes import router as nodes_router
@@ -28,6 +30,8 @@ api_router.include_router(hitl_router)
 api_router.include_router(stream_router)
 api_router.include_router(modules_router)
 api_router.include_router(simulator_router)
+api_router.include_router(adapters_router)
+api_router.include_router(ingest_router)
 
 
 @api_router.get("/status", tags=["System Status"])
