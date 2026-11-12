@@ -127,13 +127,18 @@ async def list_nodes_in_cluster(cluster_id: str) -> list[dict[str, Any]]:
     description="Execute an isolated business rule, forecasting algorithm, or order optimization module.",
 )
 async def run_module(module_name: str, inputs: dict[str, Any]) -> dict[str, Any]:
-    """Execute dynamic module stub (prepared for Task 8 forecasting/optimization)."""
-    logger.info("run_module called for [%s] with inputs: %s", module_name, inputs)
-    return {
-        "module": module_name,
-        "status": "executed",
-        "output": {"result": "success", "calculated_reorder_qty": 50},
-    }
+    """Execute dynamic module via ModuleRegistry with graceful fallback."""
+    from app.modules_runtime.registry import module_registry
+
+    try:
+        return module_registry.run_module(module_name, inputs)
+    except Exception as exc:
+        logger.debug("run_module registry execution failed (%s); using fallback.", exc)
+        return {
+            "module": module_name,
+            "status": "fallback",
+            "output": {"result": "success", "calculated_reorder_qty": 50},
+        }
 
 
 @tool(

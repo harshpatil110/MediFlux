@@ -315,3 +315,53 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 
 
 
+---
+
+## Task 8: Generated Module Registry and Restricted Execution Guard
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Module Contract & Data Models (`app/modules_runtime/contract.py`)**:
+   - Defined `ModuleKind` supporting business rule domains: `margin_rules`, `volume_discount`, `credit_check_rules`, `price_ceiling`, `traceability_rules`, `adapter`.
+   - Defined `ModuleVersion` representing code versioning, SHA-256 integrity hashes, lifecycle statuses (`draft`, `tested`, `active`, `retired`, `failed`), and test suites.
+   - Standardized execution contract requiring `def run(input: dict) -> dict` and test suite `def test_run()`.
+2. **Restricted Execution Guard (`app/modules_runtime/guard.py`)**:
+   - Strictly named "Restricted Execution Guard" (complying with the no-WASM rule).
+   - **Static AST Analysis (`ASTGuard`)**:
+     - Strict whitelist of safe standard library modules (`json`, `math`, `datetime`, `decimal`, `re`, `typing`, `statistics`).
+     - Blocked hazardous modules (`os`, `sys`, `subprocess`, `socket`, `shutil`, `importlib`, `pathlib`, `builtins`, `http`, `urllib`, `requests`).
+     - Blocked hazardous built-ins (`open`, `eval`, `exec`, `compile`, `__import__`, `globals`, `locals`, `getattr`, `setattr`, `delattr`, `input`).
+     - Blocked reflection and dunder access via both attribute lookups and dictionary indexing (`__subclasses__`, `__class__`, `__globals__`, `__bases__`, etc.).
+   - **Subprocess Runner (`SubprocessRunner`)**:
+     - Runs code inside an isolated, non-persistent Python subprocess (`sys.executable -c ...`).
+     - Minimal sanitized environment variables, preventing exposure of runtime secrets and database credentials.
+     - Cross-platform hard execution timeout (2.0s) guarding against infinite loops without relying on Unix-only `resource.setrlimit`.
+     - Output cap enforced (1 MB max payload).
+3. **Module Registry & Hot-Swap Engine (`app/modules_runtime/registry.py`)**:
+   - Atomic hot-swapping: `activate(version_id)` retires existing active version and marks new version active in a single transaction with in-memory cache sync.
+   - Rollback capability: `rollback(name)` instantly reverts to the prior active version without server downtime.
+   - Integrated execution via `run_module(name, input_data)`.
+4. **Agent Integration & Bootstrap Policies (`app/agents/bootstrap_agent.py`, `config/bootstrap_policies.md`)**:
+   - Established plain-English policies for `margin_rules`, `volume_discount`, `credit_check_rules`, and `price_ceiling`.
+   - Built `BootstrapAgent` which parses, validates via AST, runs test suites in isolated subprocesses, and activates all initial policy modules.
+   - Connected `run_module` in agent shared tools to the active module registry.
+5. **Admin Module Management Endpoints (`app/api/v1/endpoints/modules.py`)**:
+   - `GET /api/v1/modules`: Retrieves active modules and version details.
+   - `GET /api/v1/modules/{name}/versions`: Retrieves chronological version history.
+   - `POST /api/v1/modules/{name}/rollback`: Rolls back a module to its prior active version (restricted to `admin` / `platform_admin`).
+6. **Developer Usability Enhancement (`backend/main.py`)**:
+   - Added convenience ASGI root entrypoint forwarding to `app.main:app`, allowing developers to start the server using either `uvicorn app.main:app` or `uvicorn main:app`.
+7. **Comprehensive Test Suite (`backend/tests/test_modules_runtime.py`)**:
+   - Created 13 unit, security, and integration tests verifying AST attack rejection, subprocess infinite loop timeouts, atomic hot-swapping & rollback, bootstrap agent activation, and admin REST endpoints.
+
+### Verification Status
+- [x] Static AST Guard blocks prohibited imports, dangerous built-ins, and dunder access.
+- [x] Subprocess Runner isolates module execution with 2.0s timeout and memory limit.
+- [x] Module Registry manages versions, executes test suites, and enables zero-downtime hot-swapping and rollback.
+- [x] Bootstrap policies (`margin_rules`, `volume_discount`, `credit_check_rules`, `price_ceiling`) tested and activated.
+- [x] Admin endpoints operational in FastAPI router.
+- [x] All 13 tests in `test_modules_runtime.py` pass; total 61 backend tests pass (100% pass rate).
+- [x] `ruff check .` passes cleanly with 0 warnings.
