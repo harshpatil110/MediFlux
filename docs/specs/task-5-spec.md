@@ -85,3 +85,4 @@ Build an intelligent, multi-provider LLM abstraction and routing engine for Medi
   6. SQLite cache replay mode: deterministic hit without network, and `LLMCacheMissError` on unseeded query.
   7. Self-healing repair loop: recovering from malformed JSON via multi-turn feedback.
   8. Repair loop exhaustion raising error when model persistently outputs invalid format.
+
