@@ -67,14 +67,30 @@ class ExpiryEvent(BaseModel):
 
 
 class SensorReadingEvent(BaseModel):
-    """Cold-chain IoT telemetry event for temperature and humidity tracking."""
+    """Cold-chain IoT telemetry event for temperature, humidity, and shock tracking."""
 
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    node_id: str = Field(..., description="Node or vehicle ID holding the sensor")
-    sensor_id: str = Field(..., description="Physical or virtual IoT sensor identifier")
-    temperature: float = Field(..., description="Current temperature in Celsius")
-    humidity: float = Field(..., description="Relative humidity percentage")
+    batch_id: str = Field(default="batch-001", description="Cold-chain pharmaceutical batch ID")
+    product_id: str | None = Field(default=None, description="Master catalog product ID")
+    node_id: str | None = Field(default="node-001", description="Node or vehicle holding the sensor")
+    shipment_id: str | None = Field(default=None, description="Active transit shipment ID")
+    sensor_id: str = Field(default="sensor-001", description="Physical or virtual IoT sensor identifier")
+    temperature_c: float = Field(default=4.0, description="Current temperature in Celsius")
+    temperature: float | None = Field(default=None, description="Backward-compatible temperature field")
+    humidity: float = Field(default=50.0, description="Relative humidity percentage")
+    shock_g: float = Field(default=0.1, description="Physical acceleration / shock impact in Gs")
+    duration_minutes: float = Field(default=15.0, description="Duration interval in minutes")
+    mode: str = Field(default="normal", description="Simulation mode: normal, excursion, shock")
+    ts: str | None = Field(default=None, description="Timestamp string")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    correlation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+    def model_post_init(self, __context: Any) -> None:
+        """Sync temperature and temperature_c for seamless interoperability."""
+        if self.temperature is not None and (self.temperature_c == 4.0 or self.temperature != self.temperature_c):
+            self.temperature_c = self.temperature
+        elif self.temperature is None:
+            self.temperature = self.temperature_c
 
 
 class BatchUpdate(BaseModel):

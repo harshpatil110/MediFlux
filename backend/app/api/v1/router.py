@@ -6,6 +6,7 @@ from app.api.v1.endpoints.adapters import router as adapters_router
 from app.api.v1.endpoints.audit import router as audit_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.cascade import router as cascade_router
+from app.api.v1.endpoints.coldchain import router as coldchain_router
 from app.api.v1.endpoints.compliance import router as compliance_router
 from app.api.v1.endpoints.events import router as events_router
 from app.api.v1.endpoints.hitl import router as hitl_router
@@ -38,6 +39,7 @@ api_router.include_router(ingest_router)
 api_router.include_router(regulatory_router)
 api_router.include_router(prescriptions_router)
 api_router.include_router(compliance_router)
+api_router.include_router(coldchain_router)
 
 
 @api_router.get("/status", tags=["System Status"])

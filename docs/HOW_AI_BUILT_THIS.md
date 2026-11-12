@@ -1010,3 +1010,40 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] `ruff check backend` clean (0 warnings/errors).
 - [x] `npm --prefix frontend run build` clean.
 - [x] Specification created at `docs/specs/task-19-spec.md`.
+
+---
+
+## Task 20: Cold-Chain Telemetry Graph & Autonomous Auto-Quarantine Engine
+
+### Overview
+Implemented the **Cold-Chain Telemetry Graph and Auto-Quarantine Engine** for real-time biological and cold-chain pharmaceutical quality monitoring (RFP Phase 4). The system monitors simulated and live IoT sensor readings (temperature, humidity, mechanical shock) across stockist hubs and transit shipments, computes remaining shelf life via a Simplified Arrhenius Degree-Hour Degradation model, auto-quarantines breached batches, zeroes available stock, triggers Task 12 Dynamic Balancing rebalancing, and records tamper-evident cryptographic audit logs.
+
+### Key Components Implemented
+1. **IoT Sensor Simulator (`simulator/sensor_simulator.py`, `backend/app/simulator/sensor_simulator.py`)**:
+   - Supports `normal`, progressive `excursion`, and mechanical `shock` simulation modes for hubs (`node_id`) and shipments (`shipment_id`).
+   - Generates canonical `SensorReadingEvent` payloads and posts to `POST /api/v1/events/sensor` via `httpx.AsyncClient`.
+2. **Simplified Arrhenius Degree-Hour & Shock Degradation Model (`estimate_shelf_life`)**:
+   - Accurately models heat excursion penalties ($\Delta T \times 0.75 \times 2^{(\Delta T / 10.0)}$ days/hr), freezing penalties ($\Delta T_{\text{freeze}} \times 4.0$ days/hr), moderate shocks ($(\text{shock\_g} - 4.0) \times 5.0$ days), and critical impact breaches ($\ge 8.0g$, 100% shelf-life loss).
+3. **Cold-Chain LangGraph (`backend/app/graphs/coldchain.py`, `app/agents/graphs/coldchain.py`, `graphs/coldchain.py`)**:
+   - `telemetry_agent_node`: Evaluates recent sensor telemetry and classifies status into `ok`, `warn`, or `quarantine`.
+   - `excursion_analyst_node`: Synthesizes clinical and supply-chain plain-language excursion explanations with deterministic fallback templates.
+   - `quarantine_execution_node`: Immediately updates batch status to `quarantined`, zeroes available stock in inventory stores, creates quarantine actions in `quarantine_actions`, emits `coldchain.quarantined`, invokes `StockistAgent` for lateral cluster rebalancing, and appends hash-chained audit record to `audit_ledger`.
+4. **High-Value HITL Governance**:
+   - Enforces `COLDCHAIN_HIGH_VALUE_HITL_THRESHOLD` by creating pending review tasks in `hitl_tasks` for high-value batches while immediately halting retail dispensing.
+5. **RESTful APIs & Endpoints (`backend/app/api/v1/endpoints/coldchain.py`, `backend/app/api/v1/endpoints/events.py`)**:
+   - `POST /api/v1/events/sensor`: Ingests single or batch sensor readings, updates DB/memory, and runs coldchain evaluation.
+   - `GET /api/v1/coldchain/batches`: Lists cold-chain batches enriched with status, available stock (0 if quarantined), last reading, and shelf-life estimate.
+   - `GET /api/v1/coldchain/quarantines`: Lists all quarantine records with clinical reasons and rebalancing traces.
+   - `POST /api/v1/coldchain/sensor`: Direct cold-chain sensor ingestion proxy.
+6. **Automated Test Suite (`backend/tests/test_task20_coldchain.py`)**:
+   - 7 comprehensive tests covering degradation formula accuracy, normal readings acceptance, excursion auto-quarantine, mechanical shock breach, Task 12 rebalancing trace in `agent_runs`, high-value HITL policy, and multi-step sensor simulator integration.
+
+### Verification Status
+- [x] Multi-mode sensor simulator implemented in root `simulator/sensor_simulator.py` and `backend/app/simulator/`.
+- [x] Migration `015_coldchain_telemetry.sql` created for sensor readings, quarantine actions, and batches telemetry caching.
+- [x] Tri-node Cold-Chain LangGraph implemented with re-export aliases in `backend/app/agents/graphs/` and root `graphs/`.
+- [x] Endpoints mounted under `/api/v1/events/sensor`, `/api/v1/coldchain/batches`, and `/api/v1/coldchain/quarantines`.
+- [x] All 7 tests in `test_task20_coldchain.py` pass cleanly.
+- [x] `ruff check` on `backend/`, `simulator/`, and `graphs/` passes with 0 warnings/errors.
+- [x] Specification created at `docs/specs/task-20-spec.md`.
+

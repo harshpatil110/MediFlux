@@ -8,7 +8,7 @@ backend_path = str(Path(__file__).resolve().parent.parent / "backend")
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
-from app.graphs.forge import (  # noqa: E402
+from app.graphs.forge import (
     ForgeState,
     build_forge_graph,
     clear_adapter_store,

@@ -68,6 +68,10 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
         "name": "Compliance",
         "description": "CDSCO Schedule H/H1/X compliance logging, audit trails, and physician registry validation.",
     },
+    {
+        "name": "Cold Chain Telemetry",
+        "description": "IoT environmental sensor monitoring, Arrhenius shelf-life degradation, and autonomous batch quarantine.",
+    },
 ]
 
 
