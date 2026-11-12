@@ -60,6 +60,14 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
         "name": "Regulatory Pipeline",
         "description": "Autonomous regulatory change detection, code mutation, staging testing, and zero-downtime hot-swap.",
     },
+    {
+        "name": "Prescriptions",
+        "description": "Sovereign multimodal prescription scanning, clinical information extraction, and verification.",
+    },
+    {
+        "name": "Compliance",
+        "description": "CDSCO Schedule H/H1/X compliance logging, audit trails, and physician registry validation.",
+    },
 ]
 
 

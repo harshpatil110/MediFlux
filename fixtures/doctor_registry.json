@@ -40,6 +40,24 @@
     "name": "Dr. Priya Verma",
     "specialization": "Oncologist",
     "valid_until": "2032-01-31"
+  },
+  {
+    "doctor_id": "DOC-IND-007",
+    "license_number": "MCI-2019-88412",
+    "name": "Dr. A. K. Sharma",
+    "specialization": "General Physician",
+    "valid_until": "2032-12-31",
+    "status": "active",
+    "verified": true
+  },
+  {
+    "doctor_id": "DOC-IND-008",
+    "license_number": "MMC-2018-44210",
+    "name": "Dr. Priya Deshmukh",
+    "specialization": "Consultant Physician",
+    "valid_until": "2033-06-30",
+    "status": "active",
+    "verified": true
   }
 ]
 

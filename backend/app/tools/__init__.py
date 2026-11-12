@@ -1,6 +1,16 @@
 """Tools package for MediFlux agents."""
 
-from app.tools import distributor_tools, manufacturer_tools, pharmacy_tools, stockist_tools
+from app.tools import (
+    compliance_tools,
+    distributor_tools,
+    manufacturer_tools,
+    pharmacy_tools,
+    stockist_tools,
+)
+from app.tools.compliance_tools import (
+    lookup_schedule,
+    verify_doctor,
+)
 from app.tools.distributor_tools import (
     clear_in_memory_settlements,
     clear_in_memory_shipments,
@@ -101,6 +111,9 @@ __all__ = [
     "create_order",
     "create_shipment",
     "create_transfer",
+    "compliance_tools",
+    "lookup_schedule",
+    "verify_doctor",
     "distributor_tools",
     "execute_tool",
     "get_agent_tools",

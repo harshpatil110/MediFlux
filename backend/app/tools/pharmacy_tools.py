@@ -66,6 +66,24 @@ def load_doctor_registry() -> list[dict[str, Any]]:
             "specialization": "Cardiologist",
             "valid_until": "2030-06-30",
         },
+        {
+            "doctor_id": "DOC-IND-007",
+            "license_number": "MCI-2019-88412",
+            "name": "Dr. A. K. Sharma",
+            "specialization": "General Physician",
+            "valid_until": "2032-12-31",
+            "status": "active",
+            "verified": True,
+        },
+        {
+            "doctor_id": "DOC-IND-008",
+            "license_number": "MMC-2018-44210",
+            "name": "Dr. Priya Deshmukh",
+            "specialization": "Consultant Physician",
+            "valid_until": "2033-06-30",
+            "status": "active",
+            "verified": True,
+        },
     ]
     return _cached_doctor_registry
 
@@ -387,9 +405,36 @@ async def check_prescription_link(event_id: str, prescription_ref: str | None = 
                 return doc
         return None
 
-    # 1. Direct prescription reference check
-    if prescription_ref and prescription_ref.strip():
-        matched = _match_doc(prescription_ref)
+    # 1. Check Task 19 Prescription Store
+    ref_to_check = str(prescription_ref).strip() if prescription_ref else ""
+    if ref_to_check:
+        try:
+            from app.graphs.prescription import get_prescription
+            rx_record = get_prescription(ref_to_check)
+            if rx_record:
+                is_approved = (
+                    str(rx_record.get("status", "")).lower() == "approved"
+                    and str(rx_record.get("decision", "")).lower() == "approve_dispense"
+                )
+                is_doc_verified = bool(rx_record.get("doctor_verified", False))
+                if is_approved and is_doc_verified:
+                    return {
+                        "valid": True,
+                        "doctor_id": rx_record.get("doctor_name"),
+                        "prescription_id": rx_record.get("id"),
+                        "reason": f"Prescription {ref_to_check} verified: Status is approved and physician is verified",
+                    }
+                return {
+                    "valid": False,
+                    "doctor_id": None,
+                    "prescription_id": rx_record.get("id"),
+                    "reason": f"Prescription {ref_to_check} compliance hold: Status is '{rx_record.get('status')}' (decision: '{rx_record.get('decision')}'), doctor_verified={is_doc_verified}",
+                }
+        except Exception as exc:
+            logger.debug("Prescription store lookup failed in check_prescription_link: %s", exc)
+
+        # Fallback to direct doctor reference check
+        matched = _match_doc(ref_to_check)
         if matched:
             return {
                 "valid": True,
@@ -424,25 +469,16 @@ async def check_prescription_link(event_id: str, prescription_ref: str | None = 
             payload = evt.get("payload") or {}
             metadata = evt.get("metadata") or {}
             ref = (
-                payload.get("prescription_ref")
+                payload.get("prescription_id")
+                or payload.get("prescription_ref")
                 or payload.get("doctor_id")
                 or payload.get("rx_ref")
+                or metadata.get("prescription_id")
                 or metadata.get("prescription_ref")
                 or metadata.get("doctor_id")
             )
             if ref and str(ref).strip():
-                matched = _match_doc(str(ref))
-                if matched:
-                    return {
-                        "valid": True,
-                        "doctor_id": matched.get("doctor_id"),
-                        "reason": f"Prescription verified from event metadata: Issued by {matched.get('name')}",
-                    }
-                return {
-                    "valid": False,
-                    "doctor_id": None,
-                    "reason": f"Prescription reference '{ref}' in event metadata is not registered in national registry",
-                }
+                return await check_prescription_link(event_id="", prescription_ref=str(ref))
 
     return {
         "valid": False,

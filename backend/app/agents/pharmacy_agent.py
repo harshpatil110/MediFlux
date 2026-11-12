@@ -362,9 +362,12 @@ class PharmacyAgent(BaseAgent):
         )
         if is_scheduled_drug(product_id, schedule_type=schedule_type):
             rx_ref = (
-                event_payload.get("prescription_ref")
+                event_payload.get("prescription_id")
+                or event_payload.get("prescription_ref")
+                or state.get("prescription_id")
                 or state.get("prescription_ref")
                 or event_payload.get("doctor_id")
+                or (event_payload.get("metadata") or {}).get("prescription_id")
             )
             rx_check = await check_prescription_link(event_id=event_id, prescription_ref=rx_ref)
             if not rx_check.get("valid"):

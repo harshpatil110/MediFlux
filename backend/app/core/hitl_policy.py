@@ -51,9 +51,27 @@ _DEFAULT_POLICIES: dict[str, dict[str, Any]] = {
         "expiry_hours": 24,
         "description": "Clarification and verification for ambiguous or low-confidence regulatory notices.",
     },
+    "prescription_doctor_verification": {
+        "enabled": True,
+        "required_roles": ["pharmacist_in_charge", "compliance_officer", "admin"],
+        "expiry_hours": 12,
+        "description": "Verification of unregistered or unknown prescribing doctor credentials before dispensing.",
+    },
+    "prescription_unknown_drug": {
+        "enabled": True,
+        "required_roles": ["pharmacist_in_charge", "compliance_officer", "admin"],
+        "expiry_hours": 12,
+        "description": "Clinical review and schedule classification for unlisted or experimental medication.",
+    },
 }
 
 _cached_policies: dict[str, dict[str, Any]] | None = None
+
+
+def clear_policy_cache() -> None:
+    """Clear cached policy definitions to force reloading from disk."""
+    global _cached_policies
+    _cached_policies = None
 
 
 def load_hitl_policies(policy_file_path: str = "config/hitl_policies.yaml") -> dict[str, dict[str, Any]]:

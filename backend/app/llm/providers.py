@@ -92,7 +92,7 @@ class NvidiaProvider(LLMProvider):
         async with self.semaphore:
             start_time = time.perf_counter()
             try:
-                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout_seconds, connect=1.0)) as client:
                     response = await client.post(url, headers=headers, json=payload)
             except httpx.TimeoutException as exc:
                 raise LLMProviderError(
@@ -193,7 +193,7 @@ class OpenRouterProvider(LLMProvider):
         async with self.semaphore:
             start_time = time.perf_counter()
             try:
-                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout_seconds, connect=1.0)) as client:
                     response = await client.post(url, headers=headers, json=payload)
             except httpx.TimeoutException as exc:
                 raise LLMProviderError(
@@ -282,7 +282,7 @@ class OllamaProvider(LLMProvider):
         async with self.semaphore:
             start_time = time.perf_counter()
             try:
-                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout_seconds, connect=1.0)) as client:
                     response = await client.post(url, headers=headers, json=payload)
             except httpx.TimeoutException as exc:
                 raise LLMProviderError(

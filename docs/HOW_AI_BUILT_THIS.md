@@ -945,3 +945,68 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] `ruff check backend` clean (0 errors/warnings).
 - [x] `npm --prefix frontend run build` clean.
 - [x] Specification created at `docs/specs/task-18-spec.md`.
+
+---
+
+## Task 19: Prescription and Schedule H Compliance Graph
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 4 — Autonomous Edge Operations
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Synthetic Prescription Image Fixtures (`fixtures/prescriptions/`, `backend/fixtures/prescriptions/`)**:
+   - Built Pillow generator `scripts/generate_prescription_fixtures.py` rendering high-contrast clinical prescription scans with embedded PNG `tEXt` chunks.
+   - Generated 5 synthetic fixtures:
+     - `valid_prescription.png`: Valid clinic, Dr. A. K. Sharma (`MCI-2019-88412`), patient `R.K.`, Paracetamol 500mg (OTC).
+     - `missing_reg_no.png`: Dr. Ramesh Gupta (`Reg No: NONE`), patient `S.M.`, Amoxicillin 500mg.
+     - `unknown_doctor.png`: Dr. Vikram Ghost (`FAKE-9999-00000` not in registry), patient `A.P.`, Azithromycin 500mg.
+     - `schedule_h_prescription.png`: Dr. A. K. Sharma (`MCI-2019-88412`), patient `H.P.`, Amoxicillin 500mg (Schedule H).
+     - `unlisted_drug.png`: Dr. A. K. Sharma (`MCI-2019-88412`), patient `N.D.`, Xenorab-ZX 999mg (unlisted drug).
+2. **Database Migration (`supabase/migrations/014_prescriptions_compliance.sql`)**:
+   - Enhanced `prescriptions` table with `doctor_name`, `doctor_registration_no`, `patient_initials`, `doctor_verified`, `drugs_json`, `status`, `decision`, `hitl_task_id`, `correlation_id`.
+   - Enhanced `compliance_logs` with `product_id`, `action`, `reason`, `correlation_id` and relaxed strict column constraints for ingestion agility.
+3. **HITL Policies (`backend/app/core/hitl_policy.py`, `config/hitl_policies.yaml`, `backend/config/hitl_policies.yaml`)**:
+   - Added `prescription_doctor_verification`: flags unregistered/inactive doctor credentials for human review (12h expiry).
+   - Added `prescription_unknown_drug`: flags unlisted or experimental medication for clinical schedule review (12h expiry).
+4. **Deterministic Compliance Tools (`backend/app/tools/compliance_tools.py`)**:
+   - `lookup_schedule(drug_name)`: Queries CDSCO schedules and product catalog. Returns schedule class (`OTC`, `H`, `H1`, `X`). If unlisted, returns `schedule_class='unknown'` without hallucination or guessing.
+   - `verify_doctor(registration_no, doctor_name)`: Validates credentials against `doctor_registry`.
+5. **Sovereign Prescription Graph (`backend/app/graphs/prescription.py`, `app/agents/graphs/prescription.py`, `graphs/prescription.py`)**:
+   - Enforces `sensitivity="sensitive"` across all LLM requests, strictly routing to local execution and barring hosted cloud providers.
+   - `prescription_parser_node`: Local multimodal / OCR pipeline with automatic patient initials privacy redaction.
+   - `schedule_compliance_node`: Evaluates every drug against CDSCO schedules via `lookup_schedule`.
+   - `doctor_verification_node`: Verifies physician credentials against `doctor_registry`.
+   - `decision_node`: Evaluates compliance outcomes, produces `decision` (`approve_dispense`, `flag`, `reject`) and `status` (`approved`, `flagged`, `rejected`), creates HITL tasks for flags, persists to `prescriptions` and `compliance_logs`, and appends SHA-256 hash-chained entry to `audit_ledger`.
+6. **Task 11 Integration (`backend/app/tools/pharmacy_tools.py`, `backend/app/agents/pharmacy_agent.py`)**:
+   - Enhanced `check_prescription_link` to verify `prescription_id` references against the prescription store, ensuring `status == "approved"` and `doctor_verified == True`.
+   - Updated `PharmacyAgent` to parse `prescription_id` from event payload, state, and metadata, unlocking replenishment for valid Schedule H sales while locking dispense on unapproved prescriptions.
+7. **REST API Endpoints (`backend/app/api/v1/endpoints/prescriptions.py`, `backend/app/api/v1/endpoints/compliance.py`)**:
+   - `POST /api/v1/prescriptions`: Accepts multipart image upload or JSON payload and returns complete decision metadata.
+   - `GET /api/v1/prescriptions/{id}`: Retrieves prescription by ID.
+   - `GET /api/v1/compliance/logs`: Retrieves filtered compliance logs.
+   - Mounted in `backend/app/api/v1/router.py` with OpenAPI tags `"Prescriptions"` and `"Compliance"`.
+8. **Automated Test Suite (`backend/tests/test_prescription_compliance.py`)**:
+   - 9 deterministic tests covering:
+     - `test_valid_prescription_acceptance`: Valid OTC prescription approved.
+     - `test_schedule_h_prescription_acceptance`: Valid Schedule H prescription approved.
+     - `test_unknown_doctor_flagged_and_hitl`: Unknown doctor flagged and routes to HITL.
+     - `test_missing_reg_no_rejected`: Missing doctor registration rejected.
+     - `test_unlisted_drug_flagged_and_hitl`: Unlisted drug classified as unknown without guessing and routes to HITL.
+     - `test_sovereign_local_only_routing`: Enforces `sensitivity="sensitive"` and asserts zero calls to hosted cloud.
+     - `test_schedule_h_sale_event_cascade_approved`: Approved prescription unlocks Schedule H POS sale in Task 11 `PharmacyAgent`.
+     - `test_schedule_h_sale_event_cascade_blocked_on_flagged_rx`: Flagged prescription triggers compliance hold in Task 11 `PharmacyAgent`.
+     - `test_prescription_api_endpoints`: Tests multipart upload, JSON upload, GET prescription by ID, and GET compliance logs.
+
+### Verification Status
+- [x] Synthetic prescription image fixtures generated in `fixtures/prescriptions/` and `backend/fixtures/prescriptions/`.
+- [x] Migration `014_prescriptions_compliance.sql` created.
+- [x] Sovereign Prescription Graph implemented with local-only routing (`sensitivity="sensitive"`).
+- [x] Deterministic tools `lookup_schedule` and `verify_doctor` registered and tested.
+- [x] HITL policies and task creation verified.
+- [x] Task 11 `check_prescription_link` and `PharmacyAgent` integration verified.
+- [x] REST endpoints mounted under `/api/v1/prescriptions` and `/api/v1/compliance`.
+- [x] All 9 tests in `test_prescription_compliance.py` pass; full backend test suite passes (141/141 tests pass in ~60s).
+- [x] `ruff check backend` clean (0 warnings/errors).
+- [x] `npm --prefix frontend run build` clean.
+- [x] Specification created at `docs/specs/task-19-spec.md`.

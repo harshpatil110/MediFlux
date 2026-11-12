@@ -23,6 +23,9 @@ dependencies = [
     "tenacity>=8.2.3",
     "pyyaml>=6.0.1",
     "langgraph-checkpoint-sqlite>=3.0.0",
+    "pillow>=10.0.0",
+    "pytesseract>=0.3.10",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
