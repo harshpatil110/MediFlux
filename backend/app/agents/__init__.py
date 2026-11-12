@@ -20,6 +20,11 @@ from app.agents.hitl import (
     request_human_approval,
     resolve_hitl_task,
 )
+from app.agents.pharmacy_agent import (
+    ExpiryFlag,
+    PharmacyAgent,
+    ReplenishmentSignal,
+)
 from app.agents.seed_agent import SeedAgent, seed_agent
 from app.agents.state import AgentGraphState
 from app.agents.testing import FakeLLM
@@ -38,8 +43,11 @@ __all__ = [
     "AgentGraphState",
     "BaseAgent",
     "BasePharmaAgent",
+    "ExpiryFlag",
     "FakeLLM",
     "FinalAnswerAction",
+    "PharmacyAgent",
+    "ReplenishmentSignal",
     "ToolCallAction",
     "ToolDefinition",
     "build_hitl_workflow_graph",

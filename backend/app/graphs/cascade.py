@@ -208,13 +208,137 @@ async def supervisor_node(state: CascadeState, router: Any = None) -> dict[str, 
 # 2. Tier Nodes (Pharmacy, Stockist, Distributor, Manufacturer)
 # -----------------------------------------------------------------------------
 async def pharmacy_node(state: CascadeState, router: Any = None) -> dict[str, Any]:
-    """Pharmacy Edge Node: Record retail dispense, verify stock, and signal stockist."""
-    return await _execute_tier_node(
+    """Pharmacy Edge Node: Run PharmacyAgent to evaluate inventory telemetry, compliance, and orders."""
+    corr_id = state.get("correlation_id", str(uuid.uuid4()))
+    trace = list(state.get("trace", []))
+    errors = list(state.get("errors", []))
+    perf_start = time.perf_counter()
+    start_time = datetime.now(UTC).isoformat()
+
+    await _publish_telemetry(
+        correlation_id=corr_id,
         tier="pharmacy",
-        state=state,
-        router=router,
-        summary_template="Pharmacy node logged dispense and local buffer shift",
+        agent_name="PharmacyAgent",
+        action="started",
+        status="running",
+        summary="Pharmacy telemetry agent evaluating inventory, returns, and compliance",
+        trace_step="enter",
     )
+
+    try:
+        from app.agents.pharmacy_agent import PharmacyAgent, persist_replenishment_order
+
+        agent = PharmacyAgent(
+            name="PharmacyAgent",
+            router=router or llm_router,
+        )
+
+        agent_result = await agent.run(
+            state=state,
+            input_data={
+                "event": state.get("event"),
+                "pharmacy_id": state.get("pharmacy_id"),
+                "product_id": state.get("product_id"),
+                "quantity": state.get("quantity"),
+                "batch_id": state.get("batch_id"),
+                "correlation_id": corr_id,
+            },
+            correlation_id=corr_id,
+        )
+
+        signal = agent_result.signal if hasattr(agent_result, "signal") else None
+        needed = agent_result.get("needed", False)
+        compliance_hold = agent_result.get("compliance_hold", False)
+        target_stockist_id = agent_result.get("target_stockist_id")
+        reorder_qty = agent_result.get("quantity", 0)
+        urgency = agent_result.get("urgency", "low")
+        reason = agent_result.get("reason", "Pharmacy telemetry processed")
+
+        # Database Order Persistence when needed=True and compliance_hold=False
+        if needed and not compliance_hold:
+            await persist_replenishment_order(
+                pharmacy_id=state.get("pharmacy_id") or "11111111-1111-1111-1111-111111111111",
+                stockist_id=target_stockist_id,
+                product_id=state.get("product_id") or "p-001-azithromycin",
+                quantity=reorder_qty,
+                priority=urgency,
+                correlation_id=corr_id,
+                reason=reason,
+            )
+
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        summary = f"Pharmacy telemetry processed: needed={needed}, compliance_hold={compliance_hold}"
+
+        trace.append({
+            "tier": "pharmacy",
+            "agent_name": "PharmacyAgent",
+            "status": "success",
+            "summary": summary,
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="pharmacy",
+            agent_name="PharmacyAgent",
+            action="completed",
+            status="success",
+            summary=summary,
+            trace_step="complete",
+            details={
+                "needed": needed,
+                "compliance_hold": compliance_hold,
+                "quantity": reorder_qty,
+            },
+        )
+
+        pharmacy_result_dict = (
+            signal.model_dump()
+            if signal
+            else (agent_result.dict() if hasattr(agent_result, "dict") else dict(agent_result))
+        )
+
+        return {
+            "pharmacy_result": pharmacy_result_dict,
+            "trace": trace,
+            "errors": errors,
+        }
+
+    except Exception as exc:
+        logger.error("Pharmacy node execution error: %s", exc)
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        errors.append({
+            "tier": "pharmacy",
+            "error": str(exc),
+            "timestamp": datetime.now(UTC).isoformat(),
+        })
+        trace.append({
+            "tier": "pharmacy",
+            "agent_name": "PharmacyAgent",
+            "status": "failed",
+            "summary": f"Error in pharmacy: {exc}",
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="pharmacy",
+            agent_name="PharmacyAgent",
+            action="failed",
+            status="failed",
+            summary=f"Pharmacy execution failed: {exc}",
+            trace_step="error",
+        )
+
+        return {
+            "pharmacy_result": {"status": "failed", "error": str(exc)},
+            "trace": trace,
+            "errors": errors,
+        }
 
 
 async def stockist_node(state: CascadeState, router: Any = None) -> dict[str, Any]:

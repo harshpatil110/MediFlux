@@ -475,3 +475,57 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] Partial failure resilience and tier isolation verified.
 - [x] All 6 tests in `test_cascade.py` pass; total 75 backend tests pass (100% pass rate).
 - [x] `ruff check .` passes cleanly with 0 warnings.
+---
+
+## Task 11: Pharmacy Tier (Inventory Telemetry Agent)
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 3 — Multi-Agent Demand Propagation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Pharmacy Telemetry Agent (`app/agents/pharmacy_agent.py`)**:
+   - Implemented `PharmacyAgent` inheriting from `BaseAgent`, providing autonomous edge intelligence for retail pharmacy nodes.
+   - Defined `ExpiryFlag` and `ReplenishmentSignal` Pydantic schemas capturing replenishment necessity, order quantities, urgency levels, regulatory hold flags, and expiring batch lists.
+   - Implemented `PharmacyAgentResult` dictionary subclass for flexible attribute-level and dictionary-level access across LangGraph nodes and tests.
+   - Built deterministic telemetry evaluation logic covering:
+     - `sale` events: evaluating current stock against `safety_stock`, calculating capacity restock requirements, and resolving parent stockist nodes.
+     - `return` events: distinguishing damaged items (marked for disposal and replacement) from sellable items (returned to shelf stock).
+     - `expiry_alert` events: scanning batches within 30 days of expiry and generating FEFO rotation recommendations.
+     - Schedule H compliance verification: querying `check_prescription_link` for Schedule H/G/X drugs and placing regulatory holds with `urgency='high'` when prescription links are absent or unverified.
+2. **Dedicated Pharmacy Telemetry Tools (`app/tools/pharmacy_tools.py`)**:
+   - Implemented 4 dedicated agent tools decorated with `@tool`:
+     - `get_inventory`: queries current stock balances, safety stock, and reorder levels with in-memory test fallback.
+     - `get_recent_sales`: retrieves historical POS retail dispense events for consumption velocity analysis.
+     - `get_batches_near_expiry`: queries batches nearing expiration within configurable threshold days.
+     - `check_prescription_link`: validates prescription references against `doctor_registry.json` and event metadata.
+   - Added `load_doctor_registry`, `load_drug_schedules`, and `is_scheduled_drug` utility helpers.
+3. **Tool Registry Unification (`app/tools/registry.py` & `app/tools/__init__.py`)**:
+   - Created unified `app.tools` package seamlessly forwarding and registering tools in the centralized agent tool registry.
+4. **Cascade Graph Integration (`app/graphs/cascade.py`)**:
+   - Replaced minimal stub `pharmacy_node` with `PharmacyAgent.run(state)`.
+   - Wired input context (`event`, `pharmacy_id`, `product_id`, `quantity`, `batch_id`, `correlation_id`).
+   - Integrated automatic purchase order persistence into Supabase `orders` table (`status: 'requested'`) when `needed=True` and `compliance_hold=False`.
+   - Published entry and exit telemetry (`agent.activity`, `cascade.updates`) for real-time observability.
+5. **Database Migration (`supabase/migrations/006_pharmacy_orders.sql`)**:
+   - Created migration extending `orders` table schema with `pharmacy_id`, `stockist_id`, `product_id`, `quantity`, `status`, `priority`, `correlation_id`, and `metadata`.
+6. **Comprehensive Automated Test Suite (`backend/tests/test_pharmacy_agent.py`)**:
+   - Implemented 8 deterministic unit and integration tests using `FakeLLM` and mock isolation:
+     - `test_safety_stock_replenishment`: stock below safety threshold generates purchase order.
+     - `test_return_and_expiry_events`: damaged return replacement and expiry FEFO rotation flags.
+     - `test_schedule_h_compliance_hold`: missing prescription reference activates regulatory hold and suppresses purchase order generation.
+     - `test_schedule_h_with_valid_prescription`: verified doctor reference passes compliance and triggers order.
+     - `test_sellable_return_restores_stock`: healthy stock after return requires no replenishment.
+     - `test_pharmacy_tools_direct_execution`: tool execution verification.
+     - `test_mock_supabase_client_order_insertion`: verified database client table calls.
+     - `test_cascade_graph_invokes_pharmacy_agent`: full cascade graph execution verifying pharmacy telemetry node and state trace.
+
+### Verification Status
+- [x] `PharmacyAgent` and `ReplenishmentSignal` schema implemented in `app/agents/pharmacy_agent.py`.
+- [x] Dedicated tools (`get_inventory`, `get_recent_sales`, `get_batches_near_expiry`, `check_prescription_link`) created in `app/tools/pharmacy_tools.py` and registered.
+- [x] Cascade graph `pharmacy_node` in `app/graphs/cascade.py` executes `PharmacyAgent`.
+- [x] Purchase orders created with status `'requested'` when replenishment needed and compliance passes.
+- [x] All 8 tests in `test_pharmacy_agent.py` pass; all 83 backend tests pass with 0 failures.
+- [x] `ruff check .` passes with 0 warnings.
+- [x] Frontend `npm run build` compiles with 0 errors.
+- [x] Specification created at `docs/specs/task-11-spec.md`.

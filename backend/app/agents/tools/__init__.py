@@ -10,6 +10,7 @@ from app.agents.tools.registry import (
     list_tools,
     tool,
 )
+from app.tools import pharmacy_tools as _pharmacy_tools  # noqa: F401
 
 __all__ = [
     "ToolDefinition",
