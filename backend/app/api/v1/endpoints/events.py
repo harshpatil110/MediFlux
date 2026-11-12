@@ -116,3 +116,4 @@ async def ingest_sale_batch(
             "correlation_id": correlation_id,
         },
     )
+

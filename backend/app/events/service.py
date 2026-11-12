@@ -117,3 +117,4 @@ async def apply_sale(event: SaleEvent, correlation_id: str) -> dict[str, Any]:
         "event_id": event_id_str,
         "remaining_quantity": new_stock,
     }
+

@@ -88,3 +88,4 @@ Build the ultra-fast, zero-LLM event ingestion path and real-time streaming back
   5. `test_node_isolation_filtering`: Cross-node event isolation enforced.
   6. `test_stream_endpoint_requires_auth`: 401 Unauthorized without credentials.
   7. `test_apply_sale_rpc_invocation_path`: Verified Supabase client RPC execution.
+
