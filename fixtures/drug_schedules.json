@@ -1,0 +1,223 @@
+[
+  {
+    "product_name": "Amoxicillin 500mg Capsules",
+    "sku": "MED-AMX-500",
+    "category": "antibiotic",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 7.50
+  },
+  {
+    "product_name": "Azithromycin 500mg Tablets",
+    "sku": "MED-AZI-500",
+    "category": "antibiotic",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 23.80
+  },
+  {
+    "product_name": "Ciprofloxacin 500mg Tablets",
+    "sku": "MED-CIP-500",
+    "category": "antibiotic",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 30.0,
+    "neml_ceiling_price": 4.10
+  },
+  {
+    "product_name": "Paracetamol 650mg Tablets",
+    "sku": "MED-PCM-650",
+    "category": "analgesic",
+    "schedule_type": "OTC",
+    "requires_prescription": false,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 30.0,
+    "neml_ceiling_price": 2.05
+  },
+  {
+    "product_name": "Ibuprofen 400mg Tablets",
+    "sku": "MED-IBU-400",
+    "category": "analgesic",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 1.45
+  },
+  {
+    "product_name": "Tramadol 50mg Tablets",
+    "sku": "MED-TRA-050",
+    "category": "analgesic",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 9.20
+  },
+  {
+    "product_name": "Morphine Sulphate 10mg Tablets",
+    "sku": "MED-MOR-010",
+    "category": "analgesic",
+    "schedule_type": "Narcotic",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 18.50
+  },
+  {
+    "product_name": "Covishield Vaccine 0.5ml",
+    "sku": "MED-VAC-COV",
+    "category": "vaccine",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": true,
+    "min_temp_celsius": 2.0,
+    "max_temp_celsius": 8.0,
+    "neml_ceiling_price": 225.00
+  },
+  {
+    "product_name": "Rotavirus Vaccine Live Oral 2.5ml",
+    "sku": "MED-VAC-ROT",
+    "category": "vaccine",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": true,
+    "min_temp_celsius": 2.0,
+    "max_temp_celsius": 8.0,
+    "neml_ceiling_price": 135.00
+  },
+  {
+    "product_name": "Human Regular Insulin 100IU/ml",
+    "sku": "MED-INS-REG",
+    "category": "antidiabetic",
+    "schedule_type": "Schedule G",
+    "requires_prescription": true,
+    "is_cold_chain": true,
+    "min_temp_celsius": 2.0,
+    "max_temp_celsius": 8.0,
+    "neml_ceiling_price": 145.20
+  },
+  {
+    "product_name": "Metformin HCl 500mg Tablets",
+    "sku": "MED-MET-500",
+    "category": "antidiabetic",
+    "schedule_type": "Schedule G",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 30.0,
+    "neml_ceiling_price": 1.80
+  },
+  {
+    "product_name": "Glimepiride 2mg Tablets",
+    "sku": "MED-GLI-002",
+    "category": "antidiabetic",
+    "schedule_type": "Schedule G",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 4.60
+  },
+  {
+    "product_name": "Atorvastatin 10mg Tablets",
+    "sku": "MED-ATV-010",
+    "category": "cardiovascular",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 6.80
+  },
+  {
+    "product_name": "Amlodipine 5mg Tablets",
+    "sku": "MED-AML-005",
+    "category": "cardiovascular",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 30.0,
+    "neml_ceiling_price": 2.15
+  },
+  {
+    "product_name": "Telmisartan 40mg Tablets",
+    "sku": "MED-TEL-040",
+    "category": "cardiovascular",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 30.0,
+    "neml_ceiling_price": 7.20
+  },
+  {
+    "product_name": "Omeprazole 20mg Capsules",
+    "sku": "MED-OMP-020",
+    "category": "gastrointestinal",
+    "schedule_type": "OTC",
+    "requires_prescription": false,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 3.40
+  },
+  {
+    "product_name": "Pantoprazole 40mg Tablets",
+    "sku": "MED-PAN-040",
+    "category": "gastrointestinal",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 8.50
+  },
+  {
+    "product_name": "Cetirizine 10mg Tablets",
+    "sku": "MED-CET-010",
+    "category": "antihistamine",
+    "schedule_type": "OTC",
+    "requires_prescription": false,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 30.0,
+    "neml_ceiling_price": 1.95
+  },
+  {
+    "product_name": "Oseltamivir 75mg Capsules",
+    "sku": "MED-OSE-075",
+    "category": "antiviral",
+    "schedule_type": "Schedule H",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 48.00
+  },
+  {
+    "product_name": "Fentanyl Citrate 50mcg/ml Injection",
+    "sku": "MED-FEN-050",
+    "category": "analgesic",
+    "schedule_type": "Narcotic",
+    "requires_prescription": true,
+    "is_cold_chain": false,
+    "min_temp_celsius": 15.0,
+    "max_temp_celsius": 25.0,
+    "neml_ceiling_price": 65.00
+  }
+]
+

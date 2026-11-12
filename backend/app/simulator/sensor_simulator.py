@@ -1,47 +1,30 @@
-"""Cold chain IoT temperature and humidity sensor telemetry simulator."""
+"""Environmental sensor telemetry simulator stub for cold-chain monitoring (Task 9/Task 20)."""
 
 import logging
-import random
 
-from app.events.bus import event_bus
-from app.events.models import DomainEvent
+from app.events.bus import in_process_event_bus
+from app.events.models import EventEnvelope
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("mediflux.simulator.sensor")
 
 
 class SensorSimulator:
-    """Simulates real-time IoT sensors aboard cold-chain transit vehicles."""
+    """Interface stub for environmental cold-chain sensor telemetry simulation."""
 
-    def __init__(self, shipment_id: str = "SHIP-COLD-9981") -> None:
-        self.shipment_id = shipment_id
+    def __init__(self, vehicle_id: str = "DL-01-RF-1000") -> None:
+        self.vehicle_id = vehicle_id
 
-    async def emit_telemetry(
-        self,
-        base_temp_celsius: float = 4.5,
-        inject_excursion: bool = False,
-    ) -> DomainEvent:
-        """Emit a sensor reading event."""
-        temp = base_temp_celsius + random.uniform(-0.5, 0.5)
-        if inject_excursion:
-            temp += random.uniform(6.0, 10.0)
-
-        event = DomainEvent(
-            event_type="pharma.coldchain.telemetry",
-            tier="coldchain",
+    async def emit_telemetry(self, vehicle_id: str | None = None, temp_celsius: float = 4.5) -> None:
+        """Stub for publishing SensorReadingEvent to coldchain topic."""
+        target_vehicle = vehicle_id or self.vehicle_id
+        envelope = EventEnvelope(
+            type="coldchain.telemetry",
+            node_id=target_vehicle,
             payload={
-                "shipment_id": self.shipment_id,
-                "temperature_celsius": round(temp, 2),
-                "target_range": [2.0, 8.0],
-                "humidity_rh": round(random.uniform(45.0, 55.0), 1),
-                "is_breached": temp < 2.0 or temp > 8.0,
+                "vehicle_id": target_vehicle,
+                "temperature_celsius": float(temp_celsius),
+                "is_breached": temp_celsius < 2.0 or temp_celsius > 8.0,
             },
         )
-
-        await event_bus.publish(event)
-        logger.info(
-            "Cold chain sensor telemetry: %s temp=%.2f C (breached=%s)",
-            self.shipment_id,
-            temp,
-            temp < 2.0 or temp > 8.0,
-        )
-        return event
+        await in_process_event_bus.publish("coldchain.telemetry", envelope)
+        logger.info("Coldchain telemetry stub emitted: vehicle=%s, temp=%.2f C", target_vehicle, temp_celsius)

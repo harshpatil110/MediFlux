@@ -20,6 +20,7 @@ from app.agents.hitl import (
     request_human_approval,
     resolve_hitl_task,
 )
+from app.agents.seed_agent import SeedAgent, seed_agent
 from app.agents.state import AgentGraphState
 from app.agents.testing import FakeLLM
 from app.agents.tools.registry import (
@@ -55,5 +56,7 @@ __all__ = [
     "list_tools",
     "request_human_approval",
     "resolve_hitl_task",
+    "seed_agent",
+    "SeedAgent",
     "tool",
 ]

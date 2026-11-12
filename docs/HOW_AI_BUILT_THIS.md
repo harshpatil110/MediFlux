@@ -365,3 +365,62 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] Admin endpoints operational in FastAPI router.
 - [x] All 13 tests in `test_modules_runtime.py` pass; total 61 backend tests pass (100% pass rate).
 - [x] `ruff check .` passes cleanly with 0 warnings.
+---
+
+## Task 9: Synthetic Data Agent, Seed Pipeline, and POS Simulator
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Verified Curated Fixtures (`fixtures/`)**:
+   - `fixtures/drug_schedules.json`: Authored human-verified medical classification dataset for 20 real-world pharmaceutical products under Indian regulations (Schedule H, Schedule G, OTC, Narcotic/Schedule X, cold-chain bounds, DPCO/NLEM ceiling prices). Enforced zero-LLM generation rule for drug schedules.
+   - `fixtures/doctor_registry.json`: Created mock doctor registration dataset with medical council license numbers and specializations.
+   - Mirrored fixtures in `backend/fixtures/` for localized resolution.
+2. **Synthetic Data Generator Agent (`app/agents/seed_agent.py`)**:
+   - Created `SeedAgent` using deterministic UUIDv5 algorithms to build a full 4-tier network topology:
+     - 2 Manufacturers (*Alpha Pharma Mfg*, *Apex Bio Labs*).
+     - 3 Regional Distributors (*Metro Logistics Hub*, *West Coast Depot*, *South Regional Hub*).
+     - 5 Stockists / Wholesalers (Delhi Central, Mumbai West, Bengaluru South, Kolkata East, Ahmedabad Central).
+     - 15 Retail Pharmacies across regional clusters.
+   - Generated supporting supply chain assets:
+     - 20 Products mapped to drug schedule specifications.
+     - 40 Batches with valid manufacturing and future expiration dates.
+     - 425 Inventory allocations scoped per tier.
+     - 25 Credit accounts with realistic limits and credit scores.
+     - 6 Fleet vehicles including refrigerated reefer units and ambient trucks.
+     - 4 Production lines and 8 API raw material stock records.
+   - Guaranteed `metadata: {"is_synthetic": true}` on 100% of generated records.
+3. **CLI Seed Script (`scripts/seed.py`)**:
+   - Developed executable seed script (`python -m scripts.seed`) with `--dry-run` flag support.
+   - Guaranteed full idempotency: re-running produces zero duplicate rows.
+4. **POS Traffic Simulator Engine (`app/simulator/pos_simulator.py` & `scripts/simulate.py`)**:
+   - Built `POSSimulator` with support for four distinct demand modes:
+     - `single`: Emits 1 single `SaleEvent` for a selected pharmacy and product.
+     - `steady`: Generates random sales across active pharmacies at a configurable background rate.
+     - `burst`: Generates rapid demand spikes for a specific product or region.
+     - `stockout_run`: Continually issues sales until inventory drops below safety stock threshold.
+   - Built CLI runner (`scripts/simulate.py`) with full argument parsing for terminal demonstrations.
+5. **Simulator Admin Control API (`app/api/v1/endpoints/simulator.py`)**:
+   - Created REST control endpoints:
+     - `POST /api/v1/simulator/run`: Spawns background simulation `asyncio.Task`.
+     - `POST /api/v1/simulator/stop`: Cancels active simulation.
+     - `GET /api/v1/simulator/status`: Returns real-time telemetry (mode, events sent, error count, last event timestamp).
+   - Mounted `simulator_router` in `app/api/v1/router.py`.
+6. **Environmental Sensor Simulator Stub (`app/simulator/sensor_simulator.py`)**:
+   - Implemented cold-chain telemetry simulation stub publishing `SensorReadingEvent` envelopes to the `coldchain.telemetry` topic on `in_process_event_bus`.
+7. **Comprehensive Unit & Integration Tests (`tests/test_seed_and_simulator.py`)**:
+   - Implemented 8 comprehensive tests covering pipeline idempotency, synthetic labeling, schedule integrity, doctor registry validation, single mode inventory decrement, stockout run threshold termination, admin REST endpoints, and sensor stub telemetry.
+
+### Verification Status
+- [x] Curated fixtures created and verified (`drug_schedules.json`, `doctor_registry.json`).
+- [x] Synthetic Data Agent generates 25 nodes, 20 products, 40 batches, 425 inventory allocations, 25 credit accounts, 6 fleet vehicles, 4 production lines, and 8 API records.
+- [x] 100% of seeded records labeled with `is_synthetic: true`.
+- [x] Seeder script runs idempotently via `python -m scripts.seed` without row duplication.
+- [x] POS simulator supports `single`, `steady`, `burst`, and `stockout_run` modes.
+- [x] CLI simulator executes cleanly from terminal.
+- [x] Simulator control endpoints (`/run`, `/stop`, `/status`) integrated and functional.
+- [x] Environmental sensor simulator stub created and verified.
+- [x] All 8 tests in `test_seed_and_simulator.py` pass; total 69 backend tests pass (100% pass rate).
+- [x] `ruff check .` passes with 0 warnings/errors.

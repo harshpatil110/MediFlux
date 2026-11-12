@@ -1,0 +1,45 @@
+[
+  {
+    "doctor_id": "DOC-IND-001",
+    "license_number": "MCI-2015-88421",
+    "name": "Dr. Rajesh Sharma",
+    "specialization": "General Physician",
+    "valid_until": "2029-12-31"
+  },
+  {
+    "doctor_id": "DOC-IND-002",
+    "license_number": "DMC-2018-44912",
+    "name": "Dr. Ananya Iyer",
+    "specialization": "Cardiologist",
+    "valid_until": "2030-06-30"
+  },
+  {
+    "doctor_id": "DOC-IND-003",
+    "license_number": "MMC-2012-19284",
+    "name": "Dr. Vikramaditya Deshmukh",
+    "specialization": "Endocrinologist",
+    "valid_until": "2028-04-15"
+  },
+  {
+    "doctor_id": "DOC-IND-004",
+    "license_number": "KMC-2019-33821",
+    "name": "Dr. Sneha Hegde",
+    "specialization": "Pediatrician",
+    "valid_until": "2031-10-31"
+  },
+  {
+    "doctor_id": "DOC-IND-005",
+    "license_number": "TNMC-2014-72619",
+    "name": "Dr. Karthik Sundaram",
+    "specialization": "Pulmonologist",
+    "valid_until": "2029-08-31"
+  },
+  {
+    "doctor_id": "DOC-IND-006",
+    "license_number": "UPMC-2020-55102",
+    "name": "Dr. Priya Verma",
+    "specialization": "Oncologist",
+    "valid_until": "2032-01-31"
+  }
+]
+
