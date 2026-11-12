@@ -172,3 +172,52 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] Initial endpoints created: `/api/v1/me`, `/api/v1/nodes`, `/api/v1/products`, `/api/v1/inventory`.
 - [x] OpenAPI interactive documentation generated at `/docs`.
 - [x] All 25 pytest tests pass cleanly with 0 failures and 0 linter warnings.
+
+---
+
+## Task 5: LLM Router (NVIDIA, OpenRouter, Ollama)
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 1 — Foundation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Configuration & Model Mapping (`config/agent_models.yaml`, `backend/config/agent_models.yaml`)**:
+   - Defined default provider fallback chain (`nvidia -> openrouter -> ollama`).
+   - Configured concurrency limits (NVIDIA: 5, OpenRouter: 5, Ollama: 2) and timeout boundaries (30s hosted, 60s local).
+   - Specified agent model mappings for `coding_agent`, `analytics_agent`, `compliance_agent`, and `default`.
+2. **LLM Abstraction & Domain Exceptions (`app/llm/schemas.py`)**:
+   - Defined standardized response containers `LLMResponse[T]`, `RawCompletionResult`, and `TokenUsage`.
+   - Created specialized error hierarchy inheriting from `MediFluxError`: `LLMBaseError`, `LLMProviderError`, `SensitiveDataRoutingError`, `LLMStructuredOutputError`, and `LLMCacheMissError`.
+3. **Provider Adapters (`app/llm/providers.py`)**:
+   - Implemented `NvidiaProvider` (NVIDIA NIM hosted API with Bearer token authentication).
+   - Implemented `OpenRouterProvider` (OpenRouter free models with referral and title headers).
+   - Implemented `OllamaProvider` (local Ollama OpenAI-compatible endpoint for air-gapped processing).
+   - Bound each provider to an `asyncio.Semaphore` enforcing concurrency limits and mapped HTTP 429, 5xx, and timeouts to structured exceptions.
+4. **Structured Outputs & Self-Healing Repair Loop (`app/llm/parser.py`)**:
+   - Implemented `inject_schema`: dynamically embeds `response_model.model_json_schema()` into system instructions with strict formatting constraints without mutating message history.
+   - Implemented `extract_json_str` & `parse_and_validate`: strips markdown code fencing (` ```json `), locates outer braces, and parses via Pydantic.
+   - Implemented `execute_repair_loop`: automated multi-turn self-healing feedback loop (up to 2 repair iterations) passing syntax/validation error details back to the LLM.
+5. **Thread-Safe SQLite Persistent Cache (`app/llm/cache.py`)**:
+   - Implemented `SQLiteLLMCache` with `llm_cache.db` storing full response models and metadata.
+   - Built deterministic SHA-256 key generator based on `agent + messages + schema`.
+   - Supported three operating modes: `off`, `record`, and `replay` (where cache misses raise `LLMCacheMissError`).
+6. **Telemetry & Observability (`app/llm/telemetry.py`)**:
+   - Tracked `prompt_tokens`, `completion_tokens`, `total_tokens`, `latency_ms`, `cached`, `provider`, `model`, and request `correlation_id`.
+7. **Router Orchestrator (`app/llm/router.py`)**:
+   - Implemented `LLMRouter.complete()` orchestrating cache lookup, privacy isolation, fallback chains, and telemetry recording.
+   - **Data Privacy Boundary**: calls with `sensitivity="sensitive"` route strictly to local Ollama; failures raise `SensitiveDataRoutingError` immediately and NEVER fall back to hosted cloud providers.
+   - Normal calls traverse `nvidia -> openrouter -> ollama` on transient provider errors.
+8. **Automated Testing (`tests/test_llm_router.py`)**:
+   - 10 unit and integration tests verifying schema injection, JSON extraction, typed response generation, rate limit failover, privacy isolation (zero cloud leakage), replay caching, and self-healing repair loop recovery and exhaustion.
+
+### Verification Status
+- [x] Multi-provider LLM router implemented with NVIDIA, OpenRouter, and local Ollama.
+- [x] Privacy isolation verified: sensitive calls NEVER touch cloud providers.
+- [x] Fallback chain verified: HTTP 429 triggers failover to next provider.
+- [x] Pydantic structured output validation and 2-attempt self-healing repair loop verified.
+- [x] SQLite persistent cache verified in record and replay modes.
+- [x] Telemetry records token usage, latency, provider, model, and correlation ID.
+- [x] All 10 tests in `test_llm_router.py` pass; total 35 backend tests pass with 0 failures.
+- [x] Linter `ruff check .` passes with 0 warnings/errors.
+

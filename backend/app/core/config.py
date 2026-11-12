@@ -41,15 +41,21 @@ class Settings(BaseSettings):
     )
 
     # LLM Provider credentials
-    NVIDIA_API_KEY: str = Field(default="", description="NVIDIA NIM API key")
-    OPENROUTER_API_KEY: str = Field(default="", description="OpenRouter API key")
+    NVIDIA_API_KEY: str | None = Field(default=None, description="NVIDIA NIM API key")
+    OPENROUTER_API_KEY: str | None = Field(default=None, description="OpenRouter API key")
     OLLAMA_BASE_URL: str = Field(
         default="http://localhost:11434/v1", description="Local Ollama endpoint"
     )
 
     # Application Modes
     LLM_CACHE_MODE: str = Field(
-        default="record", description="Cache mode: off, read, record, or offline"
+        default="record", description="Cache mode: off, record, replay"
+    )
+    LLM_CACHE_DB_PATH: str = Field(
+        default="llm_cache.db", description="Path to SQLite cache database"
+    )
+    AGENT_MODELS_CONFIG_PATH: str = Field(
+        default="config/agent_models.yaml", description="Path to agent models yaml"
     )
     DEMO_MODE: bool = Field(default=False, description="Enable deterministic synthetic demo mode")
     CASCADE_MODE: str = Field(

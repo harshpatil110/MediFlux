@@ -1,0 +1,36 @@
+default_fallback_chain:
+  - nvidia
+  - openrouter
+  - ollama
+
+providers:
+  nvidia:
+    base_url: "https://integrate.api.nvidia.com/v1"
+    max_concurrency: 5
+    timeout_seconds: 30
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+    max_concurrency: 5
+    timeout_seconds: 30
+  ollama:
+    base_url: "http://localhost:11434/v1"
+    max_concurrency: 2
+    timeout_seconds: 60
+
+agents:
+  coding_agent:
+    nvidia: "meta/llama-3.1-70b-instruct"
+    openrouter: "meta-llama/llama-3.1-70b-instruct:free"
+    ollama: "qwen2.5-coder:7b"
+  analytics_agent:
+    nvidia: "meta/llama-3.1-8b-instruct"
+    openrouter: "google/gemma-2-9b-it:free"
+    ollama: "llama3.2:latest"
+  compliance_agent:
+    nvidia: "meta/llama-3.1-70b-instruct"
+    openrouter: "meta-llama/llama-3.1-70b-instruct:free"
+    ollama: "llama3.2:latest"
+  default:
+    nvidia: "meta/llama-3.1-8b-instruct"
+    openrouter: "meta-llama/llama-3.1-8b-instruct:free"
+    ollama: "llama3.2:latest"

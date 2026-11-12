@@ -53,4 +53,8 @@ dist-ssr/
 .DS_Store
 Thumbs.db
 *.log
+*.db
+*.sqlite
+*.sqlite3
+llm_cache.db
 

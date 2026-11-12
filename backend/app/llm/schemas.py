@@ -1,44 +1,95 @@
-"""Pydantic schemas for LLM requests, responses, and token telemetry."""
+"""Pydantic schemas and exception definitions for LLM routing and telemetry."""
 
-from typing import Any, Literal
+from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
+from app.core.errors import MediFluxError
 
-class ChatMessage(BaseModel):
-    """Single message within an LLM conversation context."""
-
-    role: Literal["system", "user", "assistant", "tool"] = "user"
-    content: str
-    name: str | None = None
-    tool_call_id: str | None = None
+T = TypeVar("T")
 
 
-class ChatCompletionRequest(BaseModel):
-    """Standardized request schema for LLM generation."""
+# -----------------------------------------------------------------------------
+# 1. Custom LLM Exceptions
+# -----------------------------------------------------------------------------
+class LLMBaseError(MediFluxError):
+    """Base exception for all LLM routing and provider failures."""
 
-    model: str = "meta-llama/llama-3.1-70b-instruct"
-    messages: list[ChatMessage]
-    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=2048, ge=1, le=16384)
-    response_format: dict[str, Any] | None = None
-    stream: bool = False
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.details = details or {}
 
 
+class LLMProviderError(LLMBaseError):
+    """Raised when an individual LLM provider fails (e.g. 429, 5xx, timeout)."""
+
+    def __init__(
+        self,
+        provider: str,
+        status_code: int | None = None,
+        message: str = "",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        full_msg = f"Provider [{provider}] failed (status: {status_code}): {message}"
+        super().__init__(full_msg, details)
+        self.provider = provider
+        self.status_code = status_code
+
+
+class SensitiveDataRoutingError(LLMBaseError):
+    """Raised when a sensitive query fails on local Ollama, strictly forbidding hosted fallback."""
+
+
+class LLMStructuredOutputError(LLMBaseError):
+    """Raised when LLM output fails schema validation even after repair loop attempts."""
+
+    def __init__(
+        self,
+        message: str,
+        raw_output: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(message, details)
+        self.raw_output = raw_output
+
+
+class LLMCacheMissError(LLMBaseError):
+    """Raised when a cache key misses in 'replay' mode."""
+
+
+# -----------------------------------------------------------------------------
+# 2. Telemetry & Response Containers
+# -----------------------------------------------------------------------------
 class TokenUsage(BaseModel):
-    """Token consumption metrics."""
+    """Token consumption telemetry."""
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
 
 
-class ChatCompletionResponse(BaseModel):
-    """Standardized response schema across all free LLM providers."""
+class RawCompletionResult(BaseModel):
+    """Intermediate provider completion container."""
 
-    id: str
+    content: str
     provider: str
     model: str
-    content: str
-    usage: TokenUsage = Field(default_factory=TokenUsage)
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    latency_ms: float = 0.0
+
+
+class LLMResponse(BaseModel, Generic[T]):
+    """Standardized response container returning validated model instance and telemetry."""
+
+    data: T
+    provider: str
+    model: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    latency_ms: float = 0.0
     cached: bool = False
+    raw_content: str | None = None
