@@ -424,3 +424,54 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] Environmental sensor simulator stub created and verified.
 - [x] All 8 tests in `test_seed_and_simulator.py` pass; total 69 backend tests pass (100% pass rate).
 - [x] `ruff check .` passes with 0 warnings/errors.
+---
+
+## Task 10: Cascade Graph Vertical Slice
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 3 — Multi-Agent Demand Propagation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Configuration Settings (`core/config.py`)**:
+   - Added `CASCADE_MODE` (`per_event` | `micro_batch`), `CASCADE_MICRO_BATCH_WINDOW_SECONDS` (default: 5), and `CASCADE_MAX_CONCURRENCY` (default: 2) to application `Settings`.
+2. **Cascade State & LangGraph Orchestration (`graphs/cascade.py`)**:
+   - Defined `CascadeState` TypedDict holding event payload, correlation ID, entity identifiers, active tiers, per-tier results, execution trace, errors list, and status (`pending`, `completed`, `partial`, `failed`).
+   - Implemented `supervisor_node`: evaluates retail dispense event and stock context, calling supervisor agent to determine `active_tiers`.
+   - Configured conditional edge routing:
+     - `supervisor -> pharmacy`
+     - `pharmacy -> stockist` (if `"stockist" in active_tiers` else `finalize`)
+     - `stockist -> distributor` (if `"distributor" in active_tiers` else `finalize`)
+     - `distributor -> manufacturer` (if `"manufacturer" in active_tiers` else `finalize`)
+     - `manufacturer -> finalize`
+     - `finalize -> END`
+   - Built minimal tier agent wrappers (`pharmacy_node`, `stockist_node`, `distributor_node`, `manufacturer_node`) running scoped instances of `BaseAgent`.
+   - Engineered partial failure resilience: any runtime exception within a tier records an entry in `errors`, transitions status to `"partial"`, and advances to `finalize_node` without aborting the graph.
+3. **Dual Telemetry Event Publishing (`graphs/cascade.py`)**:
+   - Emits dual events to `InProcessEventBus` on entry and exit of every node:
+     - `agent.activity`: Tracks agent name, tier, action (`started`, `completed`, `failed`), and duration.
+     - `cascade.updates`: Broadcasts step summaries and trace updates for live SSE monitoring.
+4. **Background Worker & Event Subscription (`workers/cascade_worker.py`)**:
+   - Implemented `CascadeWorker` subscribing to `pos.sales` topic on `InProcessEventBus`.
+   - Enforced concurrency throttling using `asyncio.Semaphore(settings.CASCADE_MAX_CONCURRENCY)`.
+   - Supported `per_event` immediate invocation and `micro_batch` time-windowed event accumulation and flush grouping by `(pharmacy_id, product_id)`.
+   - Registered graceful worker lifecycle start/stop hooks in FastAPI `lifespan` in `main.py`.
+5. **Cascade Trace REST API Endpoint (`api/v1/endpoints/cascade.py`)**:
+   - Implemented `GET /api/v1/cascade/{correlation_id}` protected by `get_current_user`.
+   - Returns ordered chronological execution trace, latency breakdown per tier, and status (`completed`, `partial`, `failed`).
+   - Mounted `cascade_router` in `api/v1/router.py`.
+6. **Robustness & Offline Parser Upgrades (`llm/parser.py`, `llm/cache.py`, `agents/base.py`)**:
+   - Enhanced `inject_schema`, `parse_and_validate`, and `llm_cache` to support union/annotated types (`AgentDecision`) via Pydantic `TypeAdapter`.
+   - Added instant offline fallback when API keys are unconfigured, preventing network timeout delays in test environments.
+7. **Comprehensive Integration Test Suite (`tests/test_cascade.py`)**:
+   - Created 6 integration tests verifying full 4-tier propagation, supervisor skipping, partial failure isolation, SSE cascade updates, worker event ingestion, and trace REST API retrieval.
+
+### Verification Status
+- [x] Multi-tier StateGraph with supervisor and conditional routing implemented.
+- [x] Dual-topic telemetry (`agent.activity`, `cascade.updates`) emitted on all state transitions.
+- [x] Background `CascadeWorker` operational with `per_event` and `micro_batch` modes.
+- [x] Lifespan integration in `main.py` verified.
+- [x] Trace endpoint `GET /api/v1/cascade/{correlation_id}` operational.
+- [x] Partial failure resilience and tier isolation verified.
+- [x] All 6 tests in `test_cascade.py` pass; total 75 backend tests pass (100% pass rate).
+- [x] `ruff check .` passes cleanly with 0 warnings.

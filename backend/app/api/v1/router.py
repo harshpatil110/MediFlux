@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.auth import router as auth_router
+from app.api.v1.endpoints.cascade import router as cascade_router
 from app.api.v1.endpoints.events import router as events_router
 from app.api.v1.endpoints.inventory import router as inventory_router
 from app.api.v1.endpoints.modules import router as modules_router
@@ -15,6 +16,7 @@ api_router = APIRouter()
 
 # Core Domain Endpoints
 api_router.include_router(auth_router)
+api_router.include_router(cascade_router)
 api_router.include_router(nodes_router)
 api_router.include_router(products_router)
 api_router.include_router(inventory_router)

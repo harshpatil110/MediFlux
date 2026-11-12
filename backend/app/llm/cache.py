@@ -65,7 +65,12 @@ class SQLiteLLMCache:
         response_model: type[BaseModel],
     ) -> str:
         """Compute a deterministic SHA-256 hash across agent name, messages, and model schema."""
-        schema_json = json.dumps(response_model.model_json_schema(), sort_keys=True)
+        if hasattr(response_model, "model_json_schema"):
+            schema_json = json.dumps(response_model.model_json_schema(), sort_keys=True)
+        else:
+            from pydantic import TypeAdapter
+
+            schema_json = json.dumps(TypeAdapter(response_model).json_schema(), sort_keys=True)
         messages_json = json.dumps(messages, sort_keys=True)
         combined = f"{agent}:{messages_json}:{schema_json}"
         return hashlib.sha256(combined.encode("utf-8")).hexdigest()
@@ -96,7 +101,12 @@ class SQLiteLLMCache:
 
         if row:
             logger.debug("Cache HIT for key %s", cache_key[:12])
-            parsed_data = response_model.model_validate_json(row["data_json"])
+            if hasattr(response_model, "model_validate_json"):
+                parsed_data = response_model.model_validate_json(row["data_json"])
+            else:
+                from pydantic import TypeAdapter
+
+                parsed_data = TypeAdapter(response_model).validate_json(row["data_json"])
             return LLMResponse(
                 data=parsed_data,
                 provider=row["provider"],

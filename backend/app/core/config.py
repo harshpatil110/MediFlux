@@ -1,5 +1,7 @@
 """Application configuration management using Pydantic Settings."""
 
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -58,8 +60,14 @@ class Settings(BaseSettings):
         default="config/agent_models.yaml", description="Path to agent models yaml"
     )
     DEMO_MODE: bool = Field(default=False, description="Enable deterministic synthetic demo mode")
-    CASCADE_MODE: str = Field(
-        default="per_event", description="Cascade mode: per_event or batched"
+    CASCADE_MODE: Literal["per_event", "micro_batch"] = Field(
+        default="per_event", description="Cascade mode: per_event or micro_batch"
+    )
+    CASCADE_MICRO_BATCH_WINDOW_SECONDS: int = Field(
+        default=5, description="Time window in seconds to aggregate events in micro_batch mode"
+    )
+    CASCADE_MAX_CONCURRENCY: int = Field(
+        default=2, description="Maximum concurrent cascade executions permitted"
     )
     REG_AUTO_DEPLOY: bool = Field(
         default=False, description="Automatically deploy regulatory code updates"

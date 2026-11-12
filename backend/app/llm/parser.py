@@ -23,7 +23,12 @@ def inject_schema(
 
     Does not mutate the incoming messages list.
     """
-    schema_dict = response_model.model_json_schema()
+    if hasattr(response_model, "model_json_schema"):
+        schema_dict = response_model.model_json_schema()
+    else:
+        from pydantic import TypeAdapter
+
+        schema_dict = TypeAdapter(response_model).json_schema()
     schema_json = json.dumps(schema_dict, indent=2)
 
     instruction = (
@@ -106,8 +111,12 @@ def parse_and_validate(raw_text: str, response_model: type[T]) -> T:
     if not clean_json:
         raise ValueError("LLM returned empty or whitespace-only response")
 
-    # model_validate_json accepts JSON string directly
-    return response_model.model_validate_json(clean_json)
+    if hasattr(response_model, "model_validate_json"):
+        return response_model.model_validate_json(clean_json)
+
+    from pydantic import TypeAdapter
+
+    return TypeAdapter(response_model).validate_json(clean_json)
 
 
 async def execute_repair_loop(

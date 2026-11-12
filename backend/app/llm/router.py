@@ -235,6 +235,9 @@ class LLMRouter:
             if prov_name == "openrouter" and not settings.OPENROUTER_API_KEY:
                 chain_errors.append((prov_name, "OPENROUTER_API_KEY not configured"))
                 continue
+            if prov_name == "ollama" and not settings.OLLAMA_BASE_URL:
+                chain_errors.append((prov_name, "OLLAMA_BASE_URL not configured"))
+                continue
 
             model = self.get_model_for_agent(agent, prov_name)
 

@@ -56,7 +56,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.warning("Supabase client running in offline/unconfigured local fallback mode")
 
+    # Start background cascade worker
+    from app.workers.cascade_worker import cascade_worker
+    await cascade_worker.start()
+
     yield
+
+    # Shutdown background cascade worker
+    await cascade_worker.stop()
 
     logger.info("Shutting down %s services gracefully", settings.PROJECT_NAME)
 
