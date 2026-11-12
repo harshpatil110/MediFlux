@@ -58,4 +58,5 @@ Thumbs.db
 *.sqlite3
 llm_cache.db
 checkpoints.db
+.seed_state.json
 

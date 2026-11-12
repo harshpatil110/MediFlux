@@ -62,3 +62,4 @@ Task 9 establishes the foundational simulation and demonstration layer for MediF
 - **POS Simulator Stockout Run**: Emits sequential sales until inventory reaches safety stock threshold.
 - **Simulator Admin API**: Validates `POST /run`, `GET /status`, and `POST /stop` endpoints over HTTP.
 - **Environmental Sensor Stub**: Validates sensor telemetry publication on Event Bus.
+
