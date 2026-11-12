@@ -10,6 +10,7 @@ from app.agents.tools.registry import (
     list_tools,
     tool,
 )
+from app.tools import distributor_tools as _distributor_tools  # noqa: F401
 from app.tools import pharmacy_tools as _pharmacy_tools  # noqa: F401
 from app.tools import stockist_tools as _stockist_tools  # noqa: F401
 

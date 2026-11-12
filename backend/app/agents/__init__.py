@@ -26,6 +26,10 @@ from app.agents.pharmacy_agent import (
     ReplenishmentSignal,
 )
 from app.agents.seed_agent import SeedAgent, seed_agent
+from app.agents.settlement_agent import (
+    SettlementAgent,
+    SettlementDecision,
+)
 from app.agents.state import AgentGraphState
 from app.agents.stockist_agent import (
     BalancingDecision,
@@ -42,6 +46,11 @@ from app.agents.tools.registry import (
     list_tools,
     tool,
 )
+from app.agents.transit_agent import (
+    DispatchPlan,
+    ShipmentSpec,
+    TransitOptimizationAgent,
+)
 
 __all__ = [
     "AgentDecision",
@@ -49,15 +58,20 @@ __all__ = [
     "BalancingDecision",
     "BaseAgent",
     "BasePharmaAgent",
+    "DispatchPlan",
     "ExpiryFlag",
     "FakeLLM",
     "FinalAnswerAction",
     "PeerTransferSpec",
     "PharmacyAgent",
     "ReplenishmentSignal",
+    "SettlementAgent",
+    "SettlementDecision",
+    "ShipmentSpec",
     "StockistAgent",
     "ToolCallAction",
     "ToolDefinition",
+    "TransitOptimizationAgent",
     "build_hitl_workflow_graph",
     "build_single_agent_graph",
     "clear_agent_runs",

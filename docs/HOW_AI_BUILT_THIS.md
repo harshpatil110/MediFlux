@@ -582,3 +582,68 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] `ruff check .` passes with 0 warnings.
 - [x] Frontend `npm run build` compiles cleanly.
 - [x] Specification created at `docs/specs/task-12-spec.md`.
+
+---
+
+## Task 13: Distributor Tier (Settlement Agent and Transit Optimization Agent)
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 3 — Multi-Agent Demand Propagation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Multi-Tiered Settlement Agent (`app/agents/settlement_agent.py`)**:
+   - Implemented `SettlementAgent` inheriting from `BaseAgent`, fulfilling distributor financial settlement intelligence (RFP 3.3).
+   - Defined `SettlementDecision` Pydantic schema capturing `approved`, `unit_price`, `gross_total`, `discount_amount`, `net_total`, `margin_percentage`, `credit_before`, `credit_after`, `financing_needed`, `financing_approved`, and `reasoning`.
+   - Built `SettlementAgentResult` dictionary subclass providing dual attribute and dict access.
+   - Enforced dynamic module runtime execution via AST guard (`execute_tool('run_module', ...)` with fallback to `module_registry.run_module(...)`):
+     - `volume_discount`: dynamic quantity tier discount calculations.
+     - `margin_rules`: dynamic margin percentage evaluation.
+     - `credit_check_rules`: dynamic credit limit and exposure evaluation.
+   - Implemented automated trade financing simulation via partner banking API (`mock_bank_finance`):
+     - When credit limits are breached (`credit_after < 0`), initiates partner bank trade credit underwriting.
+     - If approved: marks `financing_needed = True`, `financing_approved = True`, and approves settlement.
+     - If rejected: marks `approved = False` and halts settlement with explanatory reasoning.
+   - Persisted approved settlements to `settlements` table and updated buyer balance in `credit_accounts`.
+2. **Transit Optimization Agent (`app/agents/transit_agent.py`)**:
+   - Implemented `TransitOptimizationAgent` inheriting from `BaseAgent`, creating optimized vehicle dispatch schedules (RFP 3.3).
+   - Defined `ShipmentSpec` and `DispatchPlan` Pydantic schemas.
+   - Built `TransitOptimizationAgentResult` dictionary subclass.
+   - Enforced 3 core regulatory & transport constraints:
+     - **Reefer Constraint**: Cold-chain products (`is_cold_chain == True`) are strictly assigned to refrigerated vehicles (`is_reefer == True`). Ambient vehicles are strictly excluded.
+     - **Lifesaving Priority Constraint**: Urgent therapeutics (`is_lifesaving == True`) receive `sequence = 1` and `priority = "critical"`.
+     - **Cross-Border Constraint**: Routes crossing borders (`is_cross_border == True`) flag `requires_hitl = True` for human verification.
+   - Persisted dispatch schedules into `shipments` table (`status: 'scheduled'`).
+3. **Dedicated Distributor Tools (`app/tools/distributor_tools.py`)**:
+   - Implemented 4 dedicated tools registered with `@tool`:
+     - `get_credit_account`: fetches credit limits, current balance, and terms from `credit_accounts`.
+     - `mock_bank_finance`: simulates partner bank underwriting for trade credit facilities.
+     - `list_vehicles`: queries distributor fleet vehicles with reefer capability and capacity filters.
+     - `create_shipment`: records dispatch specifications into `shipments` table.
+4. **Tool Registry & Package Re-Exports (`app/tools/__init__.py`, `app/agents/tools/__init__.py`, `app/agents/__init__.py`)**:
+   - Unified distributor tools and agents in the global registries and root agent exports.
+5. **Cascade Graph Integration (`app/graphs/cascade.py`)**:
+   - Wired `distributor_node` to execute `SettlementAgent.run(state)` followed by `TransitOptimizationAgent.run(state)` if settlement is approved.
+   - If settlement is rejected, downstream propagation to the manufacturer tier is halted, setting `status = "partial"`.
+   - Updated `_route_from_distributor` conditional edge.
+6. **Database Migration (`supabase/migrations/008_distributor_settlements_shipments.sql`)**:
+   - Created migration for `settlements` and `shipments` tables with indexing and full idempotency.
+7. **Comprehensive Automated Test Suite (`backend/tests/test_distributor_agents.py`)**:
+   - Implemented 7 deterministic unit and integration tests:
+     - `test_dynamic_module_margin_change`: verifies dynamic hot-swapping from v1 (15%) to v2 (20%) without code edits.
+     - `test_trade_financing_fallback`: verifies trade financing approval and rejection flows.
+     - `test_cold_chain_vehicle_assignment`: asserts strict reefer-only vehicle matching.
+     - `test_lifesaving_priority_sequencing`: asserts emergency sequence=1 and critical priority.
+     - `test_cross_border_hitl_requirement`: asserts HITL requirement for cross-border routes.
+     - `test_cascade_distributor_integration`: full 4-tier demand cascade execution verifying settlement and transit outputs.
+     - `test_cascade_distributor_rejection_halts_propagation`: confirms settlement rejection halts cascade at distributor.
+
+### Verification Status
+- [x] `SettlementAgent`, `SettlementDecision`, `TransitOptimizationAgent`, `DispatchPlan`, and `ShipmentSpec` implemented.
+- [x] Dedicated distributor tools implemented in `app/tools/distributor_tools.py` and registered.
+- [x] Dynamic module execution verified via AST guard (`run_module`).
+- [x] Cascade graph `distributor_node` in `app/graphs/cascade.py` executes settlement and transit optimization sequentially.
+- [x] Settlement rejection halts propagation to manufacturer tier.
+- [x] All 7 tests in `test_distributor_agents.py` pass; all cascade tests pass.
+- [x] Migration created at `supabase/migrations/008_distributor_settlements_shipments.sql`.
+- [x] Specification created at `docs/specs/task-13-spec.md`.

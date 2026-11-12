@@ -43,7 +43,7 @@ def clear_cascade_traces() -> None:
     _in_memory_cascade_traces.clear()
 
 
-class CascadeState(TypedDict):
+class CascadeState(TypedDict, total=False):
     """Execution state schema for multi-tier demand cascade orchestration."""
 
     event: dict[str, Any]
@@ -55,6 +55,7 @@ class CascadeState(TypedDict):
     active_tiers: list[str]  # e.g. ["pharmacy", "stockist", "distributor", "manufacturer"]
     pharmacy_result: dict[str, Any] | None
     stockist_result: dict[str, Any] | None
+    settlement_result: dict[str, Any] | None
     distributor_result: dict[str, Any] | None
     manufacturer_result: dict[str, Any] | None
     hitl_status: dict[str, Any] | None
@@ -475,13 +476,132 @@ async def stockist_node(state: CascadeState, router: Any = None) -> dict[str, An
 
 
 async def distributor_node(state: CascadeState, router: Any = None) -> dict[str, Any]:
-    """Distributor Layer Node: Allocate regional depot inventory and route logistics dispatch."""
-    return await _execute_tier_node(
+    """Distributor Layer Node: Execute SettlementAgent and TransitOptimizationAgent sequentially."""
+    corr_id = state.get("correlation_id", str(uuid.uuid4()))
+    trace = list(state.get("trace", []))
+    errors = list(state.get("errors", []))
+    perf_start = time.perf_counter()
+    start_time = datetime.now(UTC).isoformat()
+
+    await _publish_telemetry(
+        correlation_id=corr_id,
         tier="distributor",
-        state=state,
-        router=router,
-        summary_template="Distributor depot allocated regional stock and routed fleet shipment",
+        agent_name="distributor_agent",
+        action="started",
+        status="running",
+        summary="Distributor evaluating settlement, dynamic pricing modules, and fleet transit optimization",
+        trace_step="enter",
     )
+
+    try:
+        from app.agents.settlement_agent import SettlementAgent
+        from app.agents.transit_agent import TransitOptimizationAgent
+
+        # 1. Execute SettlementAgent
+        settlement_agent = SettlementAgent(
+            name="SettlementAgent",
+            router=router or llm_router,
+        )
+        settlement_res = await settlement_agent.run(
+            state=state,
+            correlation_id=corr_id,
+        )
+        settlement_dict = settlement_res.to_dict() if hasattr(settlement_res, "to_dict") else dict(settlement_res)
+        approved = bool(settlement_res.get("approved", True))
+
+        distributor_result_dict: dict[str, Any] | None = None
+
+        if approved:
+            # 2. If settlement approved: Execute TransitOptimizationAgent
+            transit_agent = TransitOptimizationAgent(
+                name="TransitOptimizationAgent",
+                router=router or llm_router,
+            )
+            transit_res = await transit_agent.run(
+                state=state,
+                correlation_id=corr_id,
+            )
+            distributor_result_dict = transit_res.to_dict() if hasattr(transit_res, "to_dict") else dict(transit_res)
+            summary = (
+                f"Distributor settlement approved (net: {settlement_res.get('net_total')} INR, "
+                f"margin: {settlement_res.get('margin_percentage')}%) and {len(transit_res.get('shipments', []))} shipment(s) dispatched"
+            )
+        else:
+            # 3. If settlement rejected: halt cascade propagation to manufacturer, set status = "partial"
+            summary = f"Distributor settlement rejected: {settlement_res.get('reasoning')}"
+
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        trace.append({
+            "tier": "distributor",
+            "agent_name": "distributor_agent",
+            "status": "success" if approved else "failed",
+            "summary": summary,
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="distributor",
+            agent_name="distributor_agent",
+            action="completed" if approved else "rejected",
+            status="success" if approved else "failed",
+            summary=summary,
+            trace_step="complete",
+            details={
+                "approved": approved,
+                "net_total": settlement_res.get("net_total"),
+                "margin_percentage": settlement_res.get("margin_percentage"),
+                "financing_needed": settlement_res.get("financing_needed"),
+            },
+        )
+
+        res: dict[str, Any] = {
+            "settlement_result": settlement_dict,
+            "distributor_result": distributor_result_dict,
+            "trace": trace,
+            "errors": errors,
+        }
+        if not approved:
+            res["status"] = "partial"
+        return res
+
+    except Exception as exc:
+        logger.error("Distributor node execution error: %s", exc)
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        errors.append({
+            "tier": "distributor",
+            "error": str(exc),
+            "timestamp": datetime.now(UTC).isoformat(),
+        })
+        trace.append({
+            "tier": "distributor",
+            "agent_name": "distributor_agent",
+            "status": "failed",
+            "summary": f"Error in distributor: {exc}",
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="distributor",
+            agent_name="distributor_agent",
+            action="failed",
+            status="failed",
+            summary=f"Distributor execution failed: {exc}",
+            trace_step="error",
+        )
+
+        return {
+            "settlement_result": {"status": "failed", "error": str(exc), "approved": False},
+            "distributor_result": {"status": "failed", "error": str(exc)},
+            "trace": trace,
+            "errors": errors,
+            "status": "partial",
+        }
 
 
 async def manufacturer_node(state: CascadeState, router: Any = None) -> dict[str, Any]:
@@ -720,6 +840,9 @@ def build_cascade_graph(
         return "distributor" if "distributor" in s.get("active_tiers", []) else "finalize"
 
     def _route_from_distributor(s: CascadeState) -> str:
+        settlement = s.get("settlement_result")
+        if settlement and not settlement.get("approved", True):
+            return "finalize"
         return "manufacturer" if "manufacturer" in s.get("active_tiers", []) else "finalize"
 
     builder.add_conditional_edges("pharmacy", _route_from_pharmacy)
