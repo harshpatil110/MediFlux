@@ -57,11 +57,14 @@ class CascadeState(TypedDict, total=False):
     stockist_result: dict[str, Any] | None
     settlement_result: dict[str, Any] | None
     distributor_result: dict[str, Any] | None
+    demand_signal: dict[str, Any] | None
     manufacturer_result: dict[str, Any] | None
     hitl_status: dict[str, Any] | None
     trace: list[dict[str, Any]]
     errors: list[dict[str, Any]]
-    status: Literal["pending", "completed", "partial", "failed"]
+    status: Literal["pending", "completed", "partial", "failed", "waiting_hitl"]
+    modify_in_progress: bool
+    is_burst: bool
 
 
 async def _publish_telemetry(
@@ -605,13 +608,135 @@ async def distributor_node(state: CascadeState, router: Any = None) -> dict[str,
 
 
 async def manufacturer_node(state: CascadeState, router: Any = None) -> dict[str, Any]:
-    """Manufacturer Plant Node: Ingest demand signal and queue formulation production batch."""
-    return await _execute_tier_node(
+    """Manufacturer Plant Node: Execute DemandSynthesisAgent and JITSchedulerAgent sequentially."""
+    corr_id = state.get("correlation_id", str(uuid.uuid4()))
+    trace = list(state.get("trace", []))
+    errors = list(state.get("errors", []))
+    perf_start = time.perf_counter()
+    start_time = datetime.now(UTC).isoformat()
+
+    await _publish_telemetry(
+        correlation_id=corr_id,
         tier="manufacturer",
-        state=state,
-        router=router,
-        summary_template="Manufacturer plant ingested demand signal and scheduled production batch",
+        agent_name="manufacturer_agent",
+        action="started",
+        status="running",
+        summary="Manufacturer synthesizing statistical demand vectors and scheduling formulation batches",
+        trace_step="enter",
     )
+
+    try:
+        from app.agents.demand_synthesis_agent import DemandSynthesisAgent
+        from app.agents.scheduler_agent import JITSchedulerAgent
+
+        # 1. Execute DemandSynthesisAgent
+        synthesis_agent = DemandSynthesisAgent(
+            name="DemandSynthesisAgent",
+            router=router or llm_router,
+        )
+        synthesis_res = await synthesis_agent.run(
+            state=state,
+            correlation_id=corr_id,
+        )
+        signal_dict = synthesis_res.to_dict() if hasattr(synthesis_res, "to_dict") else dict(synthesis_res)
+
+        # Merge demand_signal into state for scheduler
+        state_with_signal = dict(state)
+        state_with_signal["demand_signal"] = signal_dict
+
+        # 2. Execute JITSchedulerAgent
+        scheduler_agent = JITSchedulerAgent(
+            name="JITSchedulerAgent",
+            router=router or llm_router,
+        )
+        scheduler_res = await scheduler_agent.run(
+            state=state_with_signal,
+            correlation_id=corr_id,
+        )
+        scheduler_dict = scheduler_res.to_dict() if hasattr(scheduler_res, "to_dict") else dict(scheduler_res)
+
+        modifies_in_progress = bool(scheduler_res.get("modifies_in_progress", False))
+        requires_hitl = bool(scheduler_res.get("requires_hitl", False))
+
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        summary = (
+            f"Demand trend '{synthesis_res.get('trend')}' (forecast: {synthesis_res.get('forecast_qty')} units). "
+            f"Scheduler produced {len(scheduler_res.get('actions', []))} action(s) "
+            f"({'paused for HITL approval' if modifies_in_progress else 'committed'})."
+        )
+
+        trace.append({
+            "tier": "manufacturer",
+            "agent_name": "manufacturer_agent",
+            "status": "waiting_hitl" if modifies_in_progress else "success",
+            "summary": summary,
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="manufacturer",
+            agent_name="manufacturer_agent",
+            action="waiting_hitl" if modifies_in_progress else "completed",
+            status="waiting_hitl" if modifies_in_progress else "success",
+            summary=summary,
+            trace_step="complete",
+            details={
+                "trend": synthesis_res.get("trend"),
+                "forecast_qty": synthesis_res.get("forecast_qty"),
+                "actions_count": len(scheduler_res.get("actions", [])),
+                "modifies_in_progress": modifies_in_progress,
+                "requires_hitl": requires_hitl,
+            },
+        )
+
+        res: dict[str, Any] = {
+            "demand_signal": signal_dict,
+            "manufacturer_result": scheduler_dict,
+            "trace": trace,
+            "errors": errors,
+        }
+        if modifies_in_progress:
+            res["status"] = "waiting_hitl"
+        return res
+
+    except Exception as exc:
+        logger.error("Manufacturer node execution error: %s", exc)
+        latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
+        errors.append({
+            "tier": "manufacturer",
+            "error": str(exc),
+            "timestamp": datetime.now(UTC).isoformat(),
+        })
+        trace.append({
+            "tier": "manufacturer",
+            "agent_name": "manufacturer_agent",
+            "status": "failed",
+            "summary": f"Error in manufacturer: {exc}",
+            "start_time": start_time,
+            "end_time": datetime.now(UTC).isoformat(),
+            "latency_ms": latency_ms,
+        })
+
+        await _publish_telemetry(
+            correlation_id=corr_id,
+            tier="manufacturer",
+            agent_name="manufacturer_agent",
+            action="failed",
+            status="failed",
+            summary=f"Manufacturer execution failed: {exc}",
+            trace_step="error",
+        )
+
+        return {
+            "demand_signal": {"trend": "error", "error": str(exc)},
+            "manufacturer_result": {"status": "failed", "error": str(exc)},
+            "trace": trace,
+            "errors": errors,
+            "status": "partial",
+        }
 
 
 async def _execute_tier_node(
@@ -761,8 +886,10 @@ async def finalize_node(state: CascadeState) -> dict[str, Any]:
             )
 
     # Determine final cascade status
-    if errors or state.get("status") == "partial":
-        final_status: Literal["completed", "partial", "failed"] = "partial"
+    if state.get("status") == "waiting_hitl":
+        final_status: Literal["completed", "partial", "failed", "waiting_hitl"] = "waiting_hitl"
+    elif errors or state.get("status") == "partial":
+        final_status: Literal["completed", "partial", "failed", "waiting_hitl"] = "partial"
     elif not active_tiers:
         final_status = "failed"
     else:
@@ -845,10 +972,15 @@ def build_cascade_graph(
             return "finalize"
         return "manufacturer" if "manufacturer" in s.get("active_tiers", []) else "finalize"
 
+    def _route_from_manufacturer(s: CascadeState) -> str:
+        if s.get("status") == "waiting_hitl":
+            return END
+        return "finalize"
+
     builder.add_conditional_edges("pharmacy", _route_from_pharmacy)
     builder.add_conditional_edges("stockist", _route_from_stockist)
     builder.add_conditional_edges("distributor", _route_from_distributor)
-    builder.add_edge("manufacturer", "finalize")
+    builder.add_conditional_edges("manufacturer", _route_from_manufacturer)
     builder.add_edge("finalize", END)
 
     if checkpointer is not None:

@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from langgraph.types import interrupt
@@ -33,6 +34,51 @@ def resolve_hitl_task(task_id: str, status: str = "approved", decision_reason: s
 def clear_hitl_tasks() -> None:
     """Clear in-memory HITL tasks."""
     _in_memory_hitl_tasks.clear()
+
+
+def get_in_memory_hitl_tasks() -> list[dict[str, Any]]:
+    """Retrieve all in-memory HITL tasks."""
+    return list(_in_memory_hitl_tasks.values())
+
+
+def create_hitl_task(
+    task_type: str,
+    payload: dict[str, Any],
+    correlation_id: str = "",
+    node_id: str = "00000000-0000-0000-0000-000000000000",
+    workflow_name: str = "manufacturer_scheduler",
+    risk_level: str = "high",
+) -> dict[str, Any]:
+    """Create and persist a pending HITL task record in database and in-memory store."""
+    task_id = str(uuid.uuid4())
+    task_record = {
+        "id": task_id,
+        "task_id": task_id,
+        "action_type": task_type,
+        "task_type": task_type,
+        "correlation_id": correlation_id,
+        "workflow_name": workflow_name,
+        "step_name": task_type,
+        "task_data": {
+            **payload,
+            "risk_level": risk_level,
+            "node_id": node_id,
+        },
+        "payload": payload,
+        "status": "pending",
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            client = get_service_db_client()
+            if client:
+                client.table("hitl_tasks").insert(task_record).execute()
+        except Exception as exc:
+            logger.warning("Database hitl_tasks insertion failed (%s); using in-memory store.", exc)
+
+    _in_memory_hitl_tasks[task_id] = task_record
+    return task_record
 
 
 async def request_human_approval(

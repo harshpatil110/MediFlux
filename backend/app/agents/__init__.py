@@ -9,6 +9,10 @@ from app.agents.base import (
     clear_agent_runs,
     get_in_memory_agent_runs,
 )
+from app.agents.demand_synthesis_agent import (
+    DemandSignal,
+    DemandSynthesisAgent,
+)
 from app.agents.graph import (
     build_hitl_workflow_graph,
     build_single_agent_graph,
@@ -24,6 +28,11 @@ from app.agents.pharmacy_agent import (
     ExpiryFlag,
     PharmacyAgent,
     ReplenishmentSignal,
+)
+from app.agents.scheduler_agent import (
+    BatchAction,
+    JITSchedulerAgent,
+    ScheduleChange,
 )
 from app.agents.seed_agent import SeedAgent, seed_agent
 from app.agents.settlement_agent import (
@@ -58,13 +67,18 @@ __all__ = [
     "BalancingDecision",
     "BaseAgent",
     "BasePharmaAgent",
+    "BatchAction",
+    "DemandSignal",
+    "DemandSynthesisAgent",
     "DispatchPlan",
     "ExpiryFlag",
     "FakeLLM",
     "FinalAnswerAction",
+    "JITSchedulerAgent",
     "PeerTransferSpec",
     "PharmacyAgent",
     "ReplenishmentSignal",
+    "ScheduleChange",
     "SettlementAgent",
     "SettlementDecision",
     "ShipmentSpec",

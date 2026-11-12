@@ -647,3 +647,62 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] All 7 tests in `test_distributor_agents.py` pass; all cascade tests pass.
 - [x] Migration created at `supabase/migrations/008_distributor_settlements_shipments.sql`.
 - [x] Specification created at `docs/specs/task-13-spec.md`.
+
+---
+
+## Task 14: Manufacturer Tier (Demand Vector Synthesis and JIT Formulation Scheduler Agent)
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 3 — Multi-Agent Demand Propagation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Demand Vector Synthesis Agent (`app/agents/demand_synthesis_agent.py`)**:
+   - Implemented `DemandSynthesisAgent` inheriting from `BaseAgent`, fulfilling manufacturer intelligence (RFP 3.4).
+   - Defined `DemandSignal` Pydantic schema capturing `product_id`, `region`, `trend` (`"sustained_surge"`, `"one_off_spike"`, `"stable"`, `"declining"`), `forecast_qty`, `confidence`, `reasoning`, and `is_noise`.
+   - Built `DemandSynthesisResult` dictionary subclass for dual attribute and dict access.
+   - Built statistical classification engine evaluating 48-hour event lookback windows:
+     - Calculates rolling moving averages (12h, 24h, 48h), EWMA ($\alpha=0.3$), baseline consumption velocity, and spike ratio (`current_rate / baseline`).
+     - Distinguishes isolated single-store surges as noise (`is_noise = True`, `forecast_qty = 0`) to prevent bullwhip effects.
+     - Multi-node demand surges or simulated bursts classify as `"sustained_surge"` (`is_noise = False`), forecasting additional batch quantities (`max(1000, EWMA * 48)`).
+   - Persisted demand signals to `demand_signals` table in Supabase (with `embedding = None`).
+2. **JIT Formulation Scheduler Agent (`app/agents/scheduler_agent.py`)**:
+   - Implemented `JITSchedulerAgent` inheriting from `BaseAgent`, scheduling batch formulation runs against production line capacities and chemical raw materials.
+   - Defined `BatchAction` and `ScheduleChange` Pydantic schemas.
+   - Built `SchedulerAgentResult` dictionary subclass.
+   - Enforced 3 core operational & safety guards:
+     - **Noise Guard**: Automatically returns 0 schedule actions if demand signal is classified as noise or zero forecast.
+     - **API Inventory Guard**: Verifies available raw ingredient inventory ($0.02\text{ kg/unit}$); rejects or trims batch if stock is deficient.
+     - **In-Progress Batch Modification Guard (HITL Trigger)**: If altering an active batch with status `'in_progress'`, sets `modifies_in_progress = True`, `requires_hitl = True`, creates a pending approval record in `hitl_tasks`, and strictly halts DB commits until human operator approval.
+3. **Dedicated Manufacturer Tools (`app/tools/manufacturer_tools.py`)**:
+   - Implemented 5 dedicated tools registered with `@tool`:
+     - `get_events_window`: queries event telemetry across lookback window.
+     - `compute_trend`: calculates EWMA, moving averages, and spike ratios.
+     - `get_production_schedule`: returns active and scheduled production batches.
+     - `get_api_inventory`: returns active ingredient inventory levels.
+     - `apply_schedule_change`: atomically inserts production batches and decrements API inventory.
+4. **Tool Registry & Package Re-Exports (`app/tools/__init__.py`, `app/agents/tools/__init__.py`, `app/agents/__init__.py`)**:
+   - Unified manufacturer tools and agents in the global registries and root agent exports.
+5. **Cascade Graph Integration (`app/graphs/cascade.py`)**:
+   - Replaced stub `manufacturer_node` with sequential execution of `DemandSynthesisAgent.run(state)` and `JITSchedulerAgent.run(state)`.
+   - Wired HITL pausing: if `modifies_in_progress == True`, graph execution yields back with `status = "waiting_hitl"` and conditional routing to `END`.
+6. **Database Migration (`supabase/migrations/009_manufacturer_production.sql`)**:
+   - Created migration for `demand_signals`, `production_lines`, `production_batches`, and `api_inventory` tables with indexing and full idempotency.
+7. **Comprehensive Automated Test Suite (`backend/tests/test_manufacturer_agents.py`)**:
+   - Implemented 6 deterministic unit and integration tests:
+     - `test_burst_demand_synthesis`: verifies multi-node burst produces `sustained_surge` signal and creates `add_batch` action.
+     - `test_one_off_spike_noise_classification`: asserts single-store spike is classified as noise (`is_noise=True`, 0 actions).
+     - `test_api_inventory_exceeded_rejection`: asserts API deficit halts formulation and triggers operator review.
+     - `test_in_progress_batch_modification_hitl_guard`: verifies altering in-progress batches halts commits and inserts a task into `hitl_tasks`.
+     - `test_cascade_manufacturer_integration`: full 4-tier demand cascade execution populating demand_signal and manufacturer_result.
+     - `test_cascade_manufacturer_hitl_pause`: confirms cascade execution pauses with `status="waiting_hitl"` when in-progress batches are modified.
+
+### Verification Status
+- [x] `DemandSynthesisAgent`, `DemandSignal`, `JITSchedulerAgent`, `ScheduleChange`, and `BatchAction` implemented.
+- [x] Dedicated manufacturer tools implemented in `app/tools/manufacturer_tools.py` and registered.
+- [x] Statistical EWMA and spike ratio anomaly detection verified.
+- [x] Cascade graph `manufacturer_node` in `app/graphs/cascade.py` executes synthesis and scheduling sequentially.
+- [x] Modifying an in-progress batch creates a HITL task and yields status `"waiting_hitl"`.
+- [x] All 6 tests in `test_manufacturer_agents.py` pass; all 102 backend tests pass (100% pass rate).
+- [x] Migration created at `supabase/migrations/009_manufacturer_production.sql`.
+- [x] Specification created at `docs/specs/task-14-spec.md`.
