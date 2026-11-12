@@ -65,6 +65,9 @@ class CascadeState(TypedDict, total=False):
     status: Literal["pending", "completed", "partial", "failed", "waiting_hitl"]
     modify_in_progress: bool
     is_burst: bool
+    is_cross_border: bool
+    schedule_h_override_approved: bool
+    cross_border_approved: bool
 
 
 async def _publish_telemetry(
@@ -306,6 +309,56 @@ async def pharmacy_node(state: CascadeState, router: Any = None) -> dict[str, An
             else (agent_result.dict() if hasattr(agent_result, "dict") else dict(agent_result))
         )
 
+        waiting_hitl_pharmacy = False
+        if compliance_hold and (needed or state.get("schedule_h_override_requested")):
+            from app.core.hitl import request_human_approval
+
+            # If override already granted in state
+            if state.get("schedule_h_override_approved"):
+                compliance_hold = False
+                if needed:
+                    await persist_replenishment_order(
+                        pharmacy_id=state.get("pharmacy_id") or "11111111-1111-1111-1111-111111111111",
+                        stockist_id=target_stockist_id,
+                        product_id=state.get("product_id") or "p-001-azithromycin",
+                        quantity=reorder_qty,
+                        priority=urgency,
+                        correlation_id=corr_id,
+                        reason=f"{reason} (Schedule H override approved)",
+                    )
+            elif state.get("request_hitl_on_hold", True):
+                hitl_res = await request_human_approval(
+                    task_type="schedule_h_override",
+                    node_id=state.get("pharmacy_id") or "11111111-1111-1111-1111-111111111111",
+                    correlation_id=corr_id,
+                    details={
+                        "pharmacy_id": state.get("pharmacy_id"),
+                        "product_id": state.get("product_id"),
+                        "quantity": reorder_qty,
+                        "reason": "Schedule H prescription verification unlinked; pharmacist override requested.",
+                    },
+                    state=state,
+                )
+                if hitl_res.get("status") == "waiting_hitl":
+                    waiting_hitl_pharmacy = True
+
+        if waiting_hitl_pharmacy:
+            trace.append({
+                "tier": "pharmacy",
+                "agent_name": "PharmacyAgent",
+                "status": "waiting_hitl",
+                "summary": "Pharmacy replenishment on compliance hold pending human Schedule H override",
+                "start_time": start_time,
+                "end_time": datetime.now(UTC).isoformat(),
+                "latency_ms": latency_ms,
+            })
+            return {
+                "pharmacy_result": pharmacy_result_dict,
+                "status": "waiting_hitl",
+                "trace": trace,
+                "errors": errors,
+            }
+
         return {
             "pharmacy_result": pharmacy_result_dict,
             "trace": trace,
@@ -533,12 +586,41 @@ async def distributor_node(state: CascadeState, router: Any = None) -> dict[str,
             # 3. If settlement rejected: halt cascade propagation to manufacturer, set status = "partial"
             summary = f"Distributor settlement rejected: {settlement_res.get('reasoning')}"
 
+        waiting_hitl_distributor = False
+        if approved and distributor_result_dict:
+            is_cross_border = bool(
+                state.get("is_cross_border")
+                or any(s.get("is_cross_border") for s in distributor_result_dict.get("shipments", []))
+            )
+            if is_cross_border:
+                from app.core.hitl import request_human_approval
+
+                if state.get("cross_border_approved"):
+                    logger.info("Cross-border shipment approved in state; proceeding")
+                else:
+                    hitl_res = await request_human_approval(
+                        task_type="cross_border_shipment",
+                        node_id=state.get("pharmacy_id") or "11111111-1111-1111-1111-111111111111",
+                        correlation_id=corr_id,
+                        details={
+                            "correlation_id": corr_id,
+                            "shipments": distributor_result_dict.get("shipments", []),
+                            "reason": "Shipment crossing regional borders requiring human logistics authorization.",
+                        },
+                        state=state,
+                    )
+                    if hitl_res.get("status") == "waiting_hitl":
+                        waiting_hitl_distributor = True
+                    elif not hitl_res.get("approved"):
+                        distributor_result_dict["dispatched"] = False
+                        distributor_result_dict["cancelled"] = True
+
         latency_ms = round((time.perf_counter() - perf_start) * 1000, 2)
         trace.append({
             "tier": "distributor",
             "agent_name": "distributor_agent",
-            "status": "success" if approved else "failed",
-            "summary": summary,
+            "status": "waiting_hitl" if waiting_hitl_distributor else ("success" if approved else "failed"),
+            "summary": "Cross-border shipment paused for logistics manager approval" if waiting_hitl_distributor else summary,
             "start_time": start_time,
             "end_time": datetime.now(UTC).isoformat(),
             "latency_ms": latency_ms,
@@ -548,8 +630,8 @@ async def distributor_node(state: CascadeState, router: Any = None) -> dict[str,
             correlation_id=corr_id,
             tier="distributor",
             agent_name="distributor_agent",
-            action="completed" if approved else "rejected",
-            status="success" if approved else "failed",
+            action="waiting_hitl" if waiting_hitl_distributor else ("completed" if approved else "rejected"),
+            status="waiting_hitl" if waiting_hitl_distributor else ("success" if approved else "failed"),
             summary=summary,
             trace_step="complete",
             details={
@@ -557,6 +639,7 @@ async def distributor_node(state: CascadeState, router: Any = None) -> dict[str,
                 "net_total": settlement_res.get("net_total"),
                 "margin_percentage": settlement_res.get("margin_percentage"),
                 "financing_needed": settlement_res.get("financing_needed"),
+                "waiting_hitl": waiting_hitl_distributor,
             },
         )
 
@@ -566,7 +649,9 @@ async def distributor_node(state: CascadeState, router: Any = None) -> dict[str,
             "trace": trace,
             "errors": errors,
         }
-        if not approved:
+        if waiting_hitl_distributor:
+            res["status"] = "waiting_hitl"
+        elif not approved:
             res["status"] = "partial"
         return res
 
@@ -961,12 +1046,18 @@ def build_cascade_graph(
 
     # Conditional Routing Edges
     def _route_from_pharmacy(s: CascadeState) -> str:
+        if s.get("status") == "waiting_hitl":
+            return END
         return "stockist" if "stockist" in s.get("active_tiers", []) else "finalize"
 
     def _route_from_stockist(s: CascadeState) -> str:
+        if s.get("status") == "waiting_hitl":
+            return END
         return "distributor" if "distributor" in s.get("active_tiers", []) else "finalize"
 
     def _route_from_distributor(s: CascadeState) -> str:
+        if s.get("status") == "waiting_hitl":
+            return END
         settlement = s.get("settlement_result")
         if settlement and not settlement.get("approved", True):
             return "finalize"

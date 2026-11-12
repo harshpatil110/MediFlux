@@ -129,6 +129,49 @@ DEMO_USERS: dict[str, dict[str, Any]] = {
         "role": "pharmacy",
         "node_id": "55555555-5555-5555-5555-555555555555",
     },
+    # Specialized HITL Operator & Compliance Roles
+    "mock-compliance-token": {
+        "id": "u-comp-010",
+        "user_id": "00000000-0000-0000-0000-000000000010",
+        "email": "compliance@mediflux.demo",
+        "role": "compliance_officer",
+        "node_id": None,
+    },
+    "mock-logistics-token": {
+        "id": "u-log-011",
+        "user_id": "00000000-0000-0000-0000-000000000011",
+        "email": "logistics@mediflux.demo",
+        "role": "logistics_manager",
+        "node_id": "33333333-3333-3333-3333-333333333333",
+    },
+    "mock-mfg-admin-token": {
+        "id": "u-mfgadm-012",
+        "user_id": "00000000-0000-0000-0000-000000000012",
+        "email": "mfgadmin@mediflux.demo",
+        "role": "manufacturer_admin",
+        "node_id": "44444444-4444-4444-4444-444444444444",
+    },
+    "mock-sysadmin-token": {
+        "id": "u-sysadm-013",
+        "user_id": "00000000-0000-0000-0000-000000000013",
+        "email": "sysadmin@mediflux.demo",
+        "role": "system_admin",
+        "node_id": None,
+    },
+    "mock-pic-token": {
+        "id": "u-pic-014",
+        "user_id": "00000000-0000-0000-0000-000000000014",
+        "email": "pic@mediflux.demo",
+        "role": "pharmacist_in_charge",
+        "node_id": "11111111-1111-1111-1111-111111111111",
+    },
+    "mock-staff-token": {
+        "id": "u-staff-015",
+        "user_id": "00000000-0000-0000-0000-000000000015",
+        "email": "staff@mediflux.demo",
+        "role": "pharmacy_staff",
+        "node_id": "11111111-1111-1111-1111-111111111111",
+    },
 }
 
 DEMO_API_KEYS: dict[str, dict[str, Any]] = {

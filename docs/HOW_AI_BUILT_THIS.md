@@ -706,3 +706,75 @@ This document tracks the step-by-step evolution of MediFlux, recording what was 
 - [x] All 6 tests in `test_manufacturer_agents.py` pass; all 102 backend tests pass (100% pass rate).
 - [x] Migration created at `supabase/migrations/009_manufacturer_production.sql`.
 - [x] Specification created at `docs/specs/task-14-spec.md`.
+
+
+---
+
+## Task 15: Human-in-the-Loop (HITL) Approval System
+
+- **Date**: 2026-11-12
+- **Phase**: Phase 3 — Multi-Agent Demand Propagation
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Policy Configuration & Parser (`config/hitl_policies.yaml`, `app/core/hitl_policy.py`)**:
+   - Defined structured YAML policies for sensitive operational gates:
+     - `in_progress_batch_change`: Requires `manufacturer_admin`, `compliance_officer`, `admin` (24h expiry).
+     - `cross_border_shipment`: Requires `logistics_manager`, `compliance_officer`, `admin` (12h expiry).
+     - `schedule_h_override`: Requires `pharmacist_in_charge`, `compliance_officer`, `admin` (6h expiry).
+     - `module_activation`: Requires `system_admin`, `compliance_officer`, `admin` (48h expiry).
+     - `reorder_approval`: Requires `pharmacist_in_charge`, `stockist_admin`, `admin` (24h expiry).
+   - Implemented parser in `app/core/hitl_policy.py` (`load_hitl_policies`, `get_hitl_policy`, `is_hitl_required`, `get_required_roles`, `get_expiry_hours`) with robust fallback caching and hyphen/underscore/prefix normalization.
+2. **Core Approval Primitives & State Management (`app/core/hitl.py`)**:
+   - Refactored `request_human_approval(...)` to verify policy rules, calculate task expiration, write rows to `hitl_tasks`, append immutable entries to `audit_ledger` (`HITL_TASK_CREATED`), broadcast SSE events (`hitl_pending`) to the `hitl` topic, and pause graph execution.
+   - Built dual-mode interruption:
+     - Checkpointed workflows (LangGraph): triggers native `interrupt(...)` pausing graph execution and saving state snapshot.
+     - Cascade Orchestration: transitions state to `status = "waiting_hitl"` and routes to `END`.
+   - Implemented in-memory graph thread registry (`register_resumable_graph`, `resume_graph_thread`) and decision cache (`record_hitl_decision`, `get_hitl_decision`).
+   - Re-exported all primitives cleanly in `app/agents/hitl.py` for full backward compatibility with Task 7 callers.
+3. **Database Migration (`supabase/migrations/010_hitl_tasks.sql`)**:
+   - Ensured `hitl_tasks` table contains `id`, `task_type`, `node_id`, `correlation_id`, `status`, `details`, `expires_at`, `decided_by`, `decided_at`, `decision_note`, and `created_at`.
+   - Created performance indexes for `status`, `task_type`, `correlation_id`, and `expires_at`.
+4. **HITL Management REST API Endpoints (`app/api/v1/endpoints/hitl.py`, `app/api/v1/hitl.py`)**:
+   - Implemented REST routes under `/api/v1/hitl` with OpenAPI tag `"HITL"`:
+     - `GET /api/v1/hitl/tasks`: List pending or historical tasks with status/task_type filters and pagination.
+     - `GET /api/v1/hitl/tasks/{task_id}`: Retrieve single task details, payload, and audit state.
+     - `POST /api/v1/hitl/tasks/{task_id}/decision`: Accepts `HITLDecisionRequest` (`decision: "approve" | "reject"`, `note: str`).
+       - Validates task is pending (400 if already decided).
+       - Enforces strict RBAC verifying user role against policy required roles (403 Forbidden if unauthorized).
+       - Updates task record in DB and memory.
+       - Records `HITL_DECISION_SUBMITTED` in `audit_ledger`.
+       - Emits `hitl_resolved` SSE event on topic `hitl`.
+       - Resumes paused LangGraph thread dynamically with decision payload.
+   - Mounted router in `app/api/v1/router.py`.
+5. **Background Expiry Worker (`app/workers/hitl_expiry_worker.py`)**:
+   - Implemented `process_expired_hitl_tasks()`: safely queries overdue pending tasks (`expires_at < NOW()`), marks them `status = "rejected"`, logs `HITL_TASK_AUTO_EXPIRED` in `audit_ledger`, broadcasts `hitl_expired` SSE event, and resumes paused threads with `{"approved": False, "reason": "expired"}`.
+   - Built `HITLExpiryWorker` class running periodic scans every 30 seconds.
+   - Integrated worker startup and graceful shutdown into FastAPI `lifespan` in `app/main.py`.
+6. **Multi-Tier Cascade Graph Interruption Gates (`app/graphs/cascade.py`)**:
+   - **Pharmacy Tier**: Schedule H drugs lacking doctor prescription links trigger `schedule_h_override`.
+   - **Distributor Tier**: Cross-border freight movements trigger `cross_border_shipment`.
+   - **Manufacturer Tier**: Mid-cycle production line adjustments trigger `in_progress_batch_change`.
+   - Conditional routing updated across all tiers: any tier returning `status == "waiting_hitl"` safely pauses the cascade by routing to `END`.
+7. **Comprehensive Unit & Integration Test Suite (`tests/test_hitl_system.py`)**:
+   - Implemented 6 deterministic tests:
+     - `test_task_pause_and_creation`: Verifies cross-border shipment and batch alteration pause execution and create pending tasks with correct expiration deadlines.
+     - `test_approve_and_resume`: Verifies submitting approval updates task status, logs to audit ledger, emits SSE, and resumes workflow to completion.
+     - `test_reject_and_safe_fallback`: Verifies rejection via API cancels action and records decision in audit ledger.
+     - `test_rbac_authorization_denied`: Confirms unauthorized user roles receive HTTP 403 Forbidden.
+     - `test_server_restart_persistence`: Validates that pending tasks and graph state checkpoints survive backend process restarts and resume cleanly from disk.
+     - `test_hitl_expiry_worker`: Verifies the background worker identifies expired tasks, auto-rejects them, emits `hitl_expired` SSE events, and writes audit records.
+
+### Verification Status
+- [x] Policy configuration defined in `config/hitl_policies.yaml`.
+- [x] Policy parser built in `app/core/hitl_policy.py`.
+- [x] Core approval primitive refactored with LangGraph native `interrupt()` and cascade state pausing in `app/core/hitl.py`.
+- [x] Migration created at `supabase/migrations/010_hitl_tasks.sql`.
+- [x] REST endpoints (`/api/v1/hitl/tasks`, `/api/v1/hitl/tasks/{id}`, `/api/v1/hitl/tasks/{id}/decision`) implemented and registered.
+- [x] Background expiry worker implemented in `app/workers/hitl_expiry_worker.py` and wired into lifespan in `app/main.py`.
+- [x] RBAC enforcement verified with HTTP 403 responses.
+- [x] All 6 tests in `test_hitl_system.py` pass 100%.
+- [x] Total 108 backend tests pass with 0 failures.
+- [x] `ruff check backend` passes cleanly with 0 warnings/errors.
+- [x] Frontend `npm run build` succeeds cleanly.
+- [x] Task specification created at `docs/specs/task-15-spec.md`.

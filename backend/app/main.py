@@ -40,6 +40,10 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
         "name": "System Status",
         "description": "API versioning and network health telemetry.",
     },
+    {
+        "name": "HITL",
+        "description": "Human-in-the-Loop approval workflows, tasks, and operator decision checkpoints.",
+    },
 ]
 
 
@@ -56,13 +60,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.warning("Supabase client running in offline/unconfigured local fallback mode")
 
-    # Start background cascade worker
+    # Start background cascade & HITL expiry workers
     from app.workers.cascade_worker import cascade_worker
+    from app.workers.hitl_expiry_worker import hitl_expiry_worker
+
     await cascade_worker.start()
+    await hitl_expiry_worker.start()
 
     yield
 
-    # Shutdown background cascade worker
+    # Shutdown background workers
+    await hitl_expiry_worker.stop()
     await cascade_worker.stop()
 
     logger.info("Shutting down %s services gracefully", settings.PROJECT_NAME)
