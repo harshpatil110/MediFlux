@@ -115,14 +115,99 @@ export interface AgentRun {
   run_id?: string;
   id?: string;
   agent_name: string;
+  agent?: string;
   graph: string;
   model: string;
+  provider?: string;
   node_id?: string | null;
+  node_name?: string | null;
   status: "succeeded" | "completed" | "running" | "pending" | "failed" | string;
   duration_ms: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
   correlation_id: string;
+  input?: Record<string, any>;
+  output?: Record<string, any>;
+  reasoning?: string;
+  error?: string | null;
   created_at: string;
   summary?: string;
+}
+
+export interface CascadeStep {
+  tier: number;
+  tier_label: "Pharmacy" | "Stockist" | "Distributor" | "Manufacturer" | string;
+  agent_name: string;
+  node_id: string;
+  node_name: string;
+  status: "succeeded" | "failed" | "running" | string;
+  reasoning: string;
+  input: Record<string, any>;
+  output: Record<string, any>;
+  model: string;
+  provider: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  duration_ms: number;
+  timestamp: string;
+  entities_created?: Record<string, any>;
+}
+
+export interface CascadeTrace {
+  correlation_id: string;
+  started_at: string;
+  completed_at: string;
+  total_duration_ms: number;
+  total_tokens: number;
+  trigger_event: Record<string, any>;
+  steps: CascadeStep[];
+  status?: string;
+}
+
+export interface CascadeSummary {
+  correlation_id: string;
+  timestamp: string;
+  product_name: string;
+  pharmacy_name: string;
+  quantity: number;
+  tiers_completed: string;
+  total_duration_ms: number;
+  total_tokens: number;
+  status: string;
+}
+
+export interface AgentByGraphMetric {
+  agent: string;
+  graph: string;
+  runs: number;
+  failures: number;
+  avg_latency_ms: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface AgentByProviderMetric {
+  provider: string;
+  model: string;
+  runs: number;
+  failures: number;
+  avg_latency_ms: number;
+  total_tokens: number;
+}
+
+export interface AgentMetrics {
+  total_runs: number;
+  succeeded_runs: number;
+  failed_runs: number;
+  average_latency_ms: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+  by_agent: AgentByGraphMetric[];
+  by_provider: AgentByProviderMetric[];
 }
 
 export interface HitlTask {
@@ -243,9 +328,14 @@ export interface WebhookSubscription {
 }
 
 export interface OverviewKpis {
+  events_today: number;
+  total_events: number;
+  stockout_risks: number;
+  open_approvals: number;
+  quarantined_batches: number;
   total_nodes: number;
   total_products: number;
-  active_batches: number;
-  inventory_records: number;
-  total_events: number;
+  timestamp?: string;
+  active_batches?: number;
+  inventory_records?: number;
 }

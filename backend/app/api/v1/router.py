@@ -19,6 +19,7 @@ from app.api.v1.endpoints.inventory import router as inventory_router
 from app.api.v1.endpoints.mcp import router as mcp_router
 from app.api.v1.endpoints.modules import router as modules_router
 from app.api.v1.endpoints.nodes import router as nodes_router
+from app.api.v1.endpoints.overview import router as overview_router
 from app.api.v1.endpoints.prescriptions import router as prescriptions_router
 from app.api.v1.endpoints.products import router as products_router
 from app.api.v1.endpoints.regulatory import router as regulatory_router
@@ -34,6 +35,7 @@ api_router.include_router(audit_router)
 api_router.include_router(agents_router)
 api_router.include_router(cascade_router)
 api_router.include_router(nodes_router)
+api_router.include_router(overview_router)
 api_router.include_router(products_router)
 api_router.include_router(inventory_router)
 api_router.include_router(events_router)

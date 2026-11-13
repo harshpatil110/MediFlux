@@ -1281,3 +1281,50 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   - SSE stream `Last-Event-ID` replay.
 - [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
 - [x] Specification created at `docs/specs/task-24-spec.md`.
+
+---
+
+## Task 25: Live Operations Screens (Overview, Cascade Replay, Agent Console)
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 7 — Full-Stack Operational Surface
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Network Overview Control Tower (`frontend/src/pages/OverviewPage.tsx`)**:
+   - 4 Live operational KPI cards (`events_today` with real-time SSE pulsing dot, `stockout_risks` with click-to-filter, `open_approvals` navigating to `/approvals`, `quarantined_batches` navigating to `/cold-chain`).
+   - Interactive POS Simulator Control Bar with primary CTA **"Sell 1 Strip"** (`mode: "single"`), target pharmacy and product dropdowns, secondary modes ("Steady Traffic", "Burst Spike", "Trigger Stockout"), and feedback toast with link to "Watch Cascade Replay →" (`/cascade?correlation_id=...`).
+   - Real-Time Live Event Feed merging live SSE events (`useEventStream(["*"])`) with historical events, featuring event type badges and clickable `correlation_id` pills.
+   - Network Inventory Positions table with product/facility search, "Show Low Stock Only" filter toggle, and row tinting for items where `available <= safety_stock`.
+2. **Strip Cascade Replay (`frontend/src/pages/CascadePage.tsx`)**:
+   - Signature 4-tier interactive flow canvas powered by `@xyflow/react` mapping:
+     $$\text{Tier 4: Retail Pharmacy} \longrightarrow \text{Tier 3: Regional Stockist} \longrightarrow \text{Tier 2: Logistics Distributor} \longrightarrow \text{Tier 1: Formulation Plant}$$
+   - Top Control Bar featuring "⚡ Sell 1 Strip & Watch Live" trigger button, historical cascade selector dropdown (`GET /api/v1/cascade`), correlation ID search input, and mode pill ("Deterministic Historical Replay").
+   - Step playback controls: Play/Pause toggle, Replay from Start, Step Back, Step Forward, and Speed selector (`0.5x`, `1x`, `2x`, `4x`).
+   - Custom React Flow tier nodes with visual states (`idle`, `active` with Electric Teal `#00AEBB` pulse ring, `completed` with duration badge, token count, and key output snippet).
+   - Agent Reasoning & Telemetry Side Panel with execution telemetry strip (model, provider, prompt/completion/total tokens, duration ms), plain-language decision rationale card, domain artifact badges, and collapsible input/output `JsonViewer` panels.
+   - Full URL synchronization (`/cascade?correlation_id=...`).
+3. **Agent Observability Console (`frontend/src/pages/AgentsPage.tsx`)**:
+   - 4 Primary KPI cards: Total Agent Runs, Failed Runs & Error Rate %, Average Latency (ms), and Total Tokens Consumed (with Prompt/Completion subtitle).
+   - 2 Telemetry Breakdown Panels: Telemetry by Agent & Graph table, and Telemetry by LLM Provider & Model table.
+   - Filterable `agent_runs` table with graph filter, agent filter, status filter, and text search box.
+   - Summary footer row proving mathematical token invariance: displayed sum of `total_tokens` strictly matches individual `agent_runs`.
+   - Slide-over run detail drawer with full trace metadata, error alert box, agent reasoning, and input/output JSON viewers.
+4. **Backend Endpoints & Full 4-Tier Cascade Trace Guarantee (`backend/app/api/v1/endpoints/`)**:
+   - `POST /api/v1/simulator/pos` & `POST /api/v1/cascade/trigger`: Executes real 4-tier cascade under unique correlation ID, records `agent_runs` trace entries, emits SSE events (`pos.sales`, `cascade_step`, `order.created`, `shipment.dispatched`, `production.batch`, `cascade.updates`), and caches deterministic trace.
+   - `GET /api/v1/cascade`: Lists recent cascades with summary details and initial seed traces if empty.
+   - `GET /api/v1/cascade/{correlation_id}`: Returns deterministic, ordered 4-tier trace for historical replay.
+   - `GET /api/v1/overview/kpis`: Returns live metrics with `stockout_risks >= 4`.
+   - `GET /api/v1/agents/runs`: Queryable by `graph`, `agent`, `status`, `correlation_id`, `limit`.
+   - `GET /api/v1/agents/metrics`: Token counts and latency breakdowns with zero discrepancy.
+   - `backend/app/api/v1/router.py`: Mounted `overview_router`.
+
+### Verification Status
+- [x] Design system strictly adheres to `design.md` Warm Editorial Minimalism with Light / Dark theme compatibility.
+- [x] `@xyflow/react` 4-tier interactive flow canvas and custom tier nodes implemented.
+- [x] Acceptance Criterion #1 ("Sell 1 Strip" 4-Tier Cascade): Verified via `tests/test_task25_live_operations.py::test_simulator_pos_single_trigger_and_4_tier_cascade`.
+- [x] Acceptance Criterion #2 (Deterministic Historical Replay): Verified via `tests/test_task25_live_operations.py::test_deterministic_historical_cascade_replay`.
+- [x] Acceptance Criterion #3 (Agent Console Token Math Invariance): Verified via `tests/test_task25_live_operations.py::test_agent_runs_filtering_and_metrics_invariance`.
+- [x] Production frontend build (`npm run build` with `tsc -b && vite build`) compiles with 0 errors.
+- [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
+- [x] Specification created at `docs/specs/task-25-spec.md`.

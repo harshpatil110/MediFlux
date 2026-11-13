@@ -57,6 +57,39 @@ DEFAULT_INVENTORY: list[dict] = [
         "product_name": "Azithral 500mg",
         "batch_no": "AZI2601",
     },
+    {
+        "id": "inv-005",
+        "node_id": "11111111-1111-1111-1111-111111111111",  # Pharmacy node
+        "product_id": "p-003-amoxicillin",
+        "batch_id": "b-amx-2026-01",
+        "quantity": 4,
+        "reserved": 1,
+        "safety_stock": 12,
+        "product_name": "Amoxicillin 500mg",
+        "batch_no": "AMX2601",
+    },
+    {
+        "id": "inv-006",
+        "node_id": "11111111-1111-1111-1111-111111111111",  # Pharmacy node
+        "product_id": "p-004-paracetamol",
+        "batch_id": "b-par-2026-01",
+        "quantity": 9,
+        "reserved": 2,
+        "safety_stock": 15,
+        "product_name": "Paracetamol 650mg",
+        "batch_no": "PAR2601",
+    },
+    {
+        "id": "inv-007",
+        "node_id": "22222222-2222-2222-2222-222222222222",  # Stockist node
+        "product_id": "p-005-metformin",
+        "batch_id": "b-met-2026-01",
+        "quantity": 8,
+        "reserved": 0,
+        "safety_stock": 10,
+        "product_name": "Metformin 500mg",
+        "batch_no": "MET2601",
+    },
 ]
 
 BASE_MOCK_INVENTORY: list[dict] = [dict(item) for item in DEFAULT_INVENTORY]
