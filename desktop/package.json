@@ -1,0 +1,46 @@
+{
+  "name": "mediflux-desktop",
+  "version": "1.0.0",
+  "description": "MediFlux Autonomous Supply Chain Control Tower Desktop Application",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "desktop:dev": "electron .",
+    "desktop:pack": "electron-builder --dir",
+    "desktop:build": "electron-builder --win portable"
+  },
+  "keywords": [
+    "mediflux",
+    "pharma",
+    "supply-chain",
+    "desktop",
+    "electron"
+  ],
+  "author": "MediFlux Engineering <dev@mediflux.in>",
+  "license": "Proprietary",
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "in.mediflux.desktop",
+    "productName": "MediFlux Control Tower",
+    "copyright": "Copyright © 2026 MediFlux Ecosystem",
+    "asar": false,
+    "directories": {
+      "output": "out"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "icons/**/*",
+      "../frontend/dist/**/*"
+    ],
+    "win": {
+      "icon": "icons/icon.ico",
+      "target": [
+        "dir"
+      ]
+    }
+  }
+}

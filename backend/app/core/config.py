@@ -21,15 +21,23 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
 
-    # CORS origins (Vite dev servers, Tauri desktop origins)
+    # CORS origins (Vite dev servers, Tauri & Electron desktop origins)
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
         "tauri://localhost",
         "http://tauri.localhost",
         "https://tauri.localhost",
+        "app://.",
+        "app://localhost",
+        "file://",
+        "null",
     ]
 
     # Supabase credentials & JWT secret

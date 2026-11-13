@@ -111,6 +111,8 @@ export interface SystemEvent {
   payload: Record<string, any>;
   topic?: string;
   event_type?: string;
+  data?: Record<string, any>;
+  id?: string;
 }
 
 export interface AgentRun {

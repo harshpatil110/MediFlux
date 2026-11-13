@@ -3,12 +3,13 @@
  * Features role-filtered sidebar, top header with node topology badges, SSE stream pill, and theme toggle.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LogOut,
   Moon,
   Radio,
+  Settings,
   Sun,
   UserCheck,
   Building2,
@@ -20,6 +21,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { getFilteredNavigation } from "../../config/navigation";
 import { StatusBadge } from "../shared/StatusBadge";
 import { SseDebugPanel } from "./SseDebugPanel";
+import { BackendSettingsModal } from "./BackendSettingsModal";
 import { useEventStream } from "../../hooks/useEventStream";
 
 interface AppShellProps {
@@ -34,6 +36,13 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   const [isSseDebugOpen, setIsSseDebugOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenSettings = () => setIsSettingsOpen(true);
+    window.addEventListener("mediflux:open-settings", handleOpenSettings);
+    return () => window.removeEventListener("mediflux:open-settings", handleOpenSettings);
+  }, []);
 
   // Background stream for live status pill in top header
   const { events, connectionState } = useEventStream({
@@ -220,6 +229,19 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               </span>
             </button>
 
+            {/* Backend Connection Settings Pill */}
+            <button
+              type="button"
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--bg-canvas)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] transition-colors text-xs font-mono"
+              title="Configure Backend Connection & Test Native Notifications"
+            >
+              <Settings className="w-3.5 h-3.5 text-[var(--accent-teal)]" />
+              <span className="text-[11px] text-[var(--text-primary)] hidden sm:inline">
+                Backend
+              </span>
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               type="button"
@@ -240,6 +262,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <SseDebugPanel
         isOpen={isSseDebugOpen}
         onClose={() => setIsSseDebugOpen(false)}
+      />
+
+      {/* Backend Settings & Telemetry Modal */}
+      <BackendSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

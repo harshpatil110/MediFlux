@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/v1/tooling/cli/schema.json",
+  "build": {
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "devPath": "http://localhost:5173",
+    "distDir": "../../frontend/dist"
+  },
+  "package": {
+    "productName": "MediFlux Control Tower",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "notification": {
+        "all": true
+      },
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": ["http://localhost:8000/*", "http://127.0.0.1:8000/*", "https://*"]
+      },
+      "window": {
+        "all": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "MedicalBusiness",
+      "copyright": "2026 MediFlux Ecosystem",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/512x512.png",
+        "icons/icon.ico",
+        "icons/icon.png"
+      ],
+      "identifier": "in.mediflux.desktop",
+      "longDescription": "MediFlux (NexusChain) AI-Native Autonomous Hyper-Connected Pharmaceutical Supply Chain Control Tower for India.",
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "providerShortName": null,
+        "entitlements": null
+      },
+      "resources": [],
+      "shortDescription": "MediFlux Autonomous Pharma Supply Chain Desktop App",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": "default-src 'self' tauri: 'unsafe-inline' 'unsafe-eval' http: https: data: blob: ws: wss:; img-src 'self' tauri: data: blob: http: https:; connect-src 'self' tauri: http://localhost:8000 http://127.0.0.1:8000 http: https: ws: wss:;"
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "center": true,
+        "fullscreen": false,
+        "height": 900,
+        "minHeight": 700,
+        "minWidth": 1024,
+        "resizable": true,
+        "title": "MediFlux — Autonomous Supply Chain Control Tower",
+        "width": 1440
+      }
+    ]
+  }
+}

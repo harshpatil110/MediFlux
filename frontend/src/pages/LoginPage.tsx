@@ -3,7 +3,7 @@
  * 1-click Seeded Demo Users selector for all 7 supply chain roles.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -11,11 +11,13 @@ import {
   Lock,
   Mail,
   RefreshCw,
+  Settings,
   ShieldCheck,
   UserCheck,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { StatusBadge } from "../components/shared/StatusBadge";
+import { BackendSettingsModal } from "../components/layout/BackendSettingsModal";
 import type { UserRole } from "../types/api";
 
 export const LoginPage: React.FC = () => {
@@ -26,6 +28,13 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [submittingRole, setSubmittingRole] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenSettings = () => setIsSettingsOpen(true);
+    window.addEventListener("mediflux:open-settings", handleOpenSettings);
+    return () => window.removeEventListener("mediflux:open-settings", handleOpenSettings);
+  }, []);
 
   const handleStandardLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,9 +81,20 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-secondary)]">
-          <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-          <span>FastAPI v0.1.0 Ready</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--bg-canvas)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] transition-colors text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            title="Configure Backend Connection & Test Native Notifications"
+          >
+            <Settings className="w-3.5 h-3.5 text-[var(--accent-teal)]" />
+            <span>Server Settings</span>
+          </button>
+          <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-secondary)]">
+            <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+            <span className="hidden sm:inline">FastAPI v0.1.0 Ready</span>
+          </div>
         </div>
       </header>
 
@@ -247,6 +267,12 @@ export const LoginPage: React.FC = () => {
           <span>Supabase Auth</span>
         </div>
       </footer>
+
+      {/* Backend Settings & Telemetry Modal */}
+      <BackendSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 };

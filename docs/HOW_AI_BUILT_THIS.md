@@ -1472,3 +1472,74 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 - [x] Production frontend build (`npm run build` with `tsc -b && vite build`) compiles with 0 errors.
 - [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
 - [x] Specification created at `docs/specs/task-27-spec.md`.
+
+---
+
+## Task 28: Desktop Application Packaging & Runtime Integration
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 5 — Developer Experience, Client SDKs, and Packaging
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Desktop Icons & Asset Generation (`scripts/generate_desktop_icons.py`)**:
+   - Programmatically generated custom Warm Editorial Minimalism brand icons using Pillow:
+     - Multi-resolution Windows `icon.ico` (256x256 base, 128x128, 64x64, 48x48, 32x32, 24x24, 16x16 frames).
+     - High-resolution `icon.png` (512x512) and intermediate sizes (128x128, 32x32).
+     - Generated in both `desktop/icons/` and mirrored in `desktop/src-tauri/icons/`.
+
+2. **Dual-Runtime Desktop Packaging**:
+   - **Tauri Rust Specification (`desktop/src-tauri/`)**:
+     - `tauri.conf.json`: Configured with bundle identifier `in.mediflux.desktop`, 1440x900 default window, distDir `../../frontend/dist`, and system tray.
+     - `Cargo.toml`, `build.rs`, and `src/main.rs`: Full Rust crate structure with tauri core dependencies.
+   - **Electron Active Packaging Wrapper (`desktop/`)**:
+     - `package.json`: Configured with `electron`, `electron-builder`, scripts `desktop:dev`, `desktop:pack`, `desktop:build`.
+     - `preload.cjs`: Secure IPC ContextBridge exposing `window.medifluxDesktop` API (`isDesktop`, `runtime`, `getPlatformInfo`, `showNotification`, `openExternal`, `onNavigate`, `onOpenSettings`).
+     - `main.cjs`: Single-instance lock (`app.requestSingleInstanceLock`), system tray context menu with direct navigation to Cascade, Approvals, Regulatory Lab, and Cold Chain; native application menu with Operations shortcuts; IPC notification handler.
+     - Successfully verified executable build via `npm run desktop:pack` producing `MediFlux Control Tower.exe` (188 MB) in `desktop/out/win-unpacked/`.
+
+3. **Frontend Desktop Compatibility & Relative Base Path**:
+   - `frontend/vite.config.ts`: Set `base: "./"` ensuring all asset paths resolve relatively for `file://` or custom desktop protocols (`app://`, `tauri://`).
+   - `frontend/src/App.tsx`: Dynamic router fallback utilizing `HashRouter` when loaded under `file://` or desktop wrappers, and `BrowserRouter` when served over standard HTTP web hosting.
+   - `DesktopBridgeListener`: Subscribes to system tray / app menu navigation events (`onNavigate`) and settings trigger (`onOpenSettings`).
+
+4. **Runtime-Configurable Backend API URL Store & Settings Modal**:
+   - `frontend/src/config/env.ts` & `frontend/src/lib/api.ts`: Dynamic backend URL getter/setter reading from `localStorage.getItem("mediflux_backend_url")` (default: `http://localhost:8000`).
+   - Custom event `mediflux:backend-url-changed` dispatches on URL change, invalidating TanStack Query cache and prompting `useEventStream` SSE stream to reconnect automatically.
+   - `frontend/src/components/layout/BackendSettingsModal.tsx`:
+     - Live asynchronous round-trip probe against `GET /health` displaying real-time latency in milliseconds.
+     - Preset buttons (`Localhost:8000`, `Local Network IP`, `Custom Port`).
+     - Active desktop runtime badge (`Desktop App (ELECTRON Shell)` vs `Standard Web Browser`).
+     - "🔔 Test Native Notification" triggers for HITL and Cold-Chain alerts.
+     - Accessible via header pill in `AppShell.tsx` and Server Settings button in `LoginPage.tsx`.
+
+5. **Native OS Notifications**:
+   - `frontend/src/hooks/useDesktopNotifications.ts`: Upgraded bi-modal notification engine prioritizing native desktop bridge and falling back to Web Notification API.
+   - Automatic triggers for:
+     - `hitl.created`: Alerts operator of high-risk tasks requiring approval; clicking routes to `/approvals`.
+     - `coldchain.quarantined`: Alerts operator of batch excursions; clicking routes to `/cold-chain`.
+   - User notification mute toggle persisted in local storage.
+
+6. **FastAPI Desktop CORS & Health Probes**:
+   - `backend/app/core/config.py`: Enriched `CORS_ORIGINS` with desktop origins (`tauri://localhost`, `http://tauri.localhost`, `https://tauri.localhost`, `app://.`, `app://localhost`, `file://`, `null`).
+   - `backend/app/main.py`: Configured `CORSMiddleware` with desktop origins and regex; updated `/health` endpoint with `"desktop_cors_enabled": True`.
+
+7. **Cross-Platform Launchers & Verification Suite**:
+   - Created `scripts/start-all.bat` (Windows batch), updated `scripts/start-all.ps1` (PowerShell with `-Desktop` and `-CheckOnly`), and created `scripts/start_all.py` (cross-platform CLI with `--check-only`).
+   - Created comprehensive runtime documentation `docs/DESKTOP_BUILD.md` and spec `docs/specs/task-28-spec.md`.
+   - Created and passed automated test suite `backend/tests/test_task28_desktop_packaging.py` (7/7 tests passing).
+
+### Verification Status
+- [x] Multi-resolution `.ico` and `.png` icons generated in `desktop/icons/` and `desktop/src-tauri/icons/`.
+- [x] Tauri complete configuration in `desktop/src-tauri/` verified.
+- [x] Electron wrapper with single-instance lock, system tray, app menu, and IPC preload bridge implemented.
+- [x] Active packaging verified: `npm run desktop:pack` builds `MediFlux Control Tower.exe` in `desktop/out/win-unpacked/`.
+- [x] Frontend `base: "./"`, `HashRouter` desktop fallback, and `medifluxDesktop` IPC listeners verified.
+- [x] Dynamic Backend URL store with live latency probe and SSE auto-reconnect implemented in `BackendSettingsModal.tsx`.
+- [x] Native desktop notifications for HITL and Cold-Chain quarantine implemented and tested.
+- [x] FastAPI CORS allows `tauri://localhost`, `app://.`, `http://tauri.localhost`, and `/health` returns `desktop_cors_enabled=True`.
+- [x] `scripts/start_all.py --check-only` passes cleanly.
+- [x] All 7 tests in `backend/tests/test_task28_desktop_packaging.py` pass cleanly.
+- [x] Production frontend build (`npm run build`) compiles with 0 errors.
+- [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
+- [x] Specification created at `docs/specs/task-28-spec.md` and documentation at `docs/DESKTOP_BUILD.md`.

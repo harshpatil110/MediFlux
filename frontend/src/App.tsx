@@ -3,7 +3,8 @@
  * Configures QueryClient, AuthProvider, ThemeProvider, and React Router routes.
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -22,6 +23,7 @@ import { AuditPage } from "./pages/AuditPage";
 import { CopilotPage } from "./pages/CopilotPage";
 import { DeveloperPage } from "./pages/DeveloperPage";
 import { NAVIGATION_ITEMS } from "./config/navigation";
+import { useDesktopNotifications } from "./hooks/useDesktopNotifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,8 +35,44 @@ const queryClient = new QueryClient({
   },
 });
 
-// Use BrowserRouter for standard web; compatible with future Tauri desktop shell
-const RouterComponent = BrowserRouter;
+// Use HashRouter for packaged desktop environments running on file:// or desktop shells;
+// use BrowserRouter for standard web hosting.
+const isFileProtocol = typeof window !== "undefined" && (
+  window.location.protocol === "file:" ||
+  Boolean((window as any).medifluxDesktop?.isDesktop)
+);
+const RouterComponent = isFileProtocol ? HashRouter : BrowserRouter;
+
+/**
+ * Global bridge listener to handle system tray / app menu navigation
+ * and desktop event dispatches.
+ */
+function DesktopBridgeListener() {
+  const navigate = useNavigate();
+  // Automatically activate desktop notification listener for HITL & cold-chain breaches
+  useDesktopNotifications();
+
+  useEffect(() => {
+    const desktop = (window as any).medifluxDesktop;
+    if (!desktop) return;
+
+    if (desktop.onNavigate) {
+      desktop.onNavigate((targetRoute: string) => {
+        if (targetRoute) {
+          navigate(targetRoute);
+        }
+      });
+    }
+
+    if (desktop.onOpenSettings) {
+      desktop.onOpenSettings(() => {
+        window.dispatchEvent(new CustomEvent("mediflux:open-settings"));
+      });
+    }
+  }, [navigate]);
+
+  return null;
+}
 
 export default function App() {
   return (
@@ -42,6 +80,7 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <RouterComponent>
+            <DesktopBridgeListener />
             <Routes>
               {/* Public Authentication Route */}
               <Route path="/login" element={<LoginPage />} />

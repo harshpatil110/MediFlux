@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { API_BASE_URL } from "../config/env";
+import { getApiBaseUrl } from "../config/env";
 import { getStoredToken, getStoredUser } from "../lib/api";
 import type { SystemEvent } from "../types/api";
 
@@ -66,7 +66,8 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
       query.set("role", user.role);
     }
 
-    const sseUrl = `${API_BASE_URL}/api/v1/events/stream?${query.toString()}`;
+    const baseUrl = getApiBaseUrl();
+    const sseUrl = `${baseUrl}/api/v1/events/stream?${query.toString()}`;
 
     setConnectionState((prev) => (prev === "closed" ? "connecting" : "reconnecting"));
 
@@ -184,7 +185,14 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
   useEffect(() => {
     connect();
 
+    const handleUrlChanged = () => {
+      reconnectAttemptsRef.current = 0;
+      connect();
+    };
+    window.addEventListener("mediflux:backend-url-changed", handleUrlChanged);
+
     return () => {
+      window.removeEventListener("mediflux:backend-url-changed", handleUrlChanged);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }

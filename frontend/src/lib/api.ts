@@ -3,7 +3,11 @@
  * Automatically injects active Supabase session JWT, actor headers, and handles domain responses.
  */
 
-import { API_BASE_URL } from "../config/env";
+import {
+  getApiBaseUrl,
+  resetApiBaseUrl,
+  setApiBaseUrl,
+} from "../config/env";
 import type {
   Adapter,
   AdapterFixture,
@@ -42,6 +46,8 @@ import type {
 
 const TOKEN_STORAGE_KEY = "mediflux_token";
 const USER_STORAGE_KEY = "mediflux_user";
+
+export { getApiBaseUrl, setApiBaseUrl, resetApiBaseUrl };
 
 export function getStoredToken(): string | null {
   return typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
@@ -119,7 +125,8 @@ export async function apiRequest<T = any>(
   }
 
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `${API_BASE_URL}${cleanPath}`;
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${cleanPath}`;
 
   const response = await fetch(url, {
     ...options,
