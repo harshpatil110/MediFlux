@@ -32,3 +32,4 @@ contextBridge.exposeInMainWorld("medifluxDesktop", {
     return () => ipcRenderer.removeListener("mediflux:open-settings", subscription);
   },
 });
+

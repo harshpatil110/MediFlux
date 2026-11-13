@@ -145,3 +145,4 @@ npm run desktop:build
 | **Backend CORS** | `CORSMiddleware` in `backend/app/main.py` permits desktop origins | Verified |
 | **Health Probe** | `GET /health` returns `desktop_cors_enabled=True` | Verified |
 | **CI Dry-Run Check** | `python scripts/start_all.py --check-only` exits with code 0 | Verified |
+

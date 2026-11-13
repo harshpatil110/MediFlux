@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Literal
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -157,3 +157,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

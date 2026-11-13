@@ -70,3 +70,4 @@ Task 27 completes the full suite of specialized compliance, operational intellig
 - Backend linter `ruff check .` passes with 0 warnings/errors.
 - Frontend build `npm --prefix frontend run build` passes with 0 errors.
 - Design strictly complies with Warm Editorial Minimalism (`#E8E4D3` ivory canvas, `#00AEBB` teal accent, `#D8D3C3` borders).
+

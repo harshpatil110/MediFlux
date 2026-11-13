@@ -59,3 +59,4 @@ echo   - Health Check:   http://localhost:8000/health
 echo   - Frontend Web:   http://localhost:5173
 echo.
 echo Use scripts\start-all.bat --desktop to launch the desktop shell.
+

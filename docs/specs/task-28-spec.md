@@ -53,3 +53,4 @@ Task 28 implements the complete desktop application packaging, runtime bridge, d
 - **Frontend Distribution**: Built via `npm --prefix frontend run build` producing relative asset paths in `frontend/dist/index.html`.
 - **Backend CORS Preflight**: Verified 200 OK responses with matching `access-control-allow-origin` headers for `tauri://localhost`, `app://.`, and `http://tauri.localhost`.
 - **Automated Tests**: Validated via `backend/tests/test_task28_desktop_packaging.py`.
+
