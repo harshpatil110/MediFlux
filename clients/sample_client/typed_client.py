@@ -49,9 +49,11 @@ class MediFluxClient:
         base_url: str = "http://localhost:8000",
         api_key: str | None = None,
         client: httpx.AsyncClient | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        self.transport = transport
         self._external_client = client
         self._owned_client: httpx.AsyncClient | None = None
 
@@ -59,7 +61,11 @@ class MediFluxClient:
         if self._external_client is not None:
             return self._external_client
         if self._owned_client is None or self._owned_client.is_closed:
-            self._owned_client = httpx.AsyncClient(base_url=self.base_url, timeout=10.0)
+            self._owned_client = httpx.AsyncClient(
+                base_url=self.base_url,
+                transport=self.transport,
+                timeout=10.0,
+            )
         return self._owned_client
 
     def _headers(self, custom_headers: dict[str, str] | None = None) -> dict[str, str]:

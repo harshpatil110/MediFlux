@@ -1393,3 +1393,82 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 - [x] Production frontend build (`npm run build` with `tsc -b && vite build`) compiles cleanly with 0 errors.
 - [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
 - [x] Specification created at `docs/specs/task-26-spec.md`.
+
+
+---
+
+## Task 27: Compliance, Copilot, and Developer Portal Screens
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 7 — Full-Stack Operational Surface
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Sovereign Prescription Scanner & Schedule H Compliance (`frontend/src/pages/PrescriptionsPage.tsx`)**:
+   - Built sovereign local execution banner highlighting on-premises processing (`sensitivity="sensitive"`), ensuring zero cloud data leakage and strict CDSCO compliance.
+   - Enforced strict privacy preservation: patient identities are permanently and irreversibly masked to initials only (`patient_initials`, e.g. `R.K.`), never exposing raw patient names.
+   - Studio ingestion console providing drag-and-drop file upload and 5 one-click synthetic fixture presets:
+     - Valid Standard Rx (`valid_prescription.png`): Approved dispense, physician Dr. A. K. Sharma (MCI-2019-88412) verified.
+     - Schedule H Antibiotic Rx (`schedule_h_prescription.png`): Approved dispense, Dr. Priya Nair (DMC-55102), statutory Rx log generated.
+     - Unknown Physician Rx (`unknown_doctor.png`): Physician unverified in medical registry; routes to HITL approval gate.
+     - Missing Reg Number Rx (`missing_reg_no.png`): Scan lacking physician registration number; routes to pharmacist dual verification.
+     - Unlisted Formulation Rx (`unlisted_drug.png`): Chemical entity unlisted in CDSCO formulary; routes to dual verification.
+   - Structured verdict console featuring final decision badge (`APPROVE DISPENSE` in Teal, `FLAGGED FOR HITL REVIEW` in Amber with link to `/approvals`, `REJECTED` in Coral), Doctor Registry verification card, and Per-Drug CDSCO Schedule breakdown table (OTC, Schedule H, Schedule H1, Schedule X).
+   - Added "💊 Test Schedule H POS Sale with prescription_id" button linking directly into the Demand Cascade.
+   - Added statutory CDSCO compliance and prescription scan registry history table.
+
+2. **Cold-Chain Biologics Telemetry Monitor & Auto-Quarantine (`frontend/src/pages/ColdChainPage.tsx`)**:
+   - Top KPI strip monitoring total cold-chain batches, active within 2.0°C–8.0°C envelope, quarantined batches (available quantity zeroed), and mean viability %.
+   - Admin IoT Sensor Simulator controls with batch selector and 3 simulation modes:
+     - 🌡️ *Run Normal Telemetry* (nominal 4.8°C).
+     - 🔥 *Trigger Thermal Excursion* (escalates > 8.0°C, executes auto-quarantine, zeroes available inventory in database and mock stores, generates Excursion Analyst clinical narrative, and launches Dynamic Balancing Agent rebalance cascade).
+     - 💥 *Trigger Transit Shock* (mechanical shock breach > 8.0g).
+   - Cold-chain batches fleet grid with storage envelopes, live sensor badges, available stock counters, and Arrhenius remaining shelf-life progress bars.
+   - Dual live Recharts visualizers:
+     - *Chart 1*: Temperature (°C) vs safe envelope with 2.0°C and 8.0°C reference lines.
+     - *Chart 2*: Mechanical shock (g-force) and container humidity (%) with 4.0g warning and 8.0g critical breach reference lines.
+   - Arrhenius Shelf-Life model diagnostics card breaking down nominal days, degradation penalty, and effective remaining shelf-life.
+   - Autonomous quarantine history feed with Excursion Analyst narrative and direct correlation ID link to restock trace.
+
+3. **Network Copilot & Semantic Vector Search (`frontend/src/pages/CopilotPage.tsx`)**:
+   - Caller RLS Scope header displaying authenticated user operational scope (`Scope: PHARMACY NODE (RLS BOUND)` vs `Scope: NETWORK ADMIN (FULL TOPOLOGY)`).
+   - Suggested operational inquiries quick-chips for stock balances, thermal excursions, DPCO price ceiling gazettes, and open HITL approvals.
+   - Conversational chat transcript with progressive executed tools pills (`tools_used: ["lookup_inventory", "check_coldchain", "search_gazettes"]`).
+   - Interactive multi-entity reference chips below answers linking directly to `/overview`, `/regulatory-lab`, `/cold-chain`, `/approvals`, and `/cascade`.
+   - Integrated pgvector cosine-similarity semantic vector search tab querying products, regulatory gazettes, and telemetry breach embeddings.
+
+4. **Developer Platform & MCP Server Hub (`frontend/src/pages/DeveloperPage.tsx`)**:
+   - **Tab 1: Scoped API Key Management**: Key provisioning form with 8 granular scopes, optional node UUID binding, token bucket rate limits, show-once plaintext 256-bit secret modal with 1-click copy, active keys table, and instant revocation.
+   - **Tab 2: Webhooks & Delivery Logs**: Subscription studio with event topics filter, "🚀 Deliver Test Webhook" trigger button, delivery log table with HMAC-SHA256 signature verification, response status codes, latency in ms, and payload inspector.
+   - **Tab 3: Interactive Code Snippets & OpenAPI Hub**: Direct links to Swagger UI (`/docs`), ReDoc (`/redoc`), and copyable multi-language tabs (`cURL`, `Python (httpx)`, `JavaScript (fetch)`) interpolating active credentials.
+   - **Tab 4: MCP Server Hub (Task 23 Model Context Protocol)**: Registry listing all 7 official MCP domain tools (`get_inventory`, `get_stockout_risk`, `list_open_approvals`, `get_cascade_trace`, `ask_copilot`, `submit_sale_event`, `decide_approval`), ready-to-paste client JSON configs for Claude Desktop, Cursor, and Antigravity, and live MCP Tool Tester calling `POST /api/v1/mcp/call`.
+
+5. **Backend Endpoints & Client SDK Enhancements**:
+   - `backend/app/graphs/prescription.py`: Added `list_prescriptions()` helper with privacy projection.
+   - `backend/app/api/v1/endpoints/prescriptions.py`: Added `GET /api/v1/prescriptions`, `GET /api/v1/prescriptions/fixtures` (returning embedded base64 data URIs), and enhanced `POST /api/v1/prescriptions` to support `fixture_name`.
+   - `backend/app/api/v1/endpoints/coldchain.py`: Added `POST /api/v1/coldchain/simulate` with normal/excursion/shock modes, and enriched `GET /api/v1/coldchain/batches` with chronological sensor readings.
+   - `backend/app/api/v1/endpoints/copilot.py`: Supported both `question` and `query` parameters in `CopilotQueryRequest`.
+   - `clients/sample_client/typed_client.py`: Enhanced `MediFluxClient` to accept custom transports.
+   - `frontend/src/lib/api.ts` & `frontend/src/types/api.ts`: Comprehensive client bindings for prescriptions, cold chain, copilot, developer keys, webhooks, and MCP tools.
+
+6. **Automated Verification Suite (`backend/tests/test_task27_portal_compliance_copilot_ui.py`)**:
+   - 8 Comprehensive integration tests verifying:
+     - Prescription listing with strict patient initials redaction and `sensitivity="sensitive"`.
+     - Synthetic fixtures endpoint returning 5 fixtures with valid data URIs.
+     - Prescription scan end-to-end (valid approved vs unknown doctor flagged with HITL).
+     - Schedule H sale linking to POS retail event.
+     - Cold-chain batches enriched with chronological readings and Arrhenius parameters.
+     - Live cold-chain excursion simulation (temperature > 8°C, available_quantity = 0, quarantine action created, rebalancing trace linked).
+     - Developer Portal API key provisioning, third-party `MediFluxClient` execution, MCP tool invocation, and revocation.
+     - Network Copilot question/query compatibility and pgvector semantic search.
+
+### Verification Status
+- [x] Design system strictly adheres to `design.md` Warm Editorial Minimalism with Light / Dark theme compatibility.
+- [x] Sovereign Prescription Scanner with privacy banner, fixture presets, structured parse console, and Schedule H POS sale link implemented.
+- [x] Cold-Chain Biologics Telemetry Monitor with Recharts dual charts, Arrhenius shelf-life diagnostics, Admin IoT Simulator, and auto-quarantine implemented.
+- [x] Network Copilot with RLS scope badge, quick-chip suggested inquiries, executed tools pills, multi-entity reference chips, and pgvector search implemented.
+- [x] Developer Platform with scoped API keys (show-once secret), HMAC webhooks, interactive code snippets, and MCP Server Hub implemented.
+- [x] All 8 tests in `tests/test_task27_portal_compliance_copilot_ui.py` pass cleanly.
+- [x] Production frontend build (`npm run build` with `tsc -b && vite build`) compiles with 0 errors.
+- [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
+- [x] Specification created at `docs/specs/task-27-spec.md`.

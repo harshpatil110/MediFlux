@@ -26,7 +26,8 @@ router = APIRouter(prefix="/copilot", tags=["Network Copilot"])
 class CopilotQueryRequest(BaseModel):
     """Payload for conversational copilot query."""
 
-    question: str = Field(description="Operational question to ask the Copilot")
+    question: str | None = Field(default=None, description="Operational question to ask the Copilot")
+    query: str | None = Field(default=None, description="Alternative field for operational question")
     stream: bool = Field(default=False, description="Enable Server-Sent Events progressive streaming")
     region: str | None = Field(default=None, description="Optional region filter")
     node_id: str | None = Field(default=None, description="Optional target node ID")
@@ -138,12 +139,19 @@ async def query_copilot(
         x_user_id=x_user_id,
     )
 
+    effective_question = (payload.question or payload.query or "").strip()
+    if not effective_question:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must provide non-empty 'question' or 'query' field.",
+        )
+
     # 1. SSE Streaming Response
     accept_header = request.headers.get("Accept", "")
     if payload.stream or "text/event-stream" in accept_header:
         async def event_generator():
             async for ev in stream_copilot_events(
-                question=payload.question,
+                question=effective_question,
                 scope=scope,
                 correlation_id=correlation_id,
             ):
@@ -156,7 +164,7 @@ async def query_copilot(
 
     # 2. Standard JSON Response
     result = await run_copilot(
-        question=payload.question,
+        question=effective_question,
         scope=scope,
         correlation_id=correlation_id,
     )

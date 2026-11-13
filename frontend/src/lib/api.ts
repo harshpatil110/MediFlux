@@ -10,27 +10,33 @@ import type {
   AdapterGenerationJob,
   AgentMetrics,
   AgentRun,
-  ApiKey,
   AuditLedgerEntry,
   AuditVerificationResult,
   CascadeSummary,
   CascadeTrace,
-  ColdChainBatch,
+  ColdChainBatchDetail,
+  ColdChainSimulationResult,
   ComplianceLog,
-  CopilotQueryResponse,
+  CopilotQueryResponseDetailed,
   DemoUser,
+  DeveloperApiKey,
   HitlTask,
   InventoryItem,
+  McpToolMetadata,
   NetworkNode,
   OverviewKpis,
   PriceCheckResult,
   Product,
+  PrescriptionFixture,
+  PrescriptionRecord,
+  QuarantineRecord,
   RegulatoryFixture,
   RegulatoryNotification,
   RegulatoryRun,
   SearchResult,
   SystemEvent,
   UserProfile,
+  WebhookDeliveryLog,
   WebhookSubscription,
 } from "../types/api";
 
@@ -401,8 +407,29 @@ export const api = {
   },
 
   // --------------------------------------------------------------------------
-  // Prescriptions & Compliance
+  // Prescriptions & Compliance (Task 19 & Task 27)
   // --------------------------------------------------------------------------
+  prescriptions: {
+    list: (params?: { limit?: number }) => {
+      const qs = params?.limit ? `?limit=${params.limit}` : "";
+      return apiRequest<{ prescriptions: PrescriptionRecord[]; total: number }>(`/api/v1/prescriptions${qs}`);
+    },
+    getFixtures: () => apiRequest<PrescriptionFixture[]>("/api/v1/prescriptions/fixtures"),
+    scan: (payload: { fixture_name?: string; image_base64?: string; image_path?: string; node_id?: string; correlation_id?: string } | FormData) => {
+      if (payload instanceof FormData) {
+        return apiRequest<PrescriptionRecord>("/api/v1/prescriptions", {
+          method: "POST",
+          body: payload,
+        });
+      }
+      return apiRequest<PrescriptionRecord>("/api/v1/prescriptions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+    getById: (id: string) => apiRequest<PrescriptionRecord>(`/api/v1/prescriptions/${id}`),
+  },
+
   compliance: {
     listLogs: (params?: { limit?: number }) => {
       const qs = params?.limit ? `?limit=${params.limit}` : "";
@@ -411,10 +438,21 @@ export const api = {
   },
 
   // --------------------------------------------------------------------------
-  // Cold Chain Telemetry
+  // Cold Chain Telemetry & Auto-Quarantine (Task 20 & Task 27)
   // --------------------------------------------------------------------------
   coldchain: {
-    listBatches: () => apiRequest<ColdChainBatch[]>("/api/v1/coldchain/batches"),
+    listBatches: () => apiRequest<{ batches: ColdChainBatchDetail[]; total: number }>("/api/v1/coldchain/batches"),
+    listQuarantines: () => apiRequest<{ quarantines: QuarantineRecord[]; total: number }>("/api/v1/coldchain/quarantines"),
+    simulate: (payload: { batch_id?: string; mode: "normal" | "excursion" | "shock"; steps?: number }) =>
+      apiRequest<ColdChainSimulationResult>("/api/v1/coldchain/simulate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    sendTelemetry: (payload: any) =>
+      apiRequest("/api/v1/coldchain/sensor", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
 
   // --------------------------------------------------------------------------
@@ -444,23 +482,72 @@ export const api = {
   },
 
   // --------------------------------------------------------------------------
-  // Network Copilot & Semantic Search
+  // Network Copilot & Semantic Search (Task 21 & Task 27)
   // --------------------------------------------------------------------------
   copilot: {
-    query: (queryText: string) =>
-      apiRequest<CopilotQueryResponse>("/api/v1/copilot/query", {
+    query: (payload: { question?: string; query?: string; stream?: boolean; region?: string; node_id?: string } | string) => {
+      const body = typeof payload === "string" ? { question: payload } : payload;
+      return apiRequest<CopilotQueryResponseDetailed>("/api/v1/copilot/query", {
         method: "POST",
-        body: JSON.stringify({ query: queryText }),
-      }),
-    search: (q: string) => apiRequest<SearchResult[]>(`/api/v1/search?q=${encodeURIComponent(q)}`),
+        body: JSON.stringify(body),
+      });
+    },
+    search: (q: string, types?: string, limit?: number) => {
+      const params = new URLSearchParams({ q });
+      if (types) params.set("types", types);
+      if (limit) params.set("limit", String(limit));
+      return apiRequest<{ query: string; count: number; results: SearchResult[] }>(`/api/v1/search?${params.toString()}`);
+    },
   },
 
   // --------------------------------------------------------------------------
-  // Developer Platform
+  // Developer Platform & MCP Tools (Task 22, 23 & 27)
   // --------------------------------------------------------------------------
   developer: {
-    listKeys: () => apiRequest<ApiKey[]>("/api/v1/developer/keys"),
+    listKeys: () => apiRequest<DeveloperApiKey[]>("/api/v1/developer/keys"),
+    createKey: (payload: { name: string; scopes: string[]; node_id?: string | null; rate_limit?: number }) =>
+      apiRequest<DeveloperApiKey>("/api/v1/developer/keys", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    revokeKey: (keyId: string) =>
+      apiRequest<{ status: string; id: string }>(`/api/v1/developer/keys/${keyId}`, {
+        method: "DELETE",
+      }),
     listWebhooks: () => apiRequest<WebhookSubscription[]>("/api/v1/developer/webhooks"),
+    createWebhook: (payload: { url: string; events: string[]; secret?: string; node_id?: string | null }) =>
+      apiRequest<WebhookSubscription>("/api/v1/developer/webhooks", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    deleteWebhook: (subscriptionId: string) =>
+      apiRequest<{ status: string; id: string }>(`/api/v1/developer/webhooks/${subscriptionId}`, {
+        method: "DELETE",
+      }),
+    testWebhook: (subscriptionId: string, payload?: { event_type?: string; data?: any }) =>
+      apiRequest<WebhookDeliveryLog>(`/api/v1/developer/webhooks/${subscriptionId}/test`, {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }),
+    listDeliveries: (params?: { limit?: number; subscription_id?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.limit) q.set("limit", String(params.limit));
+      const subPath = params?.subscription_id ? `/${params.subscription_id}/deliveries` : "/deliveries";
+      return apiRequest<WebhookDeliveryLog[]>(`/api/v1/developer/webhooks${subPath}?${q.toString()}`);
+    },
+    getMcpTools: () => apiRequest<{ tools: McpToolMetadata[]; count: number; protocol_version: string }>("/api/v1/mcp/tools"),
+    callMcpTool: (payload: { tool: string; arguments?: Record<string, any>; api_key?: string }) =>
+      apiRequest<{ content: Array<{ type: string; text: string }>; structured_content?: any; is_error: boolean }>(
+        "/api/v1/mcp/call",
+        {
+          method: "POST",
+          headers: payload.api_key ? { "X-API-Key": payload.api_key } : undefined,
+          body: JSON.stringify({
+            name: payload.tool,
+            arguments: payload.arguments || {},
+          }),
+        }
+      ),
   },
 
   // --------------------------------------------------------------------------

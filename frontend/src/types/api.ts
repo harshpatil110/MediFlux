@@ -458,6 +458,177 @@ export interface WebhookSubscription {
   created_at: string;
 }
 
+export interface PrescriptionDrugItem {
+  name: string;
+  dose: string;
+  frequency?: string | null;
+  quantity: number;
+  sku?: string | null;
+  product_id?: string | null;
+  schedule_class?: string | null;
+  requires_prescription?: boolean;
+}
+
+export interface PrescriptionRecord {
+  id: string;
+  prescription_id?: string;
+  rx_number?: string;
+  patient_initials: string;
+  doctor_name: string;
+  doctor_registration_no?: string | null;
+  doctor_verified: boolean;
+  drugs: PrescriptionDrugItem[];
+  schedule_summary?: {
+    has_schedule_h?: boolean;
+    has_schedule_h1?: boolean;
+    has_schedule_x?: boolean;
+    requires_rx?: boolean;
+  };
+  decision: "approve_dispense" | "flag" | "reject" | string;
+  status: "approved" | "flagged" | "rejected" | string;
+  hitl_task_id?: string | null;
+  sensitivity: "sensitive";
+  provider?: string;
+  correlation_id?: string;
+  created_at: string;
+}
+
+export interface PrescriptionFixture {
+  id: string;
+  filename: string;
+  label: string;
+  doctor_name: string;
+  reg_no: string;
+  description: string;
+  category: string;
+  expected_verdict: string;
+  expected_status: string;
+  data_uri?: string | null;
+}
+
+export interface ColdChainReading {
+  batch_id?: string;
+  temperature_c: number;
+  humidity?: number;
+  shock_g: number;
+  estimated_remaining_days?: number;
+  shelf_life_pct?: number;
+  decision?: string;
+  mode?: string;
+  ts: string;
+}
+
+export interface ColdChainBatchDetail {
+  batch_id: string;
+  batch_no: string;
+  product_id: string;
+  product_name: string;
+  sku: string;
+  storage_min_c: number;
+  storage_max_c: number;
+  status: "active" | "quarantined" | string;
+  available_quantity: number;
+  readings: ColdChainReading[];
+  last_reading?: ColdChainReading | null;
+  shelf_life_estimate: {
+    nominal_remaining_days: number;
+    estimated_remaining_days: number;
+    shelf_life_pct: number;
+    degradation_days: number;
+    formula_model: string;
+    decision: string;
+  };
+}
+
+export interface ColdChainSimulationResult {
+  status: string;
+  batch_id: string;
+  mode: "normal" | "excursion" | "shock";
+  readings_generated: ColdChainReading[];
+  final_decision: string;
+  batch_status: string;
+  available_quantity: number;
+  shelf_life_estimate?: any;
+  explanation?: string;
+  quarantined: boolean;
+  quarantine_action?: any;
+  rebalance_correlation_id?: string;
+  rebalance_result?: any;
+}
+
+export interface QuarantineRecord {
+  id: string;
+  batch_id: string;
+  product_id?: string;
+  node_id?: string;
+  reason: string;
+  narrative?: string;
+  quarantined_quantity?: number;
+  action_status?: string;
+  status?: string;
+  rebalance_correlation_id?: string;
+  created_at: string;
+}
+
+export interface CopilotQueryReference {
+  id?: string;
+  title: string;
+  snippet?: string;
+  entity_type?: "node" | "inventory" | "regulatory_notice" | "coldchain_batch" | "hitl_task" | "agent_run" | string;
+  score?: number;
+  url?: string;
+  link?: string;
+}
+
+export interface CopilotQueryResponseDetailed {
+  question: string;
+  answer: string;
+  references: CopilotQueryReference[];
+  tools_used: string[];
+  trace_id?: string;
+  scope?: Record<string, any>;
+}
+
+export interface DeveloperApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  key?: string;
+  api_key?: string;
+  scopes: string[];
+  node_id?: string | null;
+  rate_limit: number;
+  usage_count?: number;
+  is_active?: boolean;
+  created_at: string;
+  last_used_at?: string | null;
+}
+
+export interface WebhookDeliveryLog {
+  id: string;
+  subscription_id: string;
+  event_type: string;
+  target_url: string;
+  status_code: number;
+  success: boolean;
+  hmac_signature?: string;
+  payload?: any;
+  response_body?: string;
+  attempted_at: string;
+  latency_ms?: number;
+}
+
+export interface McpToolMetadata {
+  name: string;
+  description: string;
+  required_scope: string;
+  input_schema?: {
+    type: string;
+    properties: Record<string, any>;
+    required?: string[];
+  };
+}
+
 export interface OverviewKpis {
   events_today: number;
   total_events: number;

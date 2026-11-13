@@ -36,6 +36,158 @@ _in_memory_prescriptions: dict[str, dict[str, Any]] = {}
 _in_memory_compliance_logs: list[dict[str, Any]] = []
 
 
+def _seed_default_prescriptions() -> None:
+    """Seed initial sample prescriptions for offline testing and immediate UI display."""
+    if _in_memory_prescriptions:
+        return
+    now_iso = datetime.now(UTC).isoformat()
+    defaults = [
+        {
+            "id": "rx-demo-001",
+            "prescription_id": "rx-demo-001",
+            "rx_number": "RX-2026-0891",
+            "patient_initials": "R.K.",
+            "doctor_name": "Dr. A. K. Sharma",
+            "doctor_registration_no": "MCI-2019-88412",
+            "doctor_verified": True,
+            "drugs": [
+                {
+                    "name": "Amoxicillin 500mg",
+                    "dose": "500mg",
+                    "quantity": 10,
+                    "schedule_class": "H",
+                    "requires_prescription": True,
+                }
+            ],
+            "schedule_summary": {
+                "has_schedule_h": True,
+                "has_schedule_h1": False,
+                "has_schedule_x": False,
+                "requires_rx": True,
+            },
+            "decision": "approve_dispense",
+            "status": "approved",
+            "hitl_task_id": None,
+            "sensitivity": "sensitive",
+            "provider": "local_sovereign",
+            "correlation_id": "corr-seed-001",
+            "created_at": "2026-11-13T10:15:00Z",
+            "updated_at": now_iso,
+        },
+        {
+            "id": "rx-demo-002",
+            "prescription_id": "rx-demo-002",
+            "rx_number": "RX-2026-0892",
+            "patient_initials": "P.V.",
+            "doctor_name": "Dr. Priya Nair",
+            "doctor_registration_no": "DMC-55102",
+            "doctor_verified": True,
+            "drugs": [
+                {
+                    "name": "Paracetamol 650mg",
+                    "dose": "650mg",
+                    "quantity": 15,
+                    "schedule_class": "OTC",
+                    "requires_prescription": False,
+                },
+                {
+                    "name": "Cetirizine 10mg",
+                    "dose": "10mg",
+                    "quantity": 10,
+                    "schedule_class": "OTC",
+                    "requires_prescription": False,
+                },
+            ],
+            "schedule_summary": {
+                "has_schedule_h": False,
+                "has_schedule_h1": False,
+                "has_schedule_x": False,
+                "requires_rx": False,
+            },
+            "decision": "approve_dispense",
+            "status": "approved",
+            "hitl_task_id": None,
+            "sensitivity": "sensitive",
+            "provider": "local_sovereign",
+            "correlation_id": "corr-seed-002",
+            "created_at": "2026-11-13T11:30:00Z",
+            "updated_at": now_iso,
+        },
+        {
+            "id": "rx-demo-003",
+            "prescription_id": "rx-demo-003",
+            "rx_number": "RX-2026-0893",
+            "patient_initials": "S.M.",
+            "doctor_name": "Dr. Dev Anand",
+            "doctor_registration_no": "UNKNOWN-REG",
+            "doctor_verified": False,
+            "drugs": [
+                {
+                    "name": "Alprazolam 0.5mg",
+                    "dose": "0.5mg",
+                    "quantity": 10,
+                    "schedule_class": "H1",
+                    "requires_prescription": True,
+                }
+            ],
+            "schedule_summary": {
+                "has_schedule_h": True,
+                "has_schedule_h1": True,
+                "has_schedule_x": False,
+                "requires_rx": True,
+            },
+            "decision": "flag",
+            "status": "flagged",
+            "hitl_task_id": "hitl-rx-003",
+            "sensitivity": "sensitive",
+            "provider": "local_sovereign",
+            "correlation_id": "corr-seed-003",
+            "created_at": "2026-11-13T12:45:00Z",
+            "updated_at": now_iso,
+        },
+    ]
+    for item in defaults:
+        _in_memory_prescriptions[item["id"]] = item
+
+
+def list_prescriptions(limit: int = 50) -> list[dict[str, Any]]:
+    """List recent prescriptions from memory or database, privacy-projected."""
+    _seed_default_prescriptions()
+    items = list(_in_memory_prescriptions.values())
+
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            client = get_service_db_client()
+            if client:
+                res = client.table("prescriptions").select("*").order("created_at", desc=True).limit(limit).execute()
+                if res.data:
+                    # Merge DB items
+                    db_items_by_id = {row["id"]: row for row in res.data}
+                    for k, v in _in_memory_prescriptions.items():
+                        if k not in db_items_by_id:
+                            db_items_by_id[k] = v
+                    items = list(db_items_by_id.values())
+        except Exception as exc:
+            logger.debug("Database prescriptions list failed: %s", exc)
+
+    def _get_sort_key(rx: dict[str, Any]) -> str:
+        return str(rx.get("created_at") or "")
+
+    sorted_items = sorted(items, key=_get_sort_key, reverse=True)[:limit]
+    # Ensure patient privacy redaction (initials only)
+    cleaned = []
+    for rx in sorted_items:
+        rx_copy = dict(rx)
+        # Ensure never exposing full patient name
+        if "patient_name" in rx_copy:
+            rx_copy["patient_initials"] = _extract_initials(rx_copy.pop("patient_name"))
+        elif not rx_copy.get("patient_initials"):
+            rx_copy["patient_initials"] = "ANON"
+        rx_copy["sensitivity"] = "sensitive"
+        cleaned.append(rx_copy)
+    return cleaned
+
+
 def get_prescription(prescription_id: str) -> dict[str, Any] | None:
     """Retrieve prescription record by ID from memory or database."""
     pid = str(prescription_id)
