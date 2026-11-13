@@ -1047,3 +1047,49 @@ Implemented the **Cold-Chain Telemetry Graph and Auto-Quarantine Engine** for re
 - [x] `ruff check` on `backend/`, `simulator/`, and `graphs/` passes with 0 warnings/errors.
 - [x] Specification created at `docs/specs/task-20-spec.md`.
 
+---
+
+## Task 21: Embeddings, Semantic Search, and Network Copilot
+
+### Overview
+Implemented **Vector Embeddings, Semantic Search, and the Autonomous Network Copilot** (RFP Phase 6). The system provides full semantic information retrieval over pharmaceutical supply chain records (products, regulatory notices, demand signals, and agent execution traces) via 768-dimensional embeddings and an RLS-isolated conversational Copilot LangGraph capable of answering operational questions with structured citations and real-time SSE streaming.
+
+### Key Components Implemented
+1. **Embedding Service (`backend/app/llm/embeddings.py`, `llm/embeddings.py`)**:
+   - Generates 768-dimensional $L_2$-normalized vector embeddings aligned with `pgvector`.
+   - Incorporates a deterministic **Medical & Supply-Chain Concept-Space Vectorizer** fallback mapping domain synsets (`price`, `coldchain`, `epidemic`, `stockout`, `compliance`, `analgesic`, `antibiotic`, `inventory`, `hitl`) onto orthogonal unit basis vectors, guaranteeing high cosine similarity ($> 0.65$) between colloquial queries and technical regulatory notices without exact word overlap.
+2. **Multi-Entity Indexing Service**:
+   - Indexes records across 4 entity types: `demand_signals`, `reg_notifications`, `agent_runs`, and `products`.
+   - Integrated with Task 18 `save_notification` to automatically index newly crawled regulatory notices in real time.
+3. **Semantic Search Endpoint (`GET /api/v1/search`)**:
+   - Fast cosine-similarity vector search across network knowledge with caller RLS scope filtering and entity type filtering.
+4. **Network Copilot LangGraph (`backend/app/graphs/copilot.py`, `backend/app/agents/graphs/copilot.py`, `graphs/copilot.py`)**:
+   - `planner_node`: Analyzes question intent, extracts parameters (product, region), and selects tools.
+   - `tool_executor_node`: Executes read-only parameterized tools and gathers structured citations.
+   - `answer_node`: Synthesizes grounded, factual responses citing exact nodes, quantities, batches, and regulatory notices while enforcing privacy notices for pharmacy callers.
+5. **The 7 Parameterized Read-Only Copilot Tools**:
+   - `search_semantic`: Vector similarity search across network knowledge.
+   - `get_stockout_risk`: Evaluates pharmacies with $\text{available} \le \text{safety\_stock} \times 1.5$.
+   - `get_inventory_summary`: Aggregated and per-node stock levels.
+   - `get_open_hitl_tasks`: Pending human approval tasks.
+   - `get_recent_agent_activity`: Multi-agent execution traces in `agent_runs`.
+   - `get_demand_signals`: Regional epidemic surge and demand forecasts.
+   - `get_cold_chain_status`: Biological batch integrity, sensor readings, and active quarantines.
+6. **Strict Pharmacy RLS Scope Isolation**:
+   - Enforces node-level data isolation where a pharmacy caller's operational scope is locked to their authenticated `node_id`.
+   - Overriding `node_id` via request body is strictly barred for pharmacy callers.
+7. **Conversational Endpoints & SSE Streaming (`POST /api/v1/copilot/query`)**:
+   - Supports standard JSON response (`stream=False`) and Server-Sent Events progressive streaming (`stream=True`).
+8. **Automated Test Suite (`backend/tests/test_task21_copilot.py`)**:
+   - 6 comprehensive tests covering embedding normalization, zero-overlap semantic search, stockout risk queries with citations, pharmacy RLS isolation, all 7 read-only tools, and SSE streaming.
+
+### Verification Status
+- [x] `backend/app/llm/embeddings.py` and `llm/embeddings.py` implemented with concept-space vectorizer.
+- [x] Multi-entity indexing implemented and verified.
+- [x] `backend/app/graphs/copilot.py`, `backend/app/agents/graphs/copilot.py`, and `graphs/copilot.py` implemented.
+- [x] Endpoints mounted at `GET /api/v1/search` and `POST /api/v1/copilot/query`.
+- [x] All 6 tests in `test_task21_copilot.py` pass cleanly.
+- [x] `ruff check` on `backend/`, `llm/`, `graphs/`, `simulator/` passes with 0 warnings/errors.
+- [x] Specification created at `docs/specs/task-21-spec.md`.
+
+

@@ -49,6 +49,17 @@ class Settings(BaseSettings):
         default="http://localhost:11434/v1", description="Local Ollama endpoint"
     )
 
+    # Embeddings & Vector Search (Task 21)
+    EMBEDDING_PROVIDER: str = Field(
+        default="ollama", description="Embedding provider: ollama, gemini, openai, local_semantic"
+    )
+    EMBEDDING_MODEL: str = Field(
+        default="nomic-embed-text", description="Embedding model name"
+    )
+    EMBEDDING_DIM: int = Field(
+        default=768, description="Vector dimension size for pgvector"
+    )
+
     # Application Modes
     LLM_CACHE_MODE: str = Field(
         default="record", description="Cache mode: off, record, replay"

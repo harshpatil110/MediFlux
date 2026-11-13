@@ -8,6 +8,7 @@ from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.cascade import router as cascade_router
 from app.api.v1.endpoints.coldchain import router as coldchain_router
 from app.api.v1.endpoints.compliance import router as compliance_router
+from app.api.v1.endpoints.copilot import router as copilot_router
 from app.api.v1.endpoints.events import router as events_router
 from app.api.v1.endpoints.hitl import router as hitl_router
 from app.api.v1.endpoints.ingest import router as ingest_router
@@ -17,6 +18,7 @@ from app.api.v1.endpoints.nodes import router as nodes_router
 from app.api.v1.endpoints.prescriptions import router as prescriptions_router
 from app.api.v1.endpoints.products import router as products_router
 from app.api.v1.endpoints.regulatory import router as regulatory_router
+from app.api.v1.endpoints.search import router as search_router
 from app.api.v1.endpoints.simulator import router as simulator_router
 from app.api.v1.endpoints.stream import router as stream_router
 
@@ -40,6 +42,8 @@ api_router.include_router(regulatory_router)
 api_router.include_router(prescriptions_router)
 api_router.include_router(compliance_router)
 api_router.include_router(coldchain_router)
+api_router.include_router(copilot_router)
+api_router.include_router(search_router)
 
 
 @api_router.get("/status", tags=["System Status"])

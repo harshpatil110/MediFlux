@@ -57,6 +57,23 @@ def save_notification(notice: dict[str, Any]) -> dict[str, Any]:
         except Exception as exc:
             logger.debug("Database reg_notifications upsert failed: %s", exc)
 
+    # Automatic semantic embedding indexing (Task 21)
+    try:
+        from app.llm.embeddings import upsert_entity_embedding
+
+        title = notice.get("title", "Regulatory Notice")
+        content = notice.get("content", "")
+        upsert_entity_embedding(
+            id=nid,
+            entity_type="regulatory_notice",
+            text=f"{title} {content}",
+            title=title,
+            summary=content[:200],
+            metadata=notice,
+        )
+    except Exception as exc:
+        logger.debug("Vector indexing for regulatory notification failed: %s", exc)
+
     return notice
 
 

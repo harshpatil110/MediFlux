@@ -72,6 +72,14 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
         "name": "Cold Chain Telemetry",
         "description": "IoT environmental sensor monitoring, Arrhenius shelf-life degradation, and autonomous batch quarantine.",
     },
+    {
+        "name": "Network Copilot",
+        "description": "RLS-scoped conversational AI agent with grounded supply chain citations and SSE streaming.",
+    },
+    {
+        "name": "Semantic Search",
+        "description": "Cosine-similarity vector search across regulatory notices, demand forecasts, products, and agent activity.",
+    },
 ]
 
 
