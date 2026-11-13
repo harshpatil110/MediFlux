@@ -1149,5 +1149,66 @@ Implemented the **Developer Platform, Third-Party Extensibility, and Outbound We
 - [x] All 6 tests in `test_task22_developer_platform.py` pass cleanly.
 - [x] Specification created at `docs/specs/task-22-spec.md`.
 
+---
+
+## Task 23: Model Context Protocol (MCP) Server (Stretch Goal)
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 6 — Advanced Extensibility & AI Integrations
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+Implemented the **Model Context Protocol (MCP) Server** exposing MediFlux / NexusChain capabilities to external AI coding assistants and autonomous agents (Claude Desktop, Cursor IDE, Antigravity IDE, custom agents) using the official `mcp` 2.3.0 Python SDK. Every tool execution is strictly governed by Task 22's scoped SHA-256 API key authentication, in-memory Token-Bucket rate limiting, node-level RLS boundary isolation, and Task 15's cryptographic hash-chained audit ledger logging for both allowed executions and security rejections.
+
+### Key Components Implemented
+1. **MCP Server Core (`backend/app/mcp/server.py`, `backend/app/mcp/__init__.py`, `mcp_server.py`)**:
+   - Built on official `mcp` 2.3.0 SDK using `MCPServer` (`FastMCP` alias supported).
+   - Supports both `stdio` and HTTP/SSE transports.
+   - Root convenience runner `mcp_server.py` enables direct CLI execution (`python mcp_server.py`).
+2. **7 Official MCP Tools Registered**:
+   - `get_inventory`: Read real-time stock balances, batch assignments, and safety thresholds scoped to node RLS (requires `read:inventory`).
+   - `get_stockout_risk`: Predictive risk assessment comparing stock against safety buffers (requires `read:inventory` or `use:copilot`).
+   - `list_open_approvals`: Query open HITL tasks from memory and Supabase database scoped to node RLS (requires `read:audit`, `read:hitl`, or `manage:hitl`).
+   - `get_cascade_trace`: Multi-tier demand cascade execution trace for a correlation ID across agent runs, events, and audit ledgers (requires `read:audit` or `read:stream`).
+   - `ask_copilot`: Natural language queries to the Network Copilot LangGraph graph with grounded citations and scope enforcement (requires `use:copilot`).
+   - `submit_sale_event`: Atomic retail point-of-sale dispense ingestion with node boundary pinning (requires `write:events`).
+   - `decide_approval`: High-privilege HITL operator decision (approve/reject) with graph thread resumption (requires `decide:approvals` or `manage:hitl`; controlled via `MCP_ALLOW_DECIDE_APPROVAL`).
+3. **Unified Security & Cryptographic Audit Wrapper (`execute_mcp_tool`)**:
+   - Multi-source API key resolution: explicit argument, `X-API-Key` / `Authorization` header, or `MEDIFLUX_API_KEY` environment variable.
+   - SHA-256 hash lookup in `public.api_keys`.
+   - In-memory `TokenBucketRateLimiter` evaluation with `429` retry headers.
+   - Granular scope verification rejecting missing scopes with `403 Forbidden`.
+   - Node-level RLS boundary enforcement strictly preventing pharmacy keys from operating across nodes.
+   - Permanent cryptographic audit ledger logging in `public.audit_ledger`:
+     - `mcp.tool.unauthorized` on missing/invalid API key (`status="rejected"`, `reason="invalid_or_missing_api_key"`).
+     - `mcp.tool.rate_limited` on rate limit burst exceedance (`status="rejected"`, `reason="rate_limit_exceeded"`).
+     - `mcp.tool.forbidden` on scope or node boundary violation (`status="rejected"`, `reason="insufficient_scope"` or `"node_mismatch"`).
+     - `mcp.tool.executed` on successful execution with sanitized arguments (`status="succeeded"`).
+   - Telemetry tracking: increments API key `usage_count` and updates `last_used_at`.
+4. **FastAPI Protocol Endpoints (`backend/app/api/v1/endpoints/mcp.py`)**:
+   - `GET /api/v1/mcp/tools`: Lists all 7 registered tools with descriptions, JSON input schemas, and required scopes.
+   - `POST /api/v1/mcp/call`: Executes tool calls directly over HTTP with API key headers.
+   - `POST /api/v1/mcp/rpc`: Standard JSON-RPC 2.0 endpoint handling `tools/list` and `tools/call`.
+   - `GET /api/v1/mcp/sse`: Server-Sent Events transport endpoint for protocol initialization.
+   - Mounted official SDK SSE ASGI application at `/api/v1/mcp/transport`.
+   - Added OpenAPI documentation tag `"Model Context Protocol (MCP)"`.
+5. **Documentation & Specification**:
+   - Created comprehensive guide `docs/MCP_SERVER.md` with security architecture, tools table, configuration JSONs for Claude Desktop, Cursor, Antigravity IDE, and Python integration examples.
+   - Created specification `docs/specs/task-23-spec.md`.
+6. **Automated Verification Suite (`backend/tests/test_task23_mcp_server.py`)**:
+   - 8 test cases verifying tool listing across REST/JSON-RPC/SDK, valid `get_inventory` with audit logs, insufficient scope 403 rejections with audit logs, full tool suite execution with high-privilege keys, invalid API keys (401), rate limiting (429), node boundary isolation, and SSE transport.
+
+### Verification Status
+- [x] Official `mcp` 2.3.0 SDK integrated and verified.
+- [x] MCP server implemented in `backend/app/mcp/server.py` and `mcp_server.py`.
+- [x] All 7 tools exposed with schemas and scope checks.
+- [x] Unified security and cryptographic audit logging implemented in `execute_mcp_tool`.
+- [x] Endpoints mounted at `/api/v1/mcp/*` and documented in OpenAPI schema.
+- [x] Guide created at `docs/MCP_SERVER.md` and spec at `docs/specs/task-23-spec.md`.
+- [x] All 8 tests in `backend/tests/test_task23_mcp_server.py` pass cleanly.
+- [x] Linter (`ruff check .`) passes with 0 warnings/errors.
+- [x] Frontend build check (`npm run build`) passes cleanly.
+
+
 
 

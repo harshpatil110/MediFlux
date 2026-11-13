@@ -26,6 +26,7 @@ dependencies = [
     "pillow>=10.0.0",
     "pytesseract>=0.3.10",
     "python-multipart>=0.0.9",
+    "mcp>=1.0.0",
 ]
 
 [project.optional-dependencies]

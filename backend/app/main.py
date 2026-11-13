@@ -14,6 +14,7 @@ from app.core.handlers import register_exception_handlers
 from app.core.logging import logger, setup_logging
 from app.core.middleware import CorrelationIdMiddleware
 from app.db.client import get_supabase_client
+from app.mcp.server import mcp_server
 
 # OpenAPI Tags Metadata Documentation
 OPENAPI_TAGS: list[dict[str, Any]] = [
@@ -88,6 +89,10 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
     {
         "name": "Webhooks Engine",
         "description": "Outbound HMAC-SHA256 signed event delivery, exponential backoff retries, and failure auto-disable.",
+    },
+    {
+        "name": "Model Context Protocol (MCP)",
+        "description": "Model Context Protocol (MCP) server endpoints exposing 7 scoped AI supply chain tools to external agents.",
     },
 ]
 
@@ -166,6 +171,9 @@ async def health_check() -> dict[str, Any]:
 
 # 5. Core API Domain Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# 6. Official MCP Server Transport App (SSE)
+app.mount(f"{settings.API_V1_STR}/mcp/transport", mcp_server.sse_app())
 
 
 def custom_openapi() -> dict[str, Any]:

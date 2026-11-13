@@ -15,6 +15,7 @@ from app.api.v1.endpoints.events import router as events_router
 from app.api.v1.endpoints.hitl import router as hitl_router
 from app.api.v1.endpoints.ingest import router as ingest_router
 from app.api.v1.endpoints.inventory import router as inventory_router
+from app.api.v1.endpoints.mcp import router as mcp_router
 from app.api.v1.endpoints.modules import router as modules_router
 from app.api.v1.endpoints.nodes import router as nodes_router
 from app.api.v1.endpoints.prescriptions import router as prescriptions_router
@@ -48,6 +49,7 @@ api_router.include_router(copilot_router)
 api_router.include_router(search_router)
 api_router.include_router(developer_router)
 api_router.include_router(webhooks_alias_router)
+api_router.include_router(mcp_router)
 
 
 @api_router.get("/status", tags=["System Status"])

@@ -84,5 +84,10 @@ class Settings(BaseSettings):
         default=False, description="Automatically deploy regulatory code updates"
     )
 
+    # MCP Server (Task 23)
+    MCP_ALLOW_DECIDE_APPROVAL: bool = Field(
+        default=True, description="Allow decide_approval tool calls via MCP if API key has required scope"
+    )
+
 
 settings = Settings()
