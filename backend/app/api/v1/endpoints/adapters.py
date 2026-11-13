@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, status
@@ -150,6 +151,138 @@ async def stream_job_events(job_id: str) -> EventSourceResponse:
         }
 
     return EventSourceResponse(event_generator())
+
+
+@router.get(
+    "/fixtures",
+    summary="Get Pre-packaged Legacy Format Fixtures for Quick 1-Click Synthesis",
+    description="Returns pre-loaded CSV, XML, and nested JSON payloads and target schemas for UI demonstration.",
+)
+async def get_adapter_fixtures() -> list[dict[str, Any]]:
+    """Retrieve pre-packaged sample fixtures from fixtures/legacy directory."""
+    fixtures_dir = Path(__file__).resolve().parents[4] / "fixtures" / "legacy"
+    if not fixtures_dir.exists():
+        fixtures_dir = Path("fixtures/legacy")
+
+    # 1. Pharmacy Billing CSV
+    csv_sample = "BILL_NO,STORE_CODE,DRUG_SKU,BATCH_NUM,QTY_SOLD,UNIT_MRP,TXN_DATE\nINV-2026-9081,PHARM-BLR-001,PARA-500,BATCH-2026-X1,2,45.50,14/11/2026 10:30"
+    csv_expected = {
+        "pharmacy_id": "PHARM-BLR-001",
+        "product_id": "PARA-500",
+        "batch_id": "BATCH-2026-X1",
+        "quantity": 2,
+        "source": "pos",
+    }
+    csv_file = fixtures_dir / "pharmacy_billing_sample.csv"
+    if csv_file.exists():
+        try:
+            csv_sample = csv_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.debug("Failed reading csv sample: %s", e)
+    csv_exp_file = fixtures_dir / "pharmacy_billing_expected.json"
+    if csv_exp_file.exists():
+        try:
+            csv_expected = json.loads(csv_exp_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.debug("Failed reading csv expected: %s", e)
+
+    # 2. Manufacturer ERP XML
+    xml_sample = """<?xml version="1.0" encoding="UTF-8"?>
+<DispatchNotice>
+    <Header>
+        <FacilityCode>MFG-PUN-01</FacilityCode>
+        <Timestamp>2026-11-14T08:00:00Z</Timestamp>
+    </Header>
+    <Item>
+        <MaterialNumber>AZI-500</MaterialNumber>
+        <LotNumber>BATCH-2026-M1</LotNumber>
+        <QuantityProduced>5000</QuantityProduced>
+    </Item>
+</DispatchNotice>"""
+    xml_expected = {
+        "manufacturer_id": "MFG-PUN-01",
+        "product_id": "AZI-500",
+        "batch_id": "BATCH-2026-M1",
+        "quantity": 5000,
+        "source": "erp_mfg",
+    }
+    xml_file = fixtures_dir / "manufacturer_erp_sample.xml"
+    if xml_file.exists():
+        try:
+            xml_sample = xml_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.debug("Failed reading xml sample: %s", e)
+    xml_exp_file = fixtures_dir / "manufacturer_erp_expected.json"
+    if xml_exp_file.exists():
+        try:
+            xml_expected = json.loads(xml_exp_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.debug("Failed reading xml expected: %s", e)
+
+    # 3. Nested Legacy POS JSON
+    json_sample = """{
+  "pos_terminal": {
+    "store_id": "PHARM-MUM-04",
+    "terminal_no": "TERM-02"
+  },
+  "basket": [
+    {
+      "item_code": "AMOX-250",
+      "lot_code": "LOT-2026-A2",
+      "count": 4,
+      "price": 120.00
+    }
+  ]
+}"""
+    json_expected = {
+        "pharmacy_id": "PHARM-MUM-04",
+        "product_id": "AMOX-250",
+        "batch_id": "LOT-2026-A2",
+        "quantity": 4,
+        "source": "pos",
+    }
+    json_file = fixtures_dir / "nested_legacy_pos_sample.json"
+    if json_file.exists():
+        try:
+            json_sample = json_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.debug("Failed reading json sample: %s", e)
+    json_exp_file = fixtures_dir / "nested_legacy_pos_expected.json"
+    if json_exp_file.exists():
+        try:
+            json_expected = json.loads(json_exp_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.debug("Failed reading json expected: %s", e)
+
+    return [
+        {
+            "id": "pharmacy_billing_csv",
+            "name": "1. Legacy Pharmacy Billing CSV",
+            "format": "csv",
+            "description": "Legacy pharmacy point-of-sale invoice row with custom column headers and DD/MM/YYYY date formatting.",
+            "target_schema": "SaleEvent",
+            "sample_payload": csv_sample,
+            "expected_output": csv_expected,
+        },
+        {
+            "id": "manufacturer_erp_xml",
+            "name": "2. Manufacturer ERP XML",
+            "format": "xml",
+            "description": "SAP/Oracle ERP XML dispatch notice with batch number, SKU, and unit quantity.",
+            "target_schema": "BatchUpdate",
+            "sample_payload": xml_sample,
+            "expected_output": xml_expected,
+        },
+        {
+            "id": "nested_legacy_pos_json",
+            "name": "3. Nested Legacy POS JSON",
+            "format": "json",
+            "description": "Legacy e-pharmacy counter receipt with nested store and transaction metadata.",
+            "target_schema": "SaleEvent",
+            "sample_payload": json_sample,
+            "expected_output": json_expected,
+        },
+    ]
 
 
 @router.get(

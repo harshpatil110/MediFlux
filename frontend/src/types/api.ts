@@ -109,6 +109,8 @@ export interface SystemEvent {
   correlation_id: string;
   timestamp: string;
   payload: Record<string, any>;
+  topic?: string;
+  event_type?: string;
 }
 
 export interface AgentRun {
@@ -214,28 +216,157 @@ export interface HitlTask {
   id?: string;
   task_id?: string;
   task_type: string;
-  workflow_name: string;
-  node_id: string;
+  workflow_name?: string;
+  title?: string;
+  summary?: string;
+  risk_level?: "critical" | "high" | "medium" | "low" | string;
+  node_id?: string | null;
+  node_name?: string | null;
   status: "pending" | "approved" | "rejected" | "expired" | string;
-  payload: Record<string, any>;
+  payload?: Record<string, any>;
+  details?: Record<string, any>;
+  reasoning?: string;
   timeout_seconds?: number;
   created_at: string;
   expires_at?: string;
   decided_at?: string | null;
   decided_by?: string | null;
+  decision_note?: string | null;
+  correlation_id?: string;
 }
 
 export interface AuditLedgerEntry {
   id: string;
-  sequence_number: number;
+  seq?: number;
+  sequence_number?: number;
   prev_hash: string;
   entry_hash: string;
-  actor_id: string;
-  actor_role: string;
-  node_id: string;
+  hash?: string;
+  actor?: string;
+  actor_id?: string;
+  actor_role?: string;
+  node_id?: string;
   action: string;
-  details: Record<string, any>;
+  explanation?: string;
+  details?: Record<string, any>;
+  payload?: Record<string, any>;
+  correlation_id?: string;
   created_at: string;
+  ts?: string;
+}
+
+export interface AuditVerificationResult {
+  valid: boolean;
+  status: "verified" | "tampered" | string;
+  total_entries: number;
+  verified_entries: number;
+  genesis_hash: string;
+  head_hash: string;
+  broken_at_id?: string | null;
+  broken_at_seq?: number | null;
+  verified_at: string;
+  message?: string;
+  reason?: string;
+  details?: Array<{
+    seq: number;
+    hash: string;
+    prev_hash: string;
+    action?: string;
+    actor?: string;
+  }>;
+}
+
+export interface AdapterFixture {
+  id: string;
+  name: string;
+  format: "csv" | "xml" | "json" | string;
+  description: string;
+  target_schema: string;
+  sample_payload: any;
+  expected_output?: Record<string, any>;
+}
+
+export interface AdapterGenerationJob {
+  job_id: string;
+  name?: string;
+  adapter_name?: string;
+  status: string;
+  adapter_id?: string;
+  version?: number;
+  events?: Array<{
+    step: string;
+    status: string;
+    message?: string;
+    timestamp?: string;
+    details?: Record<string, any>;
+  }>;
+  test_results?: Record<string, any>;
+  error_logs?: string[];
+  generated_code?: string;
+}
+
+export interface RegulatoryFixture {
+  id: string;
+  title: string;
+  source: string;
+  category?: string;
+  raw_text: string;
+  test_payload: {
+    sku: string;
+    drug_name?: string;
+    unit_price: number;
+    quantity: number;
+  };
+  ceiling_price?: number | null;
+}
+
+export interface RegulatoryRun {
+  id: string;
+  notification_id?: string;
+  status: "analyzing" | "coding" | "testing" | "awaiting_approval" | "staged" | "deployed" | "failed" | "rolled_back" | string;
+  affected_module_kind?: string;
+  target_module_name?: string;
+  staged_version?: number;
+  active_version?: number;
+  reg_change?: {
+    topic?: string;
+    effective_date?: string;
+    affected_module_kind?: string;
+    target_module_name?: string;
+    parameters?: Record<string, any>;
+    summary?: string;
+    confidence?: number;
+  };
+  diff?: string;
+  test_results?: Record<string, any>;
+  hitl_task_id?: string | null;
+  old_source_code?: string;
+  new_source_code?: string;
+  error_logs?: string;
+  created_at?: string;
+}
+
+export interface PriceCheckResult {
+  active_version: number;
+  module_name: string;
+  input: {
+    sku: string;
+    unit_price: number;
+    quantity: number;
+    drug_name?: string;
+  };
+  output: {
+    sku: string;
+    unit_price: number;
+    effective_price: number;
+    final_unit_price: number;
+    price_capped: boolean;
+    ceiling_applied: number | null;
+    total_amount: number;
+    compliant: boolean;
+  };
+  result?: Record<string, any>;
+  evaluated_at: string;
 }
 
 export interface Adapter {

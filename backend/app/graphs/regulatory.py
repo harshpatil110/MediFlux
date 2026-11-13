@@ -158,6 +158,24 @@ def get_regulatory_run(run_id: str) -> dict[str, Any] | None:
     return None
 
 
+def list_regulatory_runs() -> list[dict[str, Any]]:
+    """Retrieve catalog of all regulatory pipeline runs."""
+    results: dict[str, dict[str, Any]] = dict(_in_memory_runs)
+
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            client = get_service_db_client()
+            if client:
+                res = client.table("regulatory_runs").select("*").order("created_at", desc=True).execute()
+                if res.data:
+                    for row in res.data:
+                        results[row["id"]] = row
+        except Exception as exc:
+            logger.debug("Database list_regulatory_runs failed: %s", exc)
+
+    return list(results.values())
+
+
 # -----------------------------------------------------------------------------
 # Baseline Modules Registration (Pricing Engine & Compliance Validator)
 # -----------------------------------------------------------------------------

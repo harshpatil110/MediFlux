@@ -1328,3 +1328,68 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 - [x] Production frontend build (`npm run build` with `tsc -b && vite build`) compiles with 0 errors.
 - [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
 - [x] Specification created at `docs/specs/task-25-spec.md`.
+
+
+---
+
+## Task 26: Workflow Screens (Approvals Inbox, Audit Ledger Viewer, Adapter Forge, Regulatory Hot-Swap Lab)
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 7 — Full-Stack Operational Surface
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Approvals Inbox (`frontend/src/pages/ApprovalsPage.tsx`)**:
+   - Operator decision queue for Human-in-the-Loop (HITL) checkpoints.
+   - Desktop Notification Hook (`frontend/src/hooks/useDesktopNotifications.ts`) integrating with browser `Notification` API and live SSE `hitl.created` / `hitl.*` stream with mute toggle.
+   - Split-pane layout with task queue, risk level badges (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), status tabs (`Pending`, `Approved`, `Rejected`, `All`), and SLA expiration countdown.
+   - Deep inspection console with agent reasoning, context-aware payload diff, operator justification notes, and immediate graph resumption ("Approve & Resume Graph" / "Reject & Abort").
+   - Post-decision feedback banner confirming resumed workflow details (e.g. module hot-swapped to v2) and cryptographic audit logging.
+
+2. **Audit Ledger Viewer (`frontend/src/pages/AuditPage.tsx`)**:
+   - Cryptographic verification banner with "🔒 Verify Hash Chain Integrity" executing `POST /api/v1/audit/verify`.
+   - Live status card reporting verification status (`CHAIN VERIFIED (INTACT)` vs `TAMPER DETECTED`), total blocks verified, genesis hash, head hash, and copy-to-clipboard buttons.
+   - Filterable audit table supporting action types and real-time search across hashes, actors, nodes, and explanations.
+   - Block detail drawer with plain-language explanations, recursive SHA-256 link visual ($H_i = \text{SHA256}(H_{i-1} + \dots)$), and structured payload `JsonViewer`.
+
+3. **Adapter Forge (`frontend/src/pages/AdapterForgePage.tsx`)**:
+   - Studio generator featuring 1-click fixture selector pills (CSV, XML, JSON from `GET /api/v1/adapters/fixtures`).
+   - "⚡ Forge & Register Adapter" button (`POST /api/v1/adapters/generate`) synthesizing self-evolving Python translators.
+   - 4-Stage visual step tracker (Schema Inspector $\rightarrow$ Adapter Coder $\rightarrow$ Restricted Guard Tester $\rightarrow$ Registry Sealing).
+   - Adapter Marketplace registry with version history and "⏪ Rollback Version" button (`POST /api/v1/adapters/{id}/rollback`).
+   - "Try It Live" real-time ingestion sandbox (`POST /api/v1/ingest/{adapter_id}`) returning canonical events and `correlation_id`.
+
+4. **Regulatory Hot-Swap Lab (`frontend/src/pages/RegulatoryLabPage.tsx`)**:
+   - Notice Ingestion Studio with 1-click synthetic presets (NPPA DPCO Price Ceiling, CDSCO Track-and-Trace from `GET /api/v1/regulatory/fixtures`).
+   - "🧬 Run Regulatory Pipeline" button (`POST /api/v1/regulatory/notifications`).
+   - 5-Stage visual pipeline tracker (Analyst $\rightarrow$ DevOps Coder $\rightarrow$ Staging Guard $\rightarrow$ Human Approval Gate with "✓ Approve Gate & Hot-Swap Now" $\rightarrow$ Zero-Downtime Hot-Swap Active with "⏪ Rollback to v1").
+   - Side-by-side code diff viewer for active module (`pricing_engine`) v1 vs staged v2.
+   - Interactive Before / After Rule Test Sandbox (`POST /api/v1/regulatory/price-check`) demonstrating real-time DPCO ceiling enforcement (₹12.50 cap on `PARA-500`) without backend restart.
+
+5. **Backend Endpoints & Resilient Integrations (`backend/app/api/v1/endpoints/`)**:
+   - `backend/app/schemas/hitl.py`: Extended schemas for decision requests, notes, reasons, and resumed workflow outcomes.
+   - `backend/app/api/v1/endpoints/hitl.py`: Added automatic task seeding (`regulatory_hot_swap`, `prescription_doctor_verification`, `coldchain_high_value`), graph resumption, and audit ledger emission.
+   - `backend/app/api/v1/endpoints/audit.py`: Added automatic genesis seeding, POST/GET `/verify` endpoints, and multi-field filtering with in-memory resilient fallback.
+   - `backend/app/api/v1/endpoints/adapters.py`: Added `/fixtures` endpoint for sample CSV, XML, JSON payloads and schemas.
+   - `backend/app/api/v1/endpoints/regulatory.py`: Added `/fixtures` endpoint, `/runs` list endpoint, and enhanced `/price-check` endpoint returning structured calculation breakdowns (`price_capped`, `ceiling_applied`, `effective_price`, `total_amount`).
+
+6. **Automated Verification Suite (`backend/tests/test_task26_workflow_screens.py`)**:
+   - 7 Comprehensive integration tests verifying:
+     - HITL task queue seeding and multi-factor filtering.
+     - HITL decision approval resuming paused regulatory workflow and logging to audit ledger.
+     - Cryptographic audit chain SHA-256 recursive verification.
+     - Adapter fixtures retrieval and Python code synthesis.
+     - Live adapter legacy payload ingestion.
+     - Synthetic gazette ingestion and 5-stage pipeline progression.
+     - Zero-downtime hot-swap price check (before approval uncapped vs after approval capped at ₹12.50 vs rollback).
+
+### Verification Status
+- [x] Design system strictly adheres to `design.md` Warm Editorial Minimalism with Light / Dark theme compatibility.
+- [x] Approvals Inbox with Desktop Notification Hook, split-pane layout, agent reasoning, and graph resumption implemented.
+- [x] Audit Ledger Viewer with cryptographic chain verification banner, block inspector, and link visualizer implemented.
+- [x] Adapter Forge with fixture pills, 4-stage tracker, version rollback, and "Try It Live" sandbox implemented.
+- [x] Regulatory Hot-Swap Lab with synthetic presets, 5-stage pipeline, side-by-side diff, and live price-check sandbox implemented.
+- [x] All 7 tests in `tests/test_task26_workflow_screens.py` pass; total 189 backend tests pass.
+- [x] Production frontend build (`npm run build` with `tsc -b && vite build`) compiles cleanly with 0 errors.
+- [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
+- [x] Specification created at `docs/specs/task-26-spec.md`.

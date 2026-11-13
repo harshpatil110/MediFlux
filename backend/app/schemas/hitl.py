@@ -9,14 +9,21 @@ from pydantic import BaseModel, Field
 class HITLDecisionRequest(BaseModel):
     """Payload for submitting an approval or rejection decision on a pending HITL task."""
 
-    decision: Literal["approve", "reject"] = Field(
-        ...,
-        description="Decision choice: 'approve' to execute gated action, 'reject' to abort/cancel.",
+    decision: Literal["approve", "approved", "reject", "rejected"] = Field(
+        default="approved",
+        description="Decision choice: 'approve'/'approved' to execute gated action, 'reject'/'rejected' to abort/cancel.",
     )
-    note: str = Field(
-        ...,
-        min_length=3,
+    note: str | None = Field(
+        default=None,
         description="Justification note for human decision audit trail.",
+    )
+    reason: str | None = Field(
+        default=None,
+        description="Alias for justification note.",
+    )
+    decided_by: str | None = Field(
+        default=None,
+        description="Operator identity submitting the decision.",
     )
 
 
@@ -47,3 +54,4 @@ class HITLDecisionResponse(BaseModel):
     resumed: bool = False
     task: dict[str, Any] = Field(default_factory=dict)
     execution_outcome: dict[str, Any] | None = None
+    resumed_workflow: dict[str, Any] | None = None

@@ -6,10 +6,13 @@
 import { API_BASE_URL } from "../config/env";
 import type {
   Adapter,
+  AdapterFixture,
+  AdapterGenerationJob,
   AgentMetrics,
   AgentRun,
   ApiKey,
   AuditLedgerEntry,
+  AuditVerificationResult,
   CascadeSummary,
   CascadeTrace,
   ColdChainBatch,
@@ -20,8 +23,11 @@ import type {
   InventoryItem,
   NetworkNode,
   OverviewKpis,
+  PriceCheckResult,
   Product,
+  RegulatoryFixture,
   RegulatoryNotification,
+  RegulatoryRun,
   SearchResult,
   SystemEvent,
   UserProfile,
@@ -279,19 +285,36 @@ export const api = {
   // Human-in-the-Loop (HITL) Approvals
   // --------------------------------------------------------------------------
   hitl: {
-    listTasks: (params?: { status?: string; limit?: number }) => {
+    listTasks: (params?: {
+      status?: string;
+      task_type?: string;
+      risk_level?: string;
+      limit?: number;
+    }) => {
       const q = new URLSearchParams();
       if (params?.status) q.set("status", params.status);
+      if (params?.task_type) q.set("task_type", params.task_type);
+      if (params?.risk_level) q.set("risk_level", params.risk_level);
       if (params?.limit) q.set("limit", String(params.limit));
       const qs = q.toString() ? `?${q.toString()}` : "";
       return apiRequest<HitlTask[]>(`/api/v1/hitl/tasks${qs}`);
     },
     getTask: (taskId: string) => apiRequest<HitlTask>(`/api/v1/hitl/tasks/${taskId}`),
-    decide: (taskId: string, decision: { decision: "approved" | "rejected"; reason?: string }) =>
-      apiRequest<{ status: string; task_id: string }>(`/api/v1/hitl/tasks/${taskId}/decide`, {
-        method: "POST",
-        body: JSON.stringify(decision),
-      }),
+    decide: (
+      taskId: string,
+      decision: {
+        decision: "approved" | "rejected" | "approve" | "reject" | string;
+        note?: string;
+        reason?: string;
+      }
+    ) =>
+      apiRequest<{ status: string; task_id: string; resumed_workflow?: any }>(
+        `/api/v1/hitl/tasks/${taskId}/decide`,
+        {
+          method: "POST",
+          body: JSON.stringify(decision),
+        }
+      ),
   },
 
   // --------------------------------------------------------------------------
@@ -299,10 +322,82 @@ export const api = {
   // --------------------------------------------------------------------------
   adapters: {
     list: () => apiRequest<Adapter[]>("/api/v1/adapters"),
+    getFixtures: () => apiRequest<AdapterFixture[]>("/api/v1/adapters/fixtures"),
+    generate: (payload: {
+      name: string;
+      sample_payload: any;
+      expected_output?: any;
+      description?: string;
+      target_schema?: string;
+      max_attempts?: number;
+    }) =>
+      apiRequest<{ job_id: string; status: string; adapter_id?: string; version?: number }>(
+        "/api/v1/adapters/generate",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      ),
+    getJob: (jobId: string) => apiRequest<AdapterGenerationJob>(`/api/v1/adapters/jobs/${jobId}`),
+    getDetails: (identifier: string, version?: number) =>
+      apiRequest<{ adapter: Adapter; versions: Adapter[] }>(
+        `/api/v1/adapters/${identifier}${version ? `?version=${version}` : ""}`
+      ),
+    rollback: (identifier: string, targetVersion?: number) =>
+      apiRequest<{ status: string; active_version: number }>(`/api/v1/adapters/${identifier}/rollback`, {
+        method: "POST",
+        body: JSON.stringify({ target_version: targetVersion }),
+      }),
+    ingest: (adapterId: string, payload: any) =>
+      apiRequest<{ status: string; event_id: string; correlation_id?: string; canonical_event: any }>(
+        `/api/v1/ingest/${adapterId}`,
+        {
+          method: "POST",
+          headers:
+            typeof payload === "string"
+              ? { "Content-Type": "text/plain" }
+              : { "Content-Type": "application/json" },
+          body: typeof payload === "string" ? payload : JSON.stringify(payload),
+        }
+      ),
   },
 
   regulatory: {
     listNotifications: () => apiRequest<RegulatoryNotification[]>("/api/v1/regulatory/notifications"),
+    getFixtures: () => apiRequest<RegulatoryFixture[]>("/api/v1/regulatory/fixtures"),
+    listRuns: () => apiRequest<RegulatoryRun[]>("/api/v1/regulatory/runs"),
+    getRun: (runId: string) => apiRequest<RegulatoryRun>(`/api/v1/regulatory/runs/${runId}`),
+    ingestNotice: (payload: { text?: string; url?: string; title?: string; source?: string }) =>
+      apiRequest<{
+        notification_id: string;
+        run_id: string;
+        status: string;
+        reg_change: any;
+        diff?: string;
+        test_results?: any;
+      }>("/api/v1/regulatory/notifications", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    approveRun: (runId: string) =>
+      apiRequest<{ status: string; active_version: number; run: any }>(
+        `/api/v1/regulatory/runs/${runId}/approve`,
+        {
+          method: "POST",
+        }
+      ),
+    rollbackRun: (runId: string) =>
+      apiRequest<{ status: string; active_version: number; run: any }>(
+        `/api/v1/regulatory/runs/${runId}/rollback`,
+        {
+          method: "POST",
+        }
+      ),
+    priceCheck: (payload: { sku?: string; unit_price: number; quantity: number; drug_name?: string }) =>
+      apiRequest<PriceCheckResult>("/api/v1/regulatory/price-check", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
 
   // --------------------------------------------------------------------------
@@ -326,12 +421,26 @@ export const api = {
   // Cryptographic Audit Ledger
   // --------------------------------------------------------------------------
   audit: {
-    listLedger: (params?: { limit?: number }) => {
-      const qs = params?.limit ? `?limit=${params.limit}` : "";
+    listLedger: (params?: {
+      action?: string;
+      actor?: string;
+      node_id?: string;
+      correlation_id?: string;
+      search?: string;
+      limit?: number;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.action) q.set("action", params.action);
+      if (params?.actor) q.set("actor", params.actor);
+      if (params?.node_id) q.set("node_id", params.node_id);
+      if (params?.correlation_id) q.set("correlation_id", params.correlation_id);
+      if (params?.search) q.set("search", params.search);
+      if (params?.limit) q.set("limit", String(params.limit));
+      const qs = q.toString() ? `?${q.toString()}` : "";
       return apiRequest<AuditLedgerEntry[]>(`/api/v1/audit${qs}`);
     },
     verifyChain: () =>
-      apiRequest<{ valid: boolean; verified_count: number; message: string }>("/api/v1/audit/verify"),
+      apiRequest<AuditVerificationResult>("/api/v1/audit/verify", { method: "POST" }),
   },
 
   // --------------------------------------------------------------------------

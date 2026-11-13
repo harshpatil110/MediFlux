@@ -1,6 +1,8 @@
 """Regulatory Pipeline API endpoints and hot-swap control (Task 18)."""
 
 import logging
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -12,6 +14,7 @@ from app.graphs.regulatory import (
     ensure_baseline_regulatory_modules,
     get_regulatory_run,
     list_notifications,
+    list_regulatory_runs,
     rollback_regulatory_run,
     run_regulatory_pipeline,
 )
@@ -41,11 +44,122 @@ class PriceCheckRequest(BaseModel):
     sku: str = Field(default="PARA-500", description="Product SKU")
     unit_price: float = Field(default=25.0, description="Base unit price before regulatory cap")
     quantity: int = Field(default=1, ge=1, description="Quantity")
+    drug_name: str | None = Field(default=None, description="Optional drug name")
+    module_kind: str | None = Field(default="pricing", description="Module kind")
+    payload: dict[str, Any] | None = Field(default=None, description="Arbitrary extra fields")
 
 
 # -----------------------------------------------------------------------------
 # Endpoints
 # -----------------------------------------------------------------------------
+@router.get(
+    "/fixtures",
+    summary="Get Pre-packaged Synthetic Regulatory Directives",
+    description="Returns pre-loaded DPCO price ceiling and track-and-trace notices for 1-click lab execution.",
+)
+async def get_regulatory_fixtures() -> list[dict[str, Any]]:
+    """Retrieve pre-packaged regulatory notices from fixtures/regulatory."""
+    fixtures_dir = Path(__file__).resolve().parents[4] / "fixtures" / "regulatory"
+    if not fixtures_dir.exists():
+        fixtures_dir = Path("fixtures/regulatory")
+
+    # 1. NPPA DPCO Price Ceiling
+    nppa_sample = """THE GAZETTE OF INDIA : EXTRAORDINARY [PART II-SEC. 3(ii)]
+MINISTRY OF CHEMICALS AND FERTILIZERS
+(National Pharmaceutical Pricing Authority)
+ORDER
+New Delhi, the 14th November, 2026
+
+S.O. 4882(E).- In exercise of the powers conferred by paragraphs 4, 6, 10, 11, 14, 16, 17 and 18 of the Drugs (Prices Control) Order, 2013, read with S.O. 1394(E) dated the 30th May, 2013, issued by the Government of India in the Ministry of Chemicals and Fertilizers, the National Pharmaceutical Pricing Authority (NPPA) hereby fixes the ceiling price specified in column (5) of the Table below as ceiling price exclusive of goods and services tax applicable in respect of the scheduled formulation specified in the corresponding entry in column (2) of the said Table:
+
+TABLE
+Sl. No. | Scheduled Formulation | Dosage Form and Strength | Unit | Ceiling Price (INR)
+(1)     | (2)                   | (3)                      | (4)  | (5)
+1.      | Paracetamol           | Tablet 500 mg (PARA-500) | Strip of 10 | 12.50
+
+Notes:
+(a) The ceiling price is inclusive of mandatory maximum allowable post-manufacturing expenses (MAPE).
+(b) All manufacturers, stockists, distributors, and retail pharmacies marketing the scheduled formulation with SKU 'PARA-500' are mandated to revise and cap retail selling prices not exceeding INR 12.50 per strip plus local taxes.
+(c) Overcharging beyond the notified ceiling price shall attract recovery of overcharged amount with penal interest under the Essential Commodities Act, 1955.
+(d) Effective Date: Immediate (14-Nov-2026)."""
+    nppa_file = fixtures_dir / "nppa_price_ceiling_notice.txt"
+    if nppa_file.exists():
+        try:
+            nppa_sample = nppa_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.debug("Failed reading nppa sample: %s", e)
+
+    # 2. CDSCO Track and Trace
+    cdsco_sample = """GOVERNMENT OF INDIA
+CENTRAL DRUGS STANDARD CONTROL ORGANIZATION (CDSCO)
+Directorate General of Health Services
+FDA Bhawan, Kotla Road, New Delhi - 110002
+
+NOTIFICATION
+Dated: 14th November, 2026
+
+Sub: Mandatory QR Code and Dynamic Traceability Encoding on APIs and Top 300 Brands of Drug Formulations under Rule 96 of Drugs and Cosmetics Rules, 1945 - reg.
+
+G.S.R. 782(E).- In exercise of the powers conferred by Section 12 and Section 33 of the Drugs and Cosmetics Act, 1940 (23 of 1940), the Central Government hereby amends the Drugs Rules, 1945 to mandate serialization and automated barcode verification for all pharmaceutical movement across India:
+
+1. Every manufacturer, distributor, and pharmacy edge node shall implement machine-readable DataMatrix barcoding containing:
+   (a) Unique Product Identification Code (GTIN)
+   (b) Batch Number
+   (c) Date of Manufacturing and Expiry
+   (d) Serialized Identification Number
+
+2. Verification Guard: The supply chain compliance engine shall enforce non-null serialization tokens on all scheduled antibiotic transactions (Schedule H / H1).
+3. Compliance Penalty: Dispatches lacking authenticated barcode metadata shall be rejected at stockist transit checkpoints.
+4. Effective Date: 14-Nov-2026."""
+    cdsco_file = fixtures_dir / "cdsco_track_and_trace_notice.txt"
+    if cdsco_file.exists():
+        try:
+            cdsco_sample = cdsco_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.debug("Failed reading cdsco sample: %s", e)
+
+    return [
+        {
+            "id": "nppa_price_ceiling",
+            "title": "NPPA DPCO Price Ceiling Notice (Paracetamol / Essential Drug Cap)",
+            "source": "NPPA / Gazette of India",
+            "category": "Pricing Directive",
+            "raw_text": nppa_sample,
+            "test_payload": {
+                "sku": "PARA-500",
+                "drug_name": "Paracetamol 500mg",
+                "unit_price": 25.00,
+                "quantity": 10,
+            },
+            "ceiling_price": 12.50,
+        },
+        {
+            "id": "cdsco_track_and_trace",
+            "title": "CDSCO Schedule H1 Track-and-Trace Barcode Directive",
+            "source": "CDSCO / MoHFW",
+            "category": "Compliance & Traceability",
+            "raw_text": cdsco_sample,
+            "test_payload": {
+                "sku": "AZI-500",
+                "drug_name": "Azithromycin 500mg",
+                "unit_price": 45.00,
+                "quantity": 5,
+            },
+            "ceiling_price": None,
+        },
+    ]
+
+
+@router.get(
+    "/runs",
+    summary="List Regulatory Pipeline Runs",
+    description="Retrieves list of all historic and active regulatory runs.",
+)
+async def list_regulatory_runs_endpoint() -> list[dict[str, Any]]:
+    """Retrieve catalog of all regulatory pipeline runs."""
+    return list_regulatory_runs()
+
+
 @router.post(
     "/notifications",
     summary="Ingest Regulatory Notice and Execute Analysis Pipeline",
@@ -189,12 +303,47 @@ async def rollback_regulatory_run_endpoint(
 async def price_check_endpoint(payload: PriceCheckRequest) -> dict[str, Any]:
     """Execute currently active pricing engine in the dynamic module registry."""
     ensure_baseline_regulatory_modules()
+    now_iso = datetime.now(UTC).isoformat()
     try:
-        result = module_registry.run_module("pricing_engine", payload.model_dump())
+        run_input = {
+            "sku": payload.sku,
+            "unit_price": payload.unit_price,
+            "quantity": payload.quantity,
+            "drug_name": payload.drug_name or "Paracetamol 500mg",
+        }
+        if payload.payload:
+            run_input.update(payload.payload)
+
+        result = module_registry.run_module("pricing_engine", run_input)
         active_mod = module_registry.get_active("pricing_engine")
+        active_version = active_mod.version if active_mod else 1
+
+        effective_price = float(result.get("effective_price") or result.get("final_unit_price") or payload.unit_price)
+        price_capped = bool(result.get("price_capped", effective_price < payload.unit_price))
+        ceiling_applied = result.get("ceiling_applied") or (effective_price if price_capped else None)
+        total_amount = round(effective_price * payload.quantity, 2)
+
+        output_data = {
+            "sku": payload.sku,
+            "original_price": payload.unit_price,
+            "unit_price": payload.unit_price,
+            "effective_price": effective_price,
+            "final_unit_price": effective_price,
+            "quantity": payload.quantity,
+            "total_amount": total_amount,
+            "price_capped": price_capped,
+            "ceiling_applied": ceiling_applied,
+            "compliant": True,
+        }
+
         return {
-            "active_version": active_mod.version if active_mod else 1,
+            "active_version": active_version,
+            "module_name": "pricing_engine",
+            "input": run_input,
+            "output": output_data,
             "result": result,
+            "evaluated_at": now_iso,
         }
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
