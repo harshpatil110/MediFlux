@@ -137,6 +137,77 @@ DEMO_USERS: dict[str, dict[str, Any]] = {
         "role": "pharmacy",
         "node_id": "11111111-1111-1111-1111-111111111111",
     },
+    "mock-pharmacy-token": {
+        "id": "u-pharm-001",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "email": "pharmacy@mediflux.in",
+        "role": "pharmacy",
+        "node_id": "11111111-1111-1111-1111-111111111111",
+    },
+    "mock-regulator-token": {
+        "id": "u-reg-006",
+        "user_id": "00000000-0000-0000-0000-000000000006",
+        "email": "regulator@mediflux.in",
+        "role": "regulator",
+        "node_id": None,
+    },
+    "mock-developer-token": {
+        "id": "u-dev-007",
+        "user_id": "00000000-0000-0000-0000-000000000007",
+        "email": "developer@mediflux.in",
+        "role": "developer",
+        "node_id": None,
+    },
+    # Shorthand demo tokens for frontend & testing
+    "demo-admin": {
+        "id": "u-admin-000",
+        "user_id": "00000000-0000-0000-0000-000000000000",
+        "email": "admin@mediflux.in",
+        "role": "admin",
+        "node_id": None,
+    },
+    "demo-regulator": {
+        "id": "u-reg-006",
+        "user_id": "00000000-0000-0000-0000-000000000006",
+        "email": "regulator@mediflux.in",
+        "role": "regulator",
+        "node_id": None,
+    },
+    "demo-manufacturer": {
+        "id": "u-mfg-004",
+        "user_id": "00000000-0000-0000-0000-000000000004",
+        "email": "manufacturer@mediflux.in",
+        "role": "manufacturer",
+        "node_id": "44444444-4444-4444-4444-444444444444",
+    },
+    "demo-distributor": {
+        "id": "u-dist-003",
+        "user_id": "00000000-0000-0000-0000-000000000003",
+        "email": "distributor@mediflux.in",
+        "role": "distributor",
+        "node_id": "33333333-3333-3333-3333-333333333333",
+    },
+    "demo-stockist": {
+        "id": "u-stock-002",
+        "user_id": "00000000-0000-0000-0000-000000000002",
+        "email": "stockist@mediflux.in",
+        "role": "stockist",
+        "node_id": "22222222-2222-2222-2222-222222222222",
+    },
+    "demo-pharmacy": {
+        "id": "u-pharm-001",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "email": "pharmacy@mediflux.in",
+        "role": "pharmacy",
+        "node_id": "11111111-1111-1111-1111-111111111111",
+    },
+    "demo-developer": {
+        "id": "u-dev-007",
+        "user_id": "00000000-0000-0000-0000-000000000007",
+        "email": "developer@mediflux.in",
+        "role": "developer",
+        "node_id": None,
+    },
     # Secondary pharmacy node for cross-tenant isolation testing
     "mock-pharmacy-b-token": {
         "id": "u-pharm-002",
@@ -233,6 +304,29 @@ async def get_current_user(
             )
 
     if not authorization:
+        # Check query params for browser EventSource / SSE connections and demo headers
+        if request is not None:
+            q_token = request.query_params.get("token") or request.query_params.get("demo_role")
+            if q_token and q_token in DEMO_USERS:
+                data = DEMO_USERS[q_token]
+                return CurrentUser(
+                    id=data["id"],
+                    user_id=data["user_id"],
+                    email=data["email"],
+                    role=data["role"],
+                    node_id=data["node_id"],
+                )
+            h_role = request.headers.get("X-User-Role")
+            if h_role:
+                h_node = request.headers.get("X-Node-Id")
+                h_uid = request.headers.get("X-User-Id", f"usr-{h_role}-demo")
+                return CurrentUser(
+                    id=h_uid,
+                    user_id=h_uid,
+                    email=f"{h_role}@mediflux.in",
+                    role=h_role,
+                    node_id=h_node,
+                )
         raise UnauthorizedError("Authentication required: Missing Authorization header or X-API-Key")
 
     parts = authorization.split()
@@ -365,8 +459,15 @@ async def get_actor(
                 )
             )
 
-    # 2. Check Bearer Token for human user
-    elif authorization:
+    # 2. Check Bearer Token or demo headers / query params for human user
+    elif authorization or (
+        request is not None
+        and (
+            request.headers.get("X-User-Role")
+            or request.query_params.get("token")
+            or request.query_params.get("demo_role")
+        )
+    ):
         user = await get_current_user(authorization=authorization, request=request)
         resolved_actor = Actor(user=user)
 

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "tauri://localhost",
         "http://tauri.localhost",
+        "https://tauri.localhost",
     ]
 
     # Supabase credentials & JWT secret

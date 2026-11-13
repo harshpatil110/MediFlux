@@ -150,7 +150,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Correlation-ID"],
+    expose_headers=[
+        "X-Correlation-ID",
+        "Last-Event-ID",
+        "Retry-After",
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+    ],
 )
 
 # 3. Standardized Global Exception Handlers

@@ -1,0 +1,251 @@
+/**
+ * Core TypeScript definitions matching MediFlux FastAPI and Supabase schemas.
+ */
+
+export type UserRole =
+  | "admin"
+  | "regulator"
+  | "manufacturer"
+  | "distributor"
+  | "stockist"
+  | "pharmacy"
+  | "developer";
+
+export type NodeTier = "manufacturer" | "distributor" | "stockist" | "pharmacy";
+
+export interface UserProfile {
+  user_id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  node_id: string | null;
+  node_name?: string | null;
+  tier?: string | null;
+  region?: string | null;
+  scopes: string[];
+  allowed_routes?: string[];
+}
+
+export type Actor = UserProfile;
+
+export interface DemoUser {
+  role: UserRole;
+  label: string;
+  email: string;
+  password?: string;
+  token: string;
+  node_id: string | null;
+  node_name: string | null;
+  tier: string | null;
+  region: string | null;
+  description: string;
+  allowed_routes: string[];
+}
+
+export interface NetworkNode {
+  id: string;
+  name: string;
+  tier: NodeTier | string;
+  region: string;
+  city: string;
+  license_number: string;
+  parent_node_id?: string | null;
+  created_at?: string;
+}
+
+export interface Product {
+  id: string;
+  sku: string;
+  name: string;
+  form: string;
+  dosage: string;
+  schedule: string;
+  is_cold_chain: boolean;
+  storage_min_c?: number | null;
+  storage_max_c?: number | null;
+  unit_price: number;
+  gst_rate: number;
+}
+
+export interface Batch {
+  id: string;
+  batch_number: string;
+  product_id: string;
+  manufacturer_node_id: string;
+  mfg_date: string;
+  exp_date: string;
+  is_quarantined: boolean;
+  current_quantity: number;
+}
+
+export interface InventoryItem {
+  id: string;
+  node_id: string;
+  product_id: string;
+  batch_id: string;
+  quantity_on_hand: number;
+  safety_stock: number;
+  reorder_point: number;
+  products?: {
+    id?: string;
+    sku?: string;
+    name?: string;
+    form?: string;
+    schedule?: string;
+    is_cold_chain?: boolean;
+    unit_price?: number;
+  };
+  batches?: {
+    batch_number?: string;
+    exp_date?: string;
+    is_quarantined?: boolean;
+  };
+}
+
+export interface SystemEvent {
+  event_id: string;
+  type: string;
+  node_id: string;
+  correlation_id: string;
+  timestamp: string;
+  payload: Record<string, any>;
+}
+
+export interface AgentRun {
+  run_id?: string;
+  id?: string;
+  agent_name: string;
+  graph: string;
+  model: string;
+  node_id?: string | null;
+  status: "succeeded" | "completed" | "running" | "pending" | "failed" | string;
+  duration_ms: number;
+  correlation_id: string;
+  created_at: string;
+  summary?: string;
+}
+
+export interface HitlTask {
+  id?: string;
+  task_id?: string;
+  task_type: string;
+  workflow_name: string;
+  node_id: string;
+  status: "pending" | "approved" | "rejected" | "expired" | string;
+  payload: Record<string, any>;
+  timeout_seconds?: number;
+  created_at: string;
+  expires_at?: string;
+  decided_at?: string | null;
+  decided_by?: string | null;
+}
+
+export interface AuditLedgerEntry {
+  id: string;
+  sequence_number: number;
+  prev_hash: string;
+  entry_hash: string;
+  actor_id: string;
+  actor_role: string;
+  node_id: string;
+  action: string;
+  details: Record<string, any>;
+  created_at: string;
+}
+
+export interface Adapter {
+  id: string;
+  name: string;
+  erp_system: string;
+  version: string;
+  status: "active" | "staging" | "deprecated" | "archived" | string;
+  transformation_rules: Record<string, any>;
+  source_code?: string;
+  created_at: string;
+}
+
+export interface RegulatoryNotification {
+  id: string;
+  source: string;
+  title: string;
+  summary: string;
+  affected_schedules?: string[];
+  content_hash: string;
+  status: string;
+  published_at?: string;
+  created_at?: string;
+}
+
+export interface ComplianceLog {
+  id: string;
+  prescription_id?: string;
+  drug_name: string;
+  schedule: string;
+  dispensed_qty: number;
+  doctor_reg_number: string;
+  patient_identifier: string;
+  node_id: string;
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface ColdChainBatch {
+  batch_id: string;
+  batch_number?: string;
+  product_name: string;
+  node_id?: string;
+  node_name?: string;
+  storage_range: string;
+  last_temperature: number;
+  shelf_life_estimate: string;
+  is_quarantined: boolean;
+  status: string;
+}
+
+export interface CopilotQueryResponse {
+  query: string;
+  answer: string;
+  citations: Array<{
+    source: string;
+    content: string;
+    node_id?: string;
+    confidence?: number;
+  }>;
+  generated_at: string;
+}
+
+export interface SearchResult {
+  id: string;
+  content: string;
+  category: string;
+  similarity: number;
+  metadata?: Record<string, any>;
+}
+
+export interface ApiKey {
+  key_id: string;
+  node_id: string;
+  role: string;
+  scopes: string[];
+  rate_limit_per_minute: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface WebhookSubscription {
+  id: string;
+  node_id: string;
+  target_url: string;
+  event_types: string[];
+  is_active: boolean;
+  consecutive_failures: number;
+  created_at: string;
+}
+
+export interface OverviewKpis {
+  total_nodes: number;
+  total_products: number;
+  active_batches: number;
+  inventory_records: number;
+  total_events: number;
+}

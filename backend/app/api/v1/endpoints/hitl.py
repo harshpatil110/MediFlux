@@ -49,6 +49,7 @@ def _find_task(task_id: str) -> dict[str, Any] | None:
     return None
 
 
+@router.get("", summary="List HITL Tasks Alias")
 @router.get("/tasks", summary="List HITL Tasks")
 async def list_hitl_tasks(
     current_user: Annotated[UserProfile, Depends(get_current_user)],

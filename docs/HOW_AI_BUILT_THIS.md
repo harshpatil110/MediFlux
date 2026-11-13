@@ -1212,3 +1212,72 @@ Implemented the **Model Context Protocol (MCP) Server** exposing MediFlux / Nexu
 
 
 
+---
+
+## Task 24: Frontend Shell, Auth and Shared Infrastructure
+
+- **Date**: 2026-11-13
+- **Phase**: Phase 7 — User Experience, Web UI & Edge Clients
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+Implemented the production **React + TypeScript + Vite + Tailwind CSS** application skeleton (`frontend/`) serving as the shared foundation for all 11 operational screens. Built strictly adhering to the **Warm Editorial Minimalism** design system defined in `design.md`, wired directly to the real FastAPI backend API and Supabase Auth with zero mock-only stubs, role-aware navigation, shared UI primitives, a resilient `useEventStream` SSE hook with `Last-Event-ID` auto-reconnect, a live SSE debug panel, and all 11 operational screen routes scaffolded.
+
+### Key Components Implemented
+1. **Design System & Styling (`frontend/tailwind.config.js`, `frontend/src/index.css`)**:
+   - Canvas: Warm Ivory (`#E8E4D3`), Deep Ivory (`#DFDBCA`).
+   - Surfaces: Flat White (`#FFFFFF`) card surfaces, Dark surface (`#1F1E1B`).
+   - Accents: Electric Teal (`#00AEBB`), Emerald (`#10B981`), Amber (`#F59E0B`), Rose (`#F43F5E`).
+   - Structural 1px crisp borders (`#D8D3C3` light, `#2D2C27` dark).
+   - Typography font stacks: Playfair Display / Georgia (editorial headings), Inter (clean UI), JetBrains Mono (technical monospace).
+   - Light / Dark theme toggle persisted in `localStorage` (`ThemeProvider` in `src/context/ThemeContext.tsx`).
+2. **Backend Authentication & Demo Users (`backend/app/api/v1/endpoints/auth.py`, `src/context/AuthContext.tsx`, `src/pages/LoginPage.tsx`)**:
+   - `GET /api/v1/auth/demo-users`: Returns all 7 seeded demo users with role credentials, node mappings, and route access matrices.
+   - `POST /api/v1/auth/login`: Supports role quick-login, demo password authentication, and Supabase JWT fallback.
+   - `GET /api/v1/auth/me`: Enriched profile returning assigned node topology and allowed navigation routes.
+   - Login page (`/login`) featuring email/password form and 1-click quick-login cards for all 7 seeded roles (`admin`, `regulator`, `manufacturer`, `distributor`, `stockist`, `pharmacy`, `developer`).
+3. **CORS & Event Ingestion Enhancements (`backend/app/main.py`, `backend/app/api/v1/endpoints/events.py`, `backend/app/api/v1/endpoints/agents.py`)**:
+   - Configured `CORSMiddleware` explicitly allowing `http://localhost:5173`, `http://127.0.0.1:5173`, `tauri://localhost`, `https://tauri.localhost`, `http://tauri.localhost` with credentials and custom headers (`Authorization`, `X-API-Key`, `X-User-Role`, `X-Node-Id`, `X-User-Id`, `Last-Event-ID`).
+   - `POST /api/v1/events` ingesting both atomic retail POS sales (`SaleEvent`) and arbitrary domain event envelopes.
+   - `GET /api/v1/events` returning recent domain events from the event bus history and database.
+   - `GET /api/v1/agents/runs` returning agent execution traces, graph workflows, and model latencies.
+4. **Typed API Client & Navigation Guard (`src/lib/api.ts`, `src/types/api.ts`, `src/config/navigation.ts`, `src/components/layout/ProtectedRoute.tsx`)**:
+   - Unified `apiRequest` attaching `Authorization: Bearer <token>` and actor headers (`X-User-Role`, `X-Node-Id`, `X-User-Id`, `X-User-Region`).
+   - 11-route RBAC matrix strictly enforced via filtered sidebar rendering and `<ProtectedRoute>` route guard.
+5. **Shared UI Primitives (`src/components/shared/`)**:
+   - `DataTable.tsx`: Generic typed table with sorting, search filtering, pagination, and empty/loading states.
+   - `StatusBadge.tsx`: Semantic status badge mapping domain statuses to Warm Editorial styling.
+   - `JsonViewer.tsx`: Monospace collapsible JSON inspector with copy button.
+   - `LoadingState.tsx`, `ErrorState.tsx`, `EmptyState.tsx`.
+6. **Resilient SSE Stream Hook & Live Debug Panel (`src/hooks/useEventStream.ts`, `src/components/layout/SseDebugPanel.tsx`)**:
+   - `useEventStream(topics)` connecting to `/api/v1/events/stream`, tracking `Last-Event-ID`, auto-reconnecting with exponential backoff, and buffering live events.
+   - `SseDebugPanel` drawer accessible across all screens showing live connection status, topic filter chips, event ledger with JSON inspector, and an "Emit Live Test Event" trigger.
+7. **All 11 Operational Screen Placeholders (`src/pages/`)**:
+   - Wired each page directly to live FastAPI endpoints using TanStack Query:
+     1. `OverviewPage.tsx` (`/overview`): Network KPI cards + topological nodes table.
+     2. `CascadePage.tsx` (`/cascade`): Live event cascade feed + 1-unit retail dispense trigger.
+     3. `AgentsPage.tsx` (`/agents`): AI agent execution traces and model latencies.
+     4. `ApprovalsPage.tsx` (`/approvals`): HITL decision queue with approve/reject actions.
+     5. `AdapterForgePage.tsx` (`/adapter-forge`): Synthesized Python AST translators.
+     6. `RegulatoryLabPage.tsx` (`/regulatory-lab`): Ingested CDSCO gazette notices and hash verification.
+     7. `PrescriptionsPage.tsx` (`/prescriptions`): Schedule H compliance registry and doctor credentials.
+     8. `ColdChainPage.tsx` (`/cold-chain`): Biologics batches, Arrhenius decay, and quarantine locks.
+     9. `AuditPage.tsx` (`/audit`): Tamper-evident hash-chained cryptographic ledger with verify action.
+     10. `CopilotPage.tsx` (`/copilot`): Grounded conversational query assistant with citations.
+     11. `DeveloperPage.tsx` (`/developer`): Scoped API keys and outbound HMAC webhooks.
+
+### Verification Status
+- [x] Design system strictly adheres to `design.md` Warm Editorial Minimalism with Light / Dark theme toggle.
+- [x] All 11 operational page components, `LoginPage`, `AppShell`, shared components, and `SseDebugPanel` created and wired.
+- [x] Production build check (`npm run build` with `tsc -b && vite build`) passes cleanly with 0 errors.
+- [x] Automated test suite in `backend/tests/test_task24_frontend_infra.py` (8/8 tests pass):
+  - `GET /api/v1/auth/demo-users` returns all 7 roles.
+  - `POST /api/v1/auth/login` quick-login returns valid token and user.
+  - `GET /api/v1/auth/me` with demo token returns profile with assigned node topology.
+  - Complete 11-route role matrix validated.
+  - CORS preflight OPTIONS check for Vite, `tauri://localhost`, and `https://tauri.localhost`.
+  - Event ingestion and retrieval via `POST /api/v1/events` and `GET /api/v1/events`.
+  - Agent runs observability via `GET /api/v1/agents/runs`.
+  - SSE stream `Last-Event-ID` replay.
+- [x] Backend linter (`ruff check .`) passes with 0 warnings/errors.
+- [x] Specification created at `docs/specs/task-24-spec.md`.

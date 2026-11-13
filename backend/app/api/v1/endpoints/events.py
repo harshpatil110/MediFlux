@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
@@ -35,12 +35,143 @@ async def _verify_events_scope(
             )
 
 
+@router.get(
+    "",
+    summary="List Recent Domain Events",
+    description="Retrieve recent domain events from the event bus history or database.",
+    status_code=status.HTTP_200_OK,
+)
+async def list_recent_events(
+    topic: str | None = Query(default=None, description="Filter by event topic/type"),
+    limit: int = Query(default=50, ge=1, le=200, description="Max events to return"),
+) -> list[dict[str, Any]]:
+    """Retrieve recent events from in-process event bus and database."""
+    events: list[dict[str, Any]] = []
+    for evt in reversed(in_process_event_bus._history):
+        if topic and topic != "*" and evt.type != topic:
+            continue
+        events.append({
+            "event_id": str(evt.event_id),
+            "type": evt.type,
+            "node_id": str(evt.node_id),
+            "correlation_id": str(evt.correlation_id),
+            "timestamp": evt.timestamp.isoformat() if hasattr(evt.timestamp, "isoformat") else str(evt.timestamp),
+            "payload": evt.payload,
+        })
+        if len(events) >= limit:
+            return events
+
+    if len(events) < limit and settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            client = get_service_db_client()
+            if client:
+                q = client.table("events").select("*").order("created_at", desc=True).limit(limit)
+                if topic and topic != "*":
+                    q = q.eq("type", topic)
+                res = q.execute()
+                for row in res.data or []:
+                    eid = row.get("event_id")
+                    if not any(e.get("event_id") == eid for e in events):
+                        events.append(row)
+                        if len(events) >= limit:
+                            break
+        except Exception as exc:
+            logger.debug("Database event query failed: %s", exc)
+
+    return events
+
+
 @router.post(
     "",
     summary="Canonical Event Ingestion",
-    description="Ingest domain event with API key scope enforcement (requires write:events).",
+    description="Ingest domain event or POS sale with API key scope enforcement (requires write:events).",
     status_code=status.HTTP_202_ACCEPTED,
 )
+async def ingest_canonical_event(
+    payload: dict[str, Any],
+    request: Request,
+    x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    authorization: str | None = Header(None),
+) -> JSONResponse:
+    """Ingest either a POS sale event or a generic domain event envelope into the event bus."""
+    await _verify_events_scope(authorization=authorization, x_api_key=x_api_key)
+    correlation_id = x_correlation_id or getattr(request.state, "correlation_id", str(uuid.uuid4()))
+
+    # If it has pharmacy_id and batch_id, treat as SaleEvent
+    if "pharmacy_id" in payload and "batch_id" in payload:
+        try:
+            sale_event = SaleEvent(**payload)
+            result = await apply_sale(event=sale_event, correlation_id=correlation_id)
+            if result.get("applied", False):
+                envelope = EventEnvelope(
+                    event_id=str(sale_event.event_id),
+                    type="pos.sales",
+                    node_id=str(sale_event.pharmacy_id),
+                    correlation_id=correlation_id,
+                    timestamp=sale_event.timestamp,
+                    payload={
+                        "pharmacy_id": str(sale_event.pharmacy_id),
+                        "product_id": str(sale_event.product_id),
+                        "batch_id": str(sale_event.batch_id),
+                        "quantity": sale_event.quantity,
+                        "source": sale_event.source,
+                        "remaining_quantity": result.get("remaining_quantity"),
+                    },
+                )
+                await in_process_event_bus.publish("pos.sales", envelope)
+                await dispatch_webhook_event(
+                    event_type="order.created",
+                    data=envelope.payload,
+                    node_id=str(sale_event.pharmacy_id),
+                    event_id=str(sale_event.event_id),
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_202_ACCEPTED,
+                    content={
+                        "status": "accepted",
+                        "event_id": str(sale_event.event_id),
+                        "correlation_id": correlation_id,
+                    },
+                )
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    "status": "duplicate",
+                    "event_id": str(sale_event.event_id),
+                    "correlation_id": correlation_id,
+                    "applied": False,
+                },
+            )
+        except Exception as exc:
+            logger.warning("Failed parsing SaleEvent in canonical ingestion: %s", exc)
+
+    # Otherwise treat as generic EventEnvelope
+    event_id = str(payload.get("event_id") or uuid.uuid4())
+    event_type = str(payload.get("type") or "cascade.test")
+    node_id = str(payload.get("node_id") or "11111111-1111-1111-1111-111111111111")
+    event_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else payload
+
+    envelope = EventEnvelope(
+        event_id=event_id,
+        type=event_type,
+        node_id=node_id,
+        correlation_id=correlation_id,
+        payload=event_payload,
+    )
+    await in_process_event_bus.publish(event_type, envelope)
+
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={
+            "status": "accepted",
+            "event_id": event_id,
+            "correlation_id": correlation_id,
+            "type": event_type,
+        },
+    )
+
+
 @router.post(
     "/pos",
     summary="Point-of-Sale Event Ingestion Alias",
