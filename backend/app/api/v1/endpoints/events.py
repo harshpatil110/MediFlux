@@ -4,21 +4,48 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Header, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.security import get_service_db_client
+from app.core.security import get_actor, get_service_db_client
 from app.events.bus import in_process_event_bus
 from app.events.models import EventEnvelope, SaleEvent, SensorReadingEvent
 from app.events.service import apply_sale
 from app.graphs.coldchain import run_coldchain_pipeline
+from app.services.webhooks import dispatch_webhook_event
 
 logger = logging.getLogger("mediflux.api.events")
 
 router = APIRouter(prefix="/events", tags=["Events & POS Ingestion"])
 
 
+async def _verify_events_scope(
+    authorization: str | None = None,
+    x_api_key: str | None = None,
+) -> None:
+    """Enforce write:events scope if authenticated via X-API-Key."""
+    if x_api_key:
+        actor = await get_actor(authorization=authorization, x_api_key=x_api_key)
+        scopes = actor.scopes
+        if "*" not in scopes and "all" not in scopes and "write:events" not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'write:events'",
+            )
+
+
+@router.post(
+    "",
+    summary="Canonical Event Ingestion",
+    description="Ingest domain event with API key scope enforcement (requires write:events).",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+@router.post(
+    "/pos",
+    summary="Point-of-Sale Event Ingestion Alias",
+    status_code=status.HTTP_202_ACCEPTED,
+)
 @router.post(
     "/sale",
     summary="Ingest Point-of-Sale Dispense Event",
@@ -29,8 +56,11 @@ async def ingest_sale_event(
     event: SaleEvent,
     request: Request,
     x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    authorization: str | None = Header(None),
 ) -> JSONResponse:
     """Ingest a single Point-of-Sale event, atomically apply inventory deduction, and publish to the event bus."""
+    await _verify_events_scope(authorization=authorization, x_api_key=x_api_key)
     correlation_id = x_correlation_id or getattr(request.state, "correlation_id", str(uuid.uuid4()))
 
     # 1. Execute atomic sale and idempotency check
@@ -54,6 +84,13 @@ async def ingest_sale_event(
             },
         )
         await in_process_event_bus.publish("pos.sales", envelope)
+        # Dispatch to outbound webhooks
+        await dispatch_webhook_event(
+            event_type="order.created",
+            data=envelope.payload,
+            node_id=str(event.pharmacy_id),
+            event_id=str(event.event_id),
+        )
 
         return JSONResponse(
             status_code=status.HTTP_202_ACCEPTED,
@@ -132,8 +169,11 @@ async def ingest_sensor_event(
     request: Request,
     reading: SensorReadingEvent | list[SensorReadingEvent] | dict[str, Any] | list[dict[str, Any]],
     x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    authorization: str | None = Header(None),
 ) -> JSONResponse:
     """Ingest IoT sensor telemetry reading(s), persist to database, and run cold-chain evaluation."""
+    await _verify_events_scope(authorization=authorization, x_api_key=x_api_key)
     # Normalize single reading vs list
     raw_list: list[Any] = reading if isinstance(reading, list) else [reading]
     normalized_readings: list[dict[str, Any]] = []
@@ -200,6 +240,19 @@ async def ingest_sensor_event(
         product_id=product_id,
         correlation_id=correlation_id,
     )
+
+    if eval_result.get("quarantined", False):
+        await dispatch_webhook_event(
+            event_type="batch.quarantined",
+            data={
+                "batch_id": batch_id,
+                "node_id": node_id,
+                "explanation": eval_result.get("explanation"),
+                "quarantine_action_id": eval_result.get("quarantine_action_id"),
+                "correlation_id": correlation_id,
+            },
+            node_id=node_id,
+        )
 
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,

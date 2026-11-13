@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -79,6 +80,14 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
     {
         "name": "Semantic Search",
         "description": "Cosine-similarity vector search across regulatory notices, demand forecasts, products, and agent activity.",
+    },
+    {
+        "name": "Developer Platform & API Keys",
+        "description": "Scoped SHA-256 API key management, in-memory token-bucket rate limiting, and developer scopes.",
+    },
+    {
+        "name": "Webhooks Engine",
+        "description": "Outbound HMAC-SHA256 signed event delivery, exponential backoff retries, and failure auto-disable.",
     },
 ]
 
@@ -157,3 +166,39 @@ async def health_check() -> dict[str, Any]:
 
 # 5. Core API Domain Routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+def custom_openapi() -> dict[str, Any]:
+    """Generate OpenAPI schema enriched with JWT Bearer and API Key security schemes."""
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+        tags=app.openapi_tags,
+    )
+    if "components" not in schema:
+        schema["components"] = {}
+
+    schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT Bearer token for user / node operator authentication.",
+        },
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-API-Key",
+            "description": "Scoped SHA-256 API key for third-party developer integration.",
+        },
+    }
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi

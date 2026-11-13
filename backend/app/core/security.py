@@ -3,7 +3,7 @@
 from typing import Annotated, Any
 
 import jwt
-from fastapi import Header
+from fastapi import Header, Request
 from pydantic import BaseModel, Field
 from supabase import Client, create_client
 from supabase.client import ClientOptions
@@ -82,6 +82,22 @@ class Actor(BaseModel):
         if self.agent:
             return self.agent.agent_id
         return "anonymous"
+
+    @property
+    def scopes(self) -> list[str]:
+        """Allowed scopes for actor."""
+        if self.agent and self.agent.scopes:
+            return self.agent.scopes
+        if self.user:
+            return ["*"]
+        return []
+
+    @property
+    def api_key_id(self) -> str | None:
+        """API key ID associated with agent actor."""
+        if self.agent:
+            return self.agent.agent_id
+        return None
 
 
 # Pre-configured demo actors for offline testing & rapid development
@@ -197,14 +213,27 @@ DEMO_API_KEYS: dict[str, dict[str, Any]] = {
 # -----------------------------------------------------------------------------
 async def get_current_user(
     authorization: Annotated[str | None, Header()] = None,
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    request: Request = None,
 ) -> CurrentUser:
-    """Validate bearer token and resolve authenticated user profile.
+    """Validate bearer token or X-API-Key and resolve authenticated user profile.
 
     Raises:
-        UnauthorizedError: If authorization header is absent or token is invalid.
+        UnauthorizedError: If credentials are absent or invalid.
     """
+    if x_api_key:
+        actor = await get_actor(x_api_key=x_api_key, request=request)
+        if actor.agent:
+            return CurrentUser(
+                id=actor.agent.agent_id,
+                user_id=actor.agent.agent_id,
+                email=f"{actor.agent.agent_name}@apikey.mediflux",
+                role="developer" if not actor.agent.node_id else "pharmacy",
+                node_id=actor.agent.node_id,
+            )
+
     if not authorization:
-        raise UnauthorizedError("Authentication required: Missing Authorization header")
+        raise UnauthorizedError("Authentication required: Missing Authorization header or X-API-Key")
 
     parts = authorization.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":
@@ -262,18 +291,26 @@ async def get_current_user(
 
 
 # -----------------------------------------------------------------------------
-# 3. Flexible Actor Dependency (get_actor)
+# 3. Flexible Actor Dependency (get_actor) & Scope Enforcement
 # -----------------------------------------------------------------------------
 async def get_actor(
     authorization: Annotated[str | None, Header()] = None,
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    request: Request = None,
 ) -> Actor:
     """Accepts either Bearer JWT token or X-API-Key and resolves unified Actor object."""
-    # 1. Check API Key for automated background agent
+    # Check if actor was already authenticated in current request context
+    if request is not None and getattr(request.state, "actor", None) is not None:
+        return request.state.actor
+
+    resolved_actor: Actor | None = None
+
+    # 1. Check API Key for automated background agent or third-party developer
     if x_api_key:
+        # 1a. Check legacy demo keys first
         if x_api_key in DEMO_API_KEYS:
             key_data = DEMO_API_KEYS[x_api_key]
-            return Actor(
+            resolved_actor = Actor(
                 agent=AgentActor(
                     agent_id=key_data["agent_id"],
                     agent_name=key_data["agent_name"],
@@ -282,14 +319,88 @@ async def get_actor(
                     scopes=key_data["scopes"],
                 )
             )
-        raise UnauthorizedError("Invalid or unauthorized API key")
+        else:
+            # 1b. Check hashed developer API keys (Task 22)
+            import hashlib
+
+            from fastapi import HTTPException
+
+            from app.services.api_keys import (
+                get_api_key_by_hash,
+                rate_limiter,
+                record_key_usage,
+            )
+
+            key_hash = hashlib.sha256(x_api_key.encode("utf-8")).hexdigest()
+            key_rec = get_api_key_by_hash(key_hash)
+            if not key_rec or not key_rec.get("is_active", True):
+                raise UnauthorizedError("Invalid or unauthorized API key")
+
+            # 1c. Run Token-Bucket Rate Limiter
+            allowed, retry_after, remaining, capacity = rate_limiter.check_and_consume(
+                key_rec["id"], key_rec.get("rate_limit", 100)
+            )
+            if not allowed:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Rate limit exceeded for API key",
+                    headers={
+                        "Retry-After": str(retry_after),
+                        "X-RateLimit-Limit": str(int(capacity)),
+                        "X-RateLimit-Remaining": "0",
+                    },
+                )
+
+            # 1d. Record usage telemetry
+            record_key_usage(key_rec["id"], key_hash)
+
+            # 1e. Return bound Actor
+            resolved_actor = Actor(
+                agent=AgentActor(
+                    agent_id=str(key_rec["id"]),
+                    agent_name=key_rec.get("name", "API Key Client"),
+                    tier="developer",
+                    node_id=key_rec.get("node_id"),
+                    scopes=key_rec.get("scopes", ["*"]),
+                )
+            )
 
     # 2. Check Bearer Token for human user
-    if authorization:
-        user = await get_current_user(authorization=authorization)
-        return Actor(user=user)
+    elif authorization:
+        user = await get_current_user(authorization=authorization, request=request)
+        resolved_actor = Actor(user=user)
+
+    if resolved_actor is not None:
+        if request is not None:
+            request.state.actor = resolved_actor
+        return resolved_actor
 
     raise UnauthorizedError("Authentication required: Provide Bearer token or X-API-Key")
+
+
+def require_scope(required_scope: str):
+    """FastAPI dependency enforcing a specific API key scope.
+
+    Raises:
+        HTTPException(403): If authenticated via X-API-Key and required_scope is missing.
+    """
+    async def _scope_checker(
+        authorization: Annotated[str | None, Header()] = None,
+        x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+        request: Request = None,
+    ) -> Actor:
+        actor = await get_actor(authorization=authorization, x_api_key=x_api_key, request=request)
+        if x_api_key or actor.is_agent or actor.role == "api_key" or actor.role.startswith("agent_") or actor.role == "developer":
+            scopes = actor.scopes
+            if "*" not in scopes and "all" not in scopes and required_scope not in scopes:
+                from fastapi import HTTPException, status
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Insufficient API key scope. Required: '{required_scope}'",
+                )
+        return actor
+
+    return _scope_checker
 
 
 # -----------------------------------------------------------------------------

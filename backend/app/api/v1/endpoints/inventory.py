@@ -2,10 +2,10 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from supabase import Client
 
-from app.core.security import get_current_user, get_user_db_client, visible_node_ids
+from app.core.security import get_actor, get_current_user, get_user_db_client, visible_node_ids
 from app.schemas.base import InventoryItemResponse, UserProfile
 from app.schemas.common import PaginatedResponse
 
@@ -59,16 +59,29 @@ DEFAULT_INVENTORY: list[dict] = [
     },
 ]
 
+BASE_MOCK_INVENTORY: list[dict] = [dict(item) for item in DEFAULT_INVENTORY]
+
 
 @router.get("", response_model=PaginatedResponse[InventoryItemResponse], summary="List Scoped Inventory")
 async def list_inventory(
+    request: Request,
     current_user: Annotated[UserProfile, Depends(get_current_user)],
     db_client: Annotated[Client | None, Depends(get_user_db_client)],
     product_id: str | None = Query(default=None, description="Filter by product ID"),
     limit: int = Query(default=20, ge=1, le=100),
     cursor: str | None = Query(default=None),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> PaginatedResponse[InventoryItemResponse]:
     """Retrieve inventory balances visible to caller based on node RLS visibility."""
+    if x_api_key:
+        actor = await get_actor(x_api_key=x_api_key, request=request)
+        scopes = actor.scopes
+        if "*" not in scopes and "all" not in scopes and "read:inventory" not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'read:inventory'",
+            )
+
     allowed_nodes = set(visible_node_ids(current_user))
 
     # 1. Try Supabase query
@@ -118,7 +131,11 @@ async def list_inventory(
             pass
 
     # 2. Local fallback scoped to allowed nodes
-    filtered = [inv for inv in DEFAULT_INVENTORY if inv["node_id"] in allowed_nodes]
+    inventory_source = list(DEFAULT_INVENTORY)
+    if not any(i.get("node_id") == "11111111-1111-1111-1111-111111111111" for i in inventory_source):
+        inventory_source.extend(BASE_MOCK_INVENTORY)
+
+    filtered = [inv for inv in inventory_source if inv["node_id"] in allowed_nodes]
     if product_id:
         filtered = [inv for inv in filtered if inv["product_id"] == product_id]
 

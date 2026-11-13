@@ -3,9 +3,10 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Query, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 
+from app.core.security import get_actor
 from app.graphs.copilot import CopilotScope
 from app.llm.embeddings import search_vector_index
 
@@ -51,12 +52,28 @@ async def search_endpoint(
     x_node_id: Annotated[str | None, Header(alias="X-Node-Id")] = None,
     x_user_region: Annotated[str | None, Header(alias="X-User-Region")] = None,
     x_user_id: Annotated[str | None, Header(alias="X-User-Id")] = None,
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> JSONResponse:
     """Execute cosine-similarity vector search filtered by caller RLS scope."""
+    effective_role = x_user_role
+    effective_node = x_node_id
+
+    if x_api_key:
+        actor = await get_actor(x_api_key=x_api_key)
+        scopes = actor.scopes
+        if "*" not in scopes and "all" not in scopes and "use:copilot" not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'use:copilot'",
+            )
+        if actor.node_id:
+            effective_node = actor.node_id
+            effective_role = "pharmacy"
+
     scope = _extract_scope(
         request=request,
-        x_user_role=x_user_role,
-        x_node_id=x_node_id,
+        x_user_role=effective_role,
+        x_node_id=effective_node,
         x_user_region=x_user_region,
         x_user_id=x_user_id,
     )

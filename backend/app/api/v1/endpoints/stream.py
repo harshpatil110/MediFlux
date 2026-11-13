@@ -3,10 +3,10 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sse_starlette.sse import EventSourceResponse
 
-from app.core.security import CurrentUser, get_current_user, visible_node_ids
+from app.core.security import CurrentUser, get_actor, get_current_user, visible_node_ids
 from app.events.sse import sse_event_stream
 
 logger = logging.getLogger("mediflux.api.stream")
@@ -14,6 +14,11 @@ logger = logging.getLogger("mediflux.api.stream")
 router = APIRouter(tags=["Events & Streaming"])
 
 
+@router.get(
+    "/events/stream",
+    summary="Real-Time Server-Sent Events (SSE) Stream Alias",
+    include_in_schema=False,
+)
 @router.get(
     "/stream",
     summary="Real-Time Server-Sent Events (SSE) Stream",
@@ -24,8 +29,17 @@ async def subscribe_event_stream(
     topics: str = Query("pos.sales", description="Comma-separated topics (e.g. pos.sales,agent.activity,*)"),
     last_event_id: str | None = Header(None, alias="Last-Event-ID"),
     last_event_id_query: str | None = Query(None, alias="last_event_id"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> EventSourceResponse:
     """Stream live events over Server-Sent Events (SSE) with node scoping and reconnection replay."""
+    if x_api_key:
+        actor = await get_actor(x_api_key=x_api_key)
+        scopes = actor.scopes
+        if "*" not in scopes and "all" not in scopes and "read:stream" not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'read:stream'",
+            )
     topic_list = [t.strip() for t in topics.split(",") if t.strip()]
     if not topic_list:
         topic_list = ["pos.sales"]

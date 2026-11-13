@@ -19,16 +19,19 @@ def build_error_response(
     code: str,
     message: str,
     details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     """Construct standardized JSON error response."""
     return JSONResponse(
         status_code=status_code,
+        headers=headers,
         content={
+            "detail": message,
             "error": {
                 "code": code,
                 "message": message,
                 "details": details or {},
-            }
+            },
         },
     )
 
@@ -64,11 +67,13 @@ async def http_exception_handler(_: Request, exc: StarletteHTTPException | FastA
         details = exc.detail
         message = details.get("message", "HTTP Error")
 
+    headers = getattr(exc, "headers", None)
     return build_error_response(
         status_code=exc.status_code,
         code=code,
         message=message,
         details=details,
+        headers=headers,
     )
 
 

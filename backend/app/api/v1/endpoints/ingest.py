@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
+from app.core.security import get_actor
 from app.events.bus import in_process_event_bus
 from app.events.models import BatchUpdate, EventEnvelope, SaleEvent
 from app.events.service import apply_sale
@@ -34,8 +35,23 @@ async def ingest_legacy_payload(
     adapter_id: str,
     request: Request,
     x_correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> JSONResponse:
     """Ingest raw legacy payload, translate via adapter, validate against canonical schema, and route to event bus."""
+    if x_api_key:
+        actor = await get_actor(x_api_key=x_api_key)
+        scopes = actor.scopes
+        if (
+            "*" not in scopes
+            and "all" not in scopes
+            and "manage:adapters" not in scopes
+            and "write:events" not in scopes
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'manage:adapters'",
+            )
+
     correlation_id = x_correlation_id or getattr(request.state, "correlation_id", str(uuid.uuid4()))
 
     # 1. Lookup active adapter

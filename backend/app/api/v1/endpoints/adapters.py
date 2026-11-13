@@ -5,10 +5,11 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
+from app.core.security import get_actor
 from app.graphs.forge import (
     get_adapter,
     get_forge_job,
@@ -53,8 +54,20 @@ class RollbackAdapterRequest(BaseModel):
     description="Launches the multi-agent Forge Graph to inspect legacy payloads, write guard-compliant adapter code, test, and register.",
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def generate_adapter(payload: GenerateAdapterRequest) -> dict[str, Any]:
+async def generate_adapter(
+    payload: GenerateAdapterRequest,
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> dict[str, Any]:
     """Execute Adapter Forge synthesis and testing graph."""
+    if x_api_key:
+        actor = await get_actor(x_api_key=x_api_key)
+        scopes = actor.scopes
+        if "*" not in scopes and "all" not in scopes and "manage:adapters" not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'manage:adapters'",
+            )
+
     job_id = str(uuid.uuid4())
     logger.info("Initiating adapter generation job: %s for '%s'", job_id, payload.name)
 

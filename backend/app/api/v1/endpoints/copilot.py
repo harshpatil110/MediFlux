@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from app.core.config import settings
-from app.core.security import DEMO_USERS
+from app.core.security import DEMO_USERS, get_actor
 from app.graphs.copilot import (
     CopilotScope,
     run_copilot,
@@ -107,16 +107,33 @@ async def query_copilot(
     x_user_region: Annotated[str | None, Header(alias="X-User-Region")] = None,
     x_user_id: Annotated[str | None, Header(alias="X-User-Id")] = None,
     x_correlation_id: Annotated[str | None, Header(alias="X-Correlation-ID")] = None,
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> Any:
     """Execute Copilot query with RLS scoping, returning JSON or SSE stream."""
+    effective_role = x_user_role
+    effective_node = x_node_id
+
+    if x_api_key:
+        from fastapi import HTTPException
+        actor = await get_actor(x_api_key=x_api_key)
+        scopes = actor.scopes
+        if "*" not in scopes and "all" not in scopes and "use:copilot" not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'use:copilot'",
+            )
+        if actor.node_id:
+            effective_node = actor.node_id
+            effective_role = "pharmacy"
+
     correlation_id = x_correlation_id or getattr(request.state, "correlation_id", str(uuid.uuid4()))
 
     scope = _resolve_caller_scope(
         request=request,
         body_node_id=payload.node_id,
         body_region=payload.region,
-        x_user_role=x_user_role,
-        x_node_id=x_node_id,
+        x_user_role=effective_role,
+        x_node_id=effective_node,
         x_user_region=x_user_region,
         x_user_id=x_user_id,
     )

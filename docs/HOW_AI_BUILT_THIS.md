@@ -1092,4 +1092,62 @@ Implemented **Vector Embeddings, Semantic Search, and the Autonomous Network Cop
 - [x] `ruff check` on `backend/`, `llm/`, `graphs/`, `simulator/` passes with 0 warnings/errors.
 - [x] Specification created at `docs/specs/task-21-spec.md`.
 
+---
+
+## Task 22: API Keys, Scopes, Webhooks, and Sample Third-Party Client
+
+### Overview
+Implemented the **Developer Platform, Third-Party Extensibility, and Outbound Webhooks Engine** (RFP Phase 6). The system allows external healthcare systems, retail pharmacy management software, hospital ERPs, and cold-chain logistics IoT aggregators to securely connect to the MediFlux network via scoped SHA-256 API keys, in-memory token-bucket rate limiting, and HMAC-SHA256 signed event webhooks.
+
+### Key Components Implemented
+1. **Scoped SHA-256 API Keys Service (`backend/app/services/api_keys.py`, `services/api_keys.py`)**:
+   - Generates cryptographically secure API keys (`f"mfx_live_{secrets.token_urlsafe(24)}"`).
+   - Plaintext key returned **once and only once** upon generation.
+   - Computes SHA-256 hash at rest; plaintext key is never persisted or stored in memory after creation.
+   - Enforces canonical scopes: `read:inventory`, `write:events`, `read:stream`, `read:audit`, `use:copilot`, `manage:adapters`, `*`.
+   - Supports binding keys to a specific node RLS scope (`node_id`).
+   - Tracks telemetry metrics: `usage_count`, `last_used_at`, and activation status `is_active`.
+2. **In-Memory Token-Bucket Rate Limiter**:
+   - Implements an async/thread-safe Token-Bucket rate limiter per key.
+   - Configurable capacity (`rate_limit` req/min) and continuous token refill ($\frac{\text{capacity}}{60.0}$ tokens/s).
+   - Returns HTTP `429 Too Many Requests` with `Retry-After`, `X-RateLimit-Limit`, and `X-RateLimit-Remaining` headers when tokens are exhausted.
+   - Explicit architectural documentation on in-process design due to Redis MVP deferral.
+3. **`get_actor` Integration & Scope Enforcement**:
+   - Updated `get_actor` and `get_current_user` in `backend/app/core/security.py` to authenticate `X-API-Key` headers.
+   - Caches authenticated `Actor` on `request.state.actor` to prevent duplicate token deductions within the same request.
+   - Implemented `require_scope(required_scope: str)` dependency raising HTTP `403 Forbidden` on missing scope.
+   - Wired scope checks across endpoints: `POST /api/v1/events` (`write:events`), `GET /api/v1/inventory` (`read:inventory`), `GET /api/v1/stream` (`read:stream`), `GET /api/v1/audit/ledger` (`read:audit`), `POST /api/v1/copilot/query` (`use:copilot`), `POST /api/v1/adapters/generate` (`manage:adapters`).
+4. **Outbound HMAC-SHA256 Webhook Engine (`backend/app/services/webhooks.py`, `services/webhooks.py`)**:
+   - Supported canonical events: `order.created`, `shipment.dispatched`, `batch.quarantined`, `hitl.created`, `hitl.decided`, `module.activated`, `*`.
+   - Canonical payload envelope with `delivery_id`, `event_id`, `event_type`, `timestamp`, `node_id`, and `data`.
+   - Generates HMAC-SHA256 signature in `X-MediFlux-Signature: sha256={digest}` header.
+   - Exported constant-time signature verification helper `verify_webhook_signature`.
+   - Delivery worker with exponential backoff retries (3 attempts) and per-attempt logging in `webhook_deliveries`.
+   - Automatic deactivation (`is_active = False`) after consecutive failed deliveries.
+5. **Developer Platform & Webhook API Endpoints (`backend/app/api/v1/endpoints/developer.py`)**:
+   - Mounted at `/api/v1/developer/keys`, `/api/v1/developer/webhooks`, and alias `/api/v1/webhooks`.
+   - Key endpoints: `POST /keys`, `GET /keys`, `DELETE /keys/{id}`.
+   - Webhook endpoints: `POST /webhooks`, `GET /webhooks`, `DELETE /webhooks/{id}`, `GET /webhooks/deliveries`, `POST /webhooks/{id}/test`.
+6. **Sample Third-Party Client Package (`clients/sample_client/`)**:
+   - `typed_client.py`: Typed async Python SDK (`MediFluxClient`) with methods for key provisioning, webhooks, inventory, sales, and SSE streams.
+   - `client.py`: Runnable end-to-end 6-step flow with an embedded lightweight local webhook receiver verifying HMAC signatures on localhost.
+   - `README.md`: Developer guide and quickstart documentation.
+7. **OpenAPI Enrichment & Developer Guide**:
+   - Enriched OpenAPI schema with `BearerAuth` and `ApiKeyAuth` security schemes in `backend/app/main.py`.
+   - Created production-grade comprehensive documentation in `docs/API_GUIDE.md`.
+8. **Automated Test Suite (`backend/tests/test_task22_developer_platform.py`)**:
+   - 6 comprehensive tests covering key hashing, scope rejection (403), valid scope (200), token-bucket rate limiter (429), webhook HMAC signing, exponential backoff with auto-disable, and end-to-end sample client execution.
+
+### Verification Status
+- [x] Database migration `supabase/migrations/016_developer_platform.sql` created.
+- [x] Developer API keys service and Token-Bucket rate limiter implemented.
+- [x] `get_actor` and `require_scope` dependencies updated and wired across endpoints.
+- [x] Outbound HMAC-SHA256 webhook engine and delivery worker implemented.
+- [x] Developer endpoints mounted at `/api/v1/developer/keys` and `/api/v1/developer/webhooks`.
+- [x] Sample third-party client implemented in `clients/sample_client/`.
+- [x] Enriched OpenAPI schema in `main.py` and created `docs/API_GUIDE.md`.
+- [x] All 6 tests in `test_task22_developer_platform.py` pass cleanly.
+- [x] Specification created at `docs/specs/task-22-spec.md`.
+
+
 

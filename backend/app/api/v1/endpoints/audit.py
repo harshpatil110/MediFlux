@@ -3,11 +3,11 @@
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
 from app.core.audit_ledger import get_in_memory_audit_ledger, verify_audit_chain
 from app.core.config import settings
-from app.core.security import get_current_user, get_service_db_client
+from app.core.security import get_actor, get_current_user, get_service_db_client
 from app.schemas.base import UserProfile
 
 logger = logging.getLogger("mediflux.api.v1.audit")
@@ -15,6 +15,7 @@ logger = logging.getLogger("mediflux.api.v1.audit")
 router = APIRouter(prefix="/audit", tags=["Audit Ledger"])
 
 
+@router.get("/ledger", summary="Query and Filter Audit Ledger Entries Alias")
 @router.get("", summary="Query and Filter Audit Ledger Entries")
 async def get_audit_ledger(
     current_user: Annotated[UserProfile, Depends(get_current_user)],
@@ -25,8 +26,17 @@ async def get_audit_ledger(
     end_date: str | None = Query(default=None, description="End date ISO timestamp"),
     limit: int = Query(default=50, ge=1, le=100, description="Max entries to return"),
     offset: int = Query(default=0, ge=0, description="Number of entries to skip"),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> dict[str, Any]:
     """Retrieve chronologically ordered audit ledger records with multifaceted filtering."""
+    if x_api_key:
+        actor_obj = await get_actor(x_api_key=x_api_key)
+        scopes = actor_obj.scopes
+        if "*" not in scopes and "all" not in scopes and "read:audit" not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient API key scope. Required: 'read:audit'",
+            )
     # 1. Query Supabase database if configured
     if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         try:
