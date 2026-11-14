@@ -1,0 +1,18 @@
+# MediFlux backend dependencies (mirrors backend/pyproject.toml).
+# Vercel's Python runtime installs requirements.txt; pyproject.toml alone
+# is not sufficient because its setuptools discovery fails in this layout.
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+httpx>=0.27.0
+langgraph>=0.0.30
+supabase>=2.3.0
+sse-starlette>=2.0.0
+tenacity>=8.2.3
+pyyaml>=6.0.1
+langgraph-checkpoint-sqlite>=3.0.0
+pillow>=10.0.0
+pytesseract>=0.3.10
+python-multipart>=0.0.9
+mcp>=1.0.0
