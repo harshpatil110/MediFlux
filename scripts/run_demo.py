@@ -257,33 +257,40 @@ async def run_demo_pipeline(mode: str = "replay") -> bool:
     # Configure application mode
     from app.core.config import settings
 
-    if mode == "replay":
-        settings.DEMO_MODE = True
-        settings.LLM_CACHE_MODE = "replay"
-    elif mode == "record":
-        settings.LLM_CACHE_MODE = "record"
-    elif mode in ("live", "ollama"):
-        settings.LLM_CACHE_MODE = "off"
-        settings.DEMO_MODE = False
+    orig_demo_mode = settings.DEMO_MODE
+    orig_cache_mode = settings.LLM_CACHE_MODE
 
-    from app.main import app
-    from httpx import ASGITransport, AsyncClient
+    try:
+        if mode == "replay":
+            settings.DEMO_MODE = True
+            settings.LLM_CACHE_MODE = "replay"
+        elif mode == "record":
+            settings.LLM_CACHE_MODE = "record"
+        elif mode in ("live", "ollama"):
+            settings.LLM_CACHE_MODE = "off"
+            settings.DEMO_MODE = False
 
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Pre-demo cleanup
-        from scripts.reset_demo import reset_demo_state
+        from app.main import app
+        from httpx import ASGITransport, AsyncClient
 
-        reset_demo_state()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Pre-demo cleanup
+            from scripts.reset_demo import reset_demo_state
 
-        act1_ok = await execute_act_1(client)
-        act2_ok = await execute_act_2(client)
-        act3_ok = await execute_act_3(client)
-        act4_ok = await execute_act_4(client)
-        act5_ok = await execute_act_5(client)
-        act6_ok = await execute_act_6(client)
+            reset_demo_state()
 
-    all_passed = all([act1_ok, act2_ok, act3_ok, act4_ok, act5_ok, act6_ok])
+            act1_ok = await execute_act_1(client)
+            act2_ok = await execute_act_2(client)
+            act3_ok = await execute_act_3(client)
+            act4_ok = await execute_act_4(client)
+            act5_ok = await execute_act_5(client)
+            act6_ok = await execute_act_6(client)
+
+        all_passed = all([act1_ok, act2_ok, act3_ok, act4_ok, act5_ok, act6_ok])
+    finally:
+        settings.DEMO_MODE = orig_demo_mode
+        settings.LLM_CACHE_MODE = orig_cache_mode
     print("\n" + "=" * 70)
     if all_passed:
         print("  🎉 ALL 6 DEMO ACTS COMPLETED AND VERIFIED SUCCESSFULLY!")

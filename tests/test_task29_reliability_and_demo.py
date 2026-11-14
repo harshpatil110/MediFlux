@@ -16,21 +16,16 @@ Acceptance Criteria:
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from httpx import ASGITransport, AsyncClient
-from pydantic import BaseModel
 import pytest
-from scripts.check_secrets import run_secrets_scan
-from scripts.run_demo import run_demo_pipeline
-
-from app.core.audit_ledger import get_in_memory_audit_ledger, verify_audit_chain
+from app.core.audit_ledger import get_in_memory_audit_ledger
 from app.core.config import settings
 from app.core.errors import SovereignLLMOfflineError
-from app.core.hitl import _in_memory_hitl_tasks, get_in_memory_hitl_tasks
-from app.events.models import SaleEvent
-from app.events.service import clear_service_state, get_in_memory_stock
+from app.core.hitl import _in_memory_hitl_tasks
+from app.events.service import clear_service_state
 from app.graphs.cascade import (
     CascadeState,
     cascade_graph,
@@ -44,7 +39,11 @@ from app.llm.schemas import (
     RawCompletionResult,
 )
 from app.main import app
-from app.modules_runtime.registry import module_registry
+from httpx import ASGITransport, AsyncClient
+from pydantic import BaseModel
+
+from scripts.check_secrets import run_secrets_scan
+from scripts.run_demo import run_demo_pipeline
 
 
 class DummySchema(BaseModel):
@@ -360,7 +359,7 @@ async def test_partial_cascade_failure_handling() -> None:
                 initial_state,
                 config={"configurable": {"thread_id": corr_id}},
             )
-        except Exception:
+        except RuntimeError:
             # If graph interrupted by patched node, verify partial state handling
             result = dict(initial_state)
             result["status"] = "partial_failure"
@@ -433,3 +432,81 @@ def test_secrets_scanner_zero_leakage() -> None:
     """Git-tracked repository files contain zero live API keys or credentials."""
     is_clean = run_secrets_scan()
     assert is_clean is True, "Secrets scanner detected secret leakage or untracked .env issues"
+
+
+# =============================================================================
+# 11. Environment Template Hygiene & Key Completeness
+# =============================================================================
+def test_env_example_contains_all_config_keys() -> None:
+    """Verify .env.example contains all required configuration keys with safe placeholders."""
+    root_dir = Path(__file__).resolve().parent.parent
+    env_example = root_dir / ".env.example"
+    assert env_example.is_file(), ".env.example template file must exist"
+
+    content = env_example.read_text(encoding="utf-8")
+    required_keys = [
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_KEY",
+        "SUPABASE_JWT_SECRET",
+        "NVIDIA_API_KEY",
+        "OPENROUTER_API_KEY",
+        "OLLAMA_BASE_URL",
+        "EMBEDDING_PROVIDER",
+        "EMBEDDING_MODEL",
+        "EMBEDDING_DIM",
+        "LLM_CACHE_MODE",
+        "LLM_CACHE_PATH",
+        "LLM_CACHE_DB_PATH",
+        "DEMO_MODE",
+        "CASCADE_MODE",
+        "CASCADE_MICRO_BATCH_WINDOW_SECONDS",
+        "CASCADE_MAX_CONCURRENCY",
+        "REG_AUTO_DEPLOY",
+        "MCP_ALLOW_DECIDE_APPROVAL",
+        "AGENT_MODELS_CONFIG_PATH",
+    ]
+    for key in required_keys:
+        assert key in content, f".env.example is missing required configuration key: {key}"
+
+
+# =============================================================================
+# 12. Frontend UI Error Banner & Normalizer
+# =============================================================================
+def test_frontend_error_banner_and_normalizer_components() -> None:
+    """Verify frontend error banner, normalizer, and AppShell reset UI adhere to specifications."""
+    root_dir = Path(__file__).resolve().parent.parent
+    normalizer_file = root_dir / "frontend" / "src" / "lib" / "errorMessages.ts"
+    banner_file = root_dir / "frontend" / "src" / "components" / "shared" / "LlmErrorBanner.tsx"
+    app_shell_file = root_dir / "frontend" / "src" / "components" / "layout" / "AppShell.tsx"
+
+    assert normalizer_file.is_file(), "frontend/src/lib/errorMessages.ts must exist"
+    assert banner_file.is_file(), "frontend/src/components/shared/LlmErrorBanner.tsx must exist"
+    assert app_shell_file.is_file(), "frontend/src/components/layout/AppShell.tsx must exist"
+
+    # Verify normalizer codes
+    norm_content = normalizer_file.read_text(encoding="utf-8")
+    assert "PROVIDER_RATE_LIMITED_429" in norm_content
+    assert "SOVEREIGN_LOCAL_MODEL_OFFLINE" in norm_content
+    assert "PROVIDER_OUTAGE_5XX" in norm_content
+    assert "LLM_INVALID_JSON_OUTPUT" in norm_content
+    assert "NETWORK_DISCONNECTED" in norm_content
+    assert "normalizeErrorMessage" in norm_content
+    assert "normalizeLlmError" in norm_content
+
+    # Verify banner props and design compliance
+    banner_content = banner_file.read_text(encoding="utf-8")
+    assert "LlmErrorBannerProps" in banner_content
+    assert "variant" in banner_content
+    assert "onRetry" in banner_content
+    assert "onDismiss" in banner_content
+    assert "rounded-full" not in banner_content
+
+    # Verify AppShell Demo Reset & status
+    shell_content = app_shell_file.read_text(encoding="utf-8")
+    assert "api.demo" in shell_content
+    assert "reset" in shell_content
+    assert "getStatus" in shell_content
+    assert "Reset Demo" in shell_content
+    assert "resetFeedback" in shell_content

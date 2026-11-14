@@ -1,7 +1,7 @@
 /**
- * Standardized Domain Error Message Normalizer (Task 29).
+ * Standardized Domain & LLM Error Message Normalizer (Task 29).
  * Translates backend domain codes, HTTP statuses, and network exceptions
- * into clear, actionable editorial messages conforming to design.md.
+ * into clear, actionable editorial messages conforming to Warm Editorial Minimalism (Design.md).
  */
 
 export interface NormalizedError {
@@ -11,32 +11,54 @@ export interface NormalizedError {
   actionableHint?: string;
   isRecoverable: boolean;
   severity: "info" | "warning" | "error" | "critical";
+  suggestedVariant: "warning" | "error" | "sovereign";
 }
 
-const ERROR_CATALOG: Record<string, NormalizedError> = {
+export const ERROR_CATALOG: Record<string, NormalizedError> = {
   PROVIDER_RATE_LIMITED_429: {
     code: "PROVIDER_RATE_LIMITED_429",
-    title: "Free-Tier Providers Rate-Limited",
-    message: "Upstream LLM providers (NVIDIA NIM / OpenRouter) hit rate limits. Automatic fallback chain is active.",
-    actionableHint: "The router will automatically switch to local Ollama or replay cache in under 100ms.",
+    title: "Upstream Provider Rate Limit",
+    message: "Rate limit reached on upstream LLM endpoints. Transparent failover to secondary provider or local cache is active.",
+    actionableHint: "The autonomous router will fail over in <100ms or back off. Retry momentarily if needed.",
     isRecoverable: true,
     severity: "warning",
-  },
-  LLM_INVALID_JSON_OUTPUT: {
-    code: "LLM_INVALID_JSON_OUTPUT",
-    title: "Malformed Model Output Repaired",
-    message: "The model returned unquoted keys or unbalanced brackets. Resilient AST repair reconstructed valid JSON.",
-    actionableHint: "No operator intervention required; schema validation passed after auto-repair.",
-    isRecoverable: true,
-    severity: "info",
+    suggestedVariant: "warning",
   },
   SOVEREIGN_LOCAL_MODEL_OFFLINE: {
     code: "SOVEREIGN_LOCAL_MODEL_OFFLINE",
     title: "Sovereign Local Model Offline",
-    message: "Local Ollama service is unreachable for sensitive prescription analysis. Hosted cloud fallback is strictly prohibited by CDSCO privacy mandate.",
+    message: "Local Ollama service is unreachable for sensitive prescription analysis. External cloud routing is strictly prohibited by CDSCO privacy mandate.",
     actionableHint: "Start local Ollama with 'ollama serve' or enable Demo Replay mode to proceed offline.",
     isRecoverable: false,
     severity: "critical",
+    suggestedVariant: "sovereign",
+  },
+  PROVIDER_OUTAGE_5XX: {
+    code: "PROVIDER_OUTAGE_5XX",
+    title: "Upstream Provider Service Outage",
+    message: "An upstream provider returned a 500, 502, or 503 gateway error. The autonomous fallback router redirected execution.",
+    actionableHint: "Verify network status or switch to local Ollama / Demo Replay mode.",
+    isRecoverable: true,
+    severity: "error",
+    suggestedVariant: "error",
+  },
+  LLM_INVALID_JSON_OUTPUT: {
+    code: "LLM_INVALID_JSON_OUTPUT",
+    title: "Malformed Model Output Repaired",
+    message: "The model returned unquoted keys, unbalanced brackets, or malformed JSON syntax. Resilient AST repair reconstructed valid output.",
+    actionableHint: "Autonomous schema correction recovered the data structure. No operator intervention required.",
+    isRecoverable: true,
+    severity: "info",
+    suggestedVariant: "warning",
+  },
+  NETWORK_DISCONNECTED: {
+    code: "NETWORK_DISCONNECTED",
+    title: "Network Disconnect Detected",
+    message: "Network connection to backend or remote services was lost. MediFlux is operating in detached local mode.",
+    actionableHint: "All core single-unit cascade, prescription, and cold-chain flows function deterministically via local cache.",
+    isRecoverable: true,
+    severity: "warning",
+    suggestedVariant: "warning",
   },
   HITL_TASK_EXPIRED: {
     code: "HITL_TASK_EXPIRED",
@@ -45,6 +67,7 @@ const ERROR_CATALOG: Record<string, NormalizedError> = {
     actionableHint: "A new order or regulatory notification must be submitted to trigger a fresh review task.",
     isRecoverable: false,
     severity: "warning",
+    suggestedVariant: "warning",
   },
   PARTIAL_CASCADE_FAILURE: {
     code: "PARTIAL_CASCADE_FAILURE",
@@ -53,16 +76,12 @@ const ERROR_CATALOG: Record<string, NormalizedError> = {
     actionableHint: "Review the open task in Approvals Inbox (/approvals) to resolve the stalled tier.",
     isRecoverable: true,
     severity: "warning",
-  },
-  NETWORK_OFFLINE: {
-    code: "NETWORK_OFFLINE",
-    title: "Offline Replay Mode Active",
-    message: "MediFlux is operating detached from cloud database endpoints. Local in-memory and replay cache active.",
-    actionableHint: "All core single-unit cascade, prescription, and cold-chain flows function deterministically.",
-    isRecoverable: true,
-    severity: "info",
+    suggestedVariant: "warning",
   },
 };
+
+// Aliases for backwards compatibility
+ERROR_CATALOG.NETWORK_OFFLINE = ERROR_CATALOG.NETWORK_DISCONNECTED;
 
 export function normalizeErrorMessage(err: unknown): NormalizedError {
   if (!err) {
@@ -72,63 +91,143 @@ export function normalizeErrorMessage(err: unknown): NormalizedError {
       message: "An unknown system event occurred.",
       isRecoverable: true,
       severity: "error",
+      suggestedVariant: "error",
     };
   }
 
-  const errObj = err as any;
-  const status = errObj.status || errObj.statusCode || errObj.response?.status;
+  const errObj = (typeof err === "object" ? err : {}) as Record<string, any>;
+  const status = Number(
+    errObj.status ||
+    errObj.statusCode ||
+    errObj.response?.status ||
+    (typeof err === "string" && err.match(/\b(429|500|502|503|504|409)\b/)?.[0]) ||
+    0
+  );
+
   const rawCode = (
     errObj.code ||
     errObj.error_code ||
     errObj.response?.data?.code ||
     errObj.response?.data?.error?.code ||
     ""
-  ).toUpperCase();
+  ).toString().toUpperCase();
+
   const rawDetail = (
     errObj.detail ||
     errObj.message ||
     errObj.response?.data?.detail ||
     errObj.response?.data?.message ||
+    (typeof err === "string" ? err : "") ||
     ""
   ).toString();
 
-  // Match exact catalog code
+  const rawDetailLower = rawDetail.toLowerCase();
+
+  // 1. Exact catalog code match
   if (rawCode && ERROR_CATALOG[rawCode]) {
     return ERROR_CATALOG[rawCode];
   }
 
-  // Substring inspections
-  if (rawDetail.includes("SovereignLLMOfflineError") || rawDetail.includes("SOVEREIGN_LOCAL_MODEL_OFFLINE") || rawDetail.includes("Ollama provider is not registered")) {
+  // 2. Sovereign Local Model Offline (HTTP 503 / SovereignLLMOfflineError)
+  // Must precede generic 503 check!
+  if (
+    rawCode === "SOVEREIGN_LOCAL_MODEL_OFFLINE" ||
+    rawDetail.includes("SovereignLLMOfflineError") ||
+    rawDetail.includes("SOVEREIGN_LOCAL_MODEL_OFFLINE") ||
+    rawDetail.includes("Ollama provider is not registered") ||
+    (rawDetailLower.includes("ollama") && (rawDetailLower.includes("offline") || rawDetailLower.includes("unreachable"))) ||
+    (status === 503 && (rawDetailLower.includes("sovereign") || rawDetailLower.includes("privacy") || rawDetailLower.includes("ollama")))
+  ) {
     return ERROR_CATALOG.SOVEREIGN_LOCAL_MODEL_OFFLINE;
   }
 
-  if (status === 429 || rawDetail.includes("rate limit") || rawDetail.includes("429")) {
+  // 3. Rate Limits (HTTP 429)
+  if (
+    status === 429 ||
+    rawCode.includes("429") ||
+    rawDetailLower.includes("rate limit") ||
+    rawDetailLower.includes("too many requests") ||
+    rawDetail.includes("429")
+  ) {
     return ERROR_CATALOG.PROVIDER_RATE_LIMITED_429;
   }
 
-  if (status === 409 && (rawDetail.includes("expired") || rawDetail.includes("timeout"))) {
+  // 4. HITL Task Expired (HTTP 409)
+  if (
+    rawCode === "HITL_TASK_EXPIRED" ||
+    (status === 409 && (rawDetailLower.includes("expired") || rawDetailLower.includes("timeout")))
+  ) {
     return ERROR_CATALOG.HITL_TASK_EXPIRED;
   }
 
-  if (rawDetail.includes("partial_failure") || rawDetail.includes("partial cascade")) {
+  // 5. Partial Cascade Failure
+  if (
+    rawCode === "PARTIAL_CASCADE_FAILURE" ||
+    rawDetailLower.includes("partial_failure") ||
+    rawDetailLower.includes("partial cascade")
+  ) {
     return ERROR_CATALOG.PARTIAL_CASCADE_FAILURE;
   }
 
-  if (rawDetail.includes("Failed to fetch") || rawDetail.includes("NetworkError") || rawDetail.includes("ECONNREFUSED")) {
-    return ERROR_CATALOG.NETWORK_OFFLINE;
+  // 6. Generic Provider Outages (HTTP 500 / 502 / 503 / 504)
+  if (
+    rawCode === "PROVIDER_OUTAGE_5XX" ||
+    rawCode === "BAD_GATEWAY" ||
+    rawCode === "SERVICE_UNAVAILABLE" ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    (status === 500 && (
+      rawDetailLower.includes("provider") ||
+      rawDetailLower.includes("upstream") ||
+      rawDetailLower.includes("nim") ||
+      rawDetailLower.includes("openrouter") ||
+      rawDetailLower.includes("bad gateway") ||
+      rawDetailLower.includes("gateway")
+    ))
+  ) {
+    return ERROR_CATALOG.PROVIDER_OUTAGE_5XX;
   }
 
-  if (rawDetail.includes("JSONDecodeError") || rawDetail.includes("LLMStructuredOutputError")) {
+  // 7. Malformed JSON / Parse Failures
+  if (
+    rawCode === "LLM_INVALID_JSON_OUTPUT" ||
+    rawCode === "JSON_PARSE_ERROR" ||
+    rawDetail.includes("JSONDecodeError") ||
+    rawDetail.includes("LLMStructuredOutputError") ||
+    rawDetailLower.includes("malformed json") ||
+    rawDetailLower.includes("json parse") ||
+    rawDetailLower.includes("unbalanced brackets") ||
+    rawDetailLower.includes("unquoted keys") ||
+    rawDetail.includes("SyntaxError: Unexpected token")
+  ) {
     return ERROR_CATALOG.LLM_INVALID_JSON_OUTPUT;
   }
 
-  // Generic fallback
+  // 8. Network / Connection Disconnects
+  if (
+    rawCode === "NETWORK_OFFLINE" ||
+    rawCode === "NETWORK_DISCONNECTED" ||
+    rawDetailLower.includes("failed to fetch") ||
+    rawDetailLower.includes("networkerror") ||
+    rawDetailLower.includes("econnrefused") ||
+    rawDetailLower.includes("connect_error") ||
+    rawDetailLower.includes("connection refused") ||
+    rawDetailLower.includes("network disconnect") ||
+    rawDetailLower.includes("network request failed")
+  ) {
+    return ERROR_CATALOG.NETWORK_DISCONNECTED;
+  }
+
+  // 9. Generic Fallback
+  const isServer = status >= 500;
   return {
-    code: rawCode || (status ? `HTTP_${status}` : "SYSTEM_ERROR"),
+    code: rawCode || (status ? `HTTP_${status}` : "SYSTEM_NOTICE"),
     title: status ? `Service Notice (${status})` : "System Notice",
     message: rawDetail || "The requested operation could not be completed.",
-    isRecoverable: status !== 403 && status !== 401,
-    severity: status >= 500 ? "error" : "warning",
+    isRecoverable: status !== 401 && status !== 403,
+    severity: isServer ? "error" : "warning",
+    suggestedVariant: isServer ? "error" : "warning",
   };
 }
 

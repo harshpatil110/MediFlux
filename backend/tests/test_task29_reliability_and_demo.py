@@ -358,7 +358,7 @@ async def test_partial_cascade_failure_handling() -> None:
                 initial_state,
                 config={"configurable": {"thread_id": corr_id}},
             )
-        except Exception:
+        except RuntimeError:
             # If graph interrupted by patched node, verify partial state handling
             result = dict(initial_state)
             result["status"] = "partial_failure"

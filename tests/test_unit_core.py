@@ -10,13 +10,12 @@ Verifies:
 
 from __future__ import annotations
 
+import asyncio
 import copy
 from typing import Any
 from unittest.mock import patch
 
-from pydantic import BaseModel
 import pytest
-
 from app.core.audit_ledger import (
     _in_memory_audit_ledger,
     clear_in_memory_audit_ledger,
@@ -39,6 +38,7 @@ from app.modules_runtime.guard import (
     SubprocessRunner,
 )
 from app.modules_runtime.registry import ModuleRegistry
+from pydantic import BaseModel
 
 
 class TestASTGuardSecurity:
@@ -289,8 +289,12 @@ class TestLLMRouterAndFakeLLM:
         """When sensitivity='sensitive', failure of local Ollama raises SovereignLLMOfflineError with zero cloud calls."""
         router = LLMRouter()
 
-        # Inject offline fault on Ollama
-        with inject_llm_fault("ollama", "connect_error"):
+        # Inject offline fault on Ollama and ensure cache is bypassed for sovereignty test
+        with (
+            inject_llm_fault("ollama", "connect_error"),
+            patch.object(settings, "LLM_CACHE_MODE", "off"),
+            patch.object(settings, "DEMO_MODE", False),
+        ):
             with pytest.raises(SovereignLLMOfflineError) as exc_info:
                 await router.complete(
                     agent="compliance_agent",
@@ -346,17 +350,23 @@ class TestEventBusDeduplication:
 
     async def test_event_bus_queue_subscription_delivery(self) -> None:
         """Verify queue delivery via async subscription stream."""
+
         bus = InProcessEventBus()
+
+        async def _publish_later() -> None:
+            await asyncio.sleep(0.01)
+            evt = EventEnvelope(
+                type="inventory.alerts",
+                node_id="node-1",
+                payload={"sku": "PARA-650", "stock": 5},
+                event_id="alert-evt-01",
+            )
+            await bus.publish("inventory.alerts", evt)
+
+        task = asyncio.create_task(_publish_later())
         sub_iter = bus.subscribe("inventory.alerts")
+        delivered = await asyncio.wait_for(anext(sub_iter), timeout=2.0)
+        await task
 
-        evt = EventEnvelope(
-            type="inventory.alerts",
-            node_id="node-1",
-            payload={"sku": "PARA-650", "stock": 5},
-            event_id="alert-evt-01",
-        )
-        await bus.publish("inventory.alerts", evt)
-
-        delivered = await anext(sub_iter)
         assert delivered.event_id == "alert-evt-01"
         assert delivered.payload["sku"] == "PARA-650"

@@ -13,9 +13,7 @@ from __future__ import annotations
 import hashlib
 
 import httpx
-from httpx import ASGITransport, AsyncClient
 import pytest
-
 from app.core.security import CurrentUser, get_actor, visible_node_ids
 from app.main import app
 from app.services.api_keys import (
@@ -29,6 +27,7 @@ from app.services.webhooks import (
     deliver_webhook,
     verify_webhook_signature,
 )
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture(autouse=True)

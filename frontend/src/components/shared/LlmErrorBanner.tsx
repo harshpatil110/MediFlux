@@ -1,16 +1,19 @@
 /**
- * Editorial LLM & System Error Banner conforming to Warm Editorial Minimalism (design.md).
- * Displays normalized domain explanations, failover status, and actionable operator guidance.
+ * Editorial LLM & System Error Banner conforming to Warm Editorial Minimalism (Design.md).
+ * Displays normalized domain explanations, sovereign isolation status, and actionable operator guidance.
+ * Strict adherence: 1px structural borders, Warm/Deep Ivory backgrounds, Ink Black / Charcoal typography.
+ * Prohibitions: No circular pill-shaped buttons, no glassmorphism, no neon gradients, no dark mode defaults.
  */
 
 import React, { useState } from "react";
-import { AlertCircle, AlertTriangle, ChevronDown, ChevronUp, Info, RefreshCw, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ChevronDown, ChevronUp, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { normalizeErrorMessage, type NormalizedError } from "../../lib/errorMessages";
 
-interface LlmErrorBannerProps {
+export interface LlmErrorBannerProps {
   error: unknown;
   onRetry?: () => void;
   onDismiss?: () => void;
+  variant?: "warning" | "error" | "sovereign";
   className?: string;
 }
 
@@ -18,6 +21,7 @@ export const LlmErrorBanner: React.FC<LlmErrorBannerProps> = ({
   error,
   onRetry,
   onDismiss,
+  variant,
   className = "",
 }) => {
   const [showDetails, setShowDetails] = useState(false);
@@ -25,99 +29,128 @@ export const LlmErrorBanner: React.FC<LlmErrorBannerProps> = ({
   if (!error) return null;
 
   const normalized: NormalizedError = normalizeErrorMessage(error);
-  const rawString = typeof error === "string" ? error : JSON.stringify(error, null, 2);
+  const activeVariant: "warning" | "error" | "sovereign" =
+    variant || normalized.suggestedVariant || (normalized.code === "SOVEREIGN_LOCAL_MODEL_OFFLINE" ? "sovereign" : normalized.severity === "error" || normalized.severity === "critical" ? "error" : "warning");
 
-  const getBorderColor = () => {
-    switch (normalized.severity) {
-      case "critical":
-        return "border-rose-500 bg-rose-50/70 text-rose-950 dark:bg-rose-950/40 dark:text-rose-100";
+  const rawString =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+      ? `${error.name}: ${error.message}${error.stack ? `\n${error.stack}` : ""}`
+      : JSON.stringify(error, null, 2);
+
+  // Styling maps strictly conforming to Warm Editorial Minimalism
+  const getBannerStyles = () => {
+    switch (activeVariant) {
+      case "sovereign":
+        return {
+          container: "border border-[#00AEBB] bg-[#DFDBCA] text-[#031211]",
+          badge: "border border-[#00AEBB] bg-[#00AEBB]/10 text-[#00AEBB]",
+          icon: <ShieldAlert className="w-4 h-4 text-[#00AEBB] shrink-0" strokeWidth={1.5} />,
+          tag: "SOVEREIGN LOCAL PRIVACY",
+        };
       case "error":
-        return "border-coral-500 bg-amber-50/70 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100";
+        return {
+          container: "border border-[#031211]/30 bg-[#DFDBCA] text-[#031211]",
+          badge: "border border-[#031211]/20 bg-[#E8E4D3] text-[#031211]",
+          icon: <AlertCircle className="w-4 h-4 text-[#031211] shrink-0" strokeWidth={1.5} />,
+          tag: "CRITICAL INCIDENT",
+        };
       case "warning":
-        return "border-amber-400 bg-amber-50/50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200";
-      case "info":
       default:
-        return "border-[var(--accent-teal)] bg-teal-50/50 text-teal-950 dark:bg-teal-950/30 dark:text-teal-100";
+        return {
+          container: "border border-[#D8D3C3] bg-[#E8E4D3] text-[#031211]",
+          badge: "border border-[#D8D3C3] bg-[#DFDBCA] text-[#5C584E]",
+          icon: <AlertTriangle className="w-4 h-4 text-[#5C584E] shrink-0" strokeWidth={1.5} />,
+          tag: "OPERATIONAL NOTICE",
+        };
     }
   };
 
-  const getIcon = () => {
-    switch (normalized.severity) {
-      case "critical":
-      case "error":
-        return <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />;
-      case "warning":
-        return <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />;
-      case "info":
-      default:
-        return <Info className="w-4 h-4 text-[var(--accent-teal)] shrink-0" />;
-    }
-  };
+  const styles = getBannerStyles();
 
   return (
     <div
-      className={`border p-3.5 my-2.5 transition-all text-xs font-sans shadow-xs ${getBorderColor()} ${className}`}
+      className={`p-4 my-3 text-xs font-sans shadow-sm transition-all rounded-sm ${styles.container} ${className}`}
       role="alert"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5 flex-1 min-w-0">
-          <div className="mt-0.5">{getIcon()}</div>
-          <div className="space-y-1 flex-1 min-w-0">
+        {/* Left: Icon & Details */}
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="mt-0.5">{styles.icon}</div>
+          <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-serif font-bold tracking-tight text-xs">
+              <span className="font-serif font-bold text-sm tracking-tight text-[#031211]">
                 {normalized.title}
               </span>
-              <span className="font-mono text-[10px] px-1.5 py-0.2 border border-current opacity-70">
+              <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded-none font-medium uppercase tracking-wider ${styles.badge}`}>
+                {styles.tag}
+              </span>
+              <span className="font-mono text-[10px] px-1.5 py-0.5 border border-[#D8D3C3] bg-[#E8E4D3] text-[#5C584E]">
                 {normalized.code}
               </span>
             </div>
-            <p className="leading-relaxed opacity-90">{normalized.message}</p>
+
+            <p className="leading-relaxed text-[#5C584E] text-xs">
+              {normalized.message}
+            </p>
+
             {normalized.actionableHint && (
-              <p className="font-mono text-[11px] opacity-80 pt-0.5">
-                ↳ <span className="font-semibold">Operator Action:</span> {normalized.actionableHint}
+              <p className="font-mono text-[11px] text-[#031211] pt-1 border-t border-[#D8D3C3]/60">
+                <span className="font-semibold uppercase tracking-wider text-[10px] text-[#5C584E]">Operator Action:</span>{" "}
+                {normalized.actionableHint}
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
-              className="p-1 hover:bg-black/10 dark:hover:bg-white/10 text-current transition-colors flex items-center gap-1 text-[11px] font-mono"
+              className="px-2.5 py-1 text-xs font-mono border border-[#C5C0B0] bg-[#E8E4D3] hover:bg-[#DFDBCA] text-[#031211] rounded-sm transition-colors flex items-center gap-1.5"
               title="Retry operation"
             >
-              <RefreshCw className="w-3 h-3" />
-              <span className="hidden sm:inline">Retry</span>
+              <RefreshCw className="w-3 h-3 text-[#00AEBB]" strokeWidth={1.5} />
+              <span>Retry</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={() => setShowDetails(!showDetails)}
-            className="p-1 hover:bg-black/10 dark:hover:bg-white/10 text-current transition-colors"
-            title="Toggle raw details"
+            className="p-1 border border-[#C5C0B0] bg-[#E8E4D3] hover:bg-[#DFDBCA] text-[#5C584E] hover:text-[#031211] rounded-sm transition-colors"
+            title="Toggle raw error trace"
           >
-            {showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {showDetails ? (
+              <ChevronUp className="w-3.5 h-3.5" strokeWidth={1.5} />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.5} />
+            )}
           </button>
 
           {onDismiss && (
             <button
               type="button"
               onClick={onDismiss}
-              className="p-1 hover:bg-black/10 dark:hover:bg-white/10 text-current transition-colors"
+              className="p-1 border border-[#C5C0B0] bg-[#E8E4D3] hover:bg-[#DFDBCA] text-[#5C584E] hover:text-[#031211] rounded-sm transition-colors"
               title="Dismiss banner"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
           )}
         </div>
       </div>
 
+      {/* Raw Trace Accordion */}
       {showDetails && (
-        <div className="mt-2.5 pt-2 border-t border-current/20">
-          <pre className="font-mono text-[10px] p-2 bg-black/5 dark:bg-black/40 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
+        <div className="mt-3 pt-2.5 border-t border-[#D8D3C3]">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-[#5C584E] mb-1">
+            Raw Diagnostics
+          </div>
+          <pre className="font-mono text-[10px] p-2.5 bg-[#E8E4D3] border border-[#D8D3C3] text-[#031211] overflow-x-auto max-h-48 whitespace-pre-wrap break-all rounded-none">
             {rawString}
           </pre>
         </div>

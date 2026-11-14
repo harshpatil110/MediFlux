@@ -2,8 +2,8 @@
 
 import argparse
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure backend/ is in sys.path
 backend_path = Path(__file__).resolve().parent.parent / "backend"

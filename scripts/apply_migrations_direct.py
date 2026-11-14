@@ -1,8 +1,9 @@
 """Direct PostgreSQL migration runner for Supabase."""
 
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load .env
@@ -22,7 +23,7 @@ def main() -> None:
     conn = None
 
     if db_url:
-        print(f"Connecting to database via DATABASE_URL...")
+        print("Connecting to database via DATABASE_URL...")
         conn = psycopg2.connect(db_url)
     elif db_pass and "supabase.co" in project_url:
         project_ref = project_url.replace("https://", "").replace(".supabase.co", "").strip("/")

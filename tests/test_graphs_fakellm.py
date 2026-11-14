@@ -18,7 +18,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from app.agents.base import clear_agent_runs
 from app.core.config import settings
 from app.core.hitl import clear_hitl_tasks

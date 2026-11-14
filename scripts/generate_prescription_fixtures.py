@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
 from PIL.PngImagePlugin import PngInfo
 

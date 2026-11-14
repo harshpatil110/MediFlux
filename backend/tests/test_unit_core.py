@@ -290,8 +290,12 @@ class TestLLMRouterAndFakeLLM:
         """When sensitivity='sensitive', failure of local Ollama raises SovereignLLMOfflineError with zero cloud calls."""
         router = LLMRouter()
 
-        # Inject offline fault on Ollama
-        with inject_llm_fault("ollama", "connect_error"):
+        # Inject offline fault on Ollama and ensure cache is bypassed for sovereignty test
+        with (
+            inject_llm_fault("ollama", "connect_error"),
+            patch.object(settings, "LLM_CACHE_MODE", "off"),
+            patch.object(settings, "DEMO_MODE", False),
+        ):
             with pytest.raises(SovereignLLMOfflineError) as exc_info:
                 await router.complete(
                     agent="compliance_agent",
@@ -347,6 +351,7 @@ class TestEventBusDeduplication:
 
     async def test_event_bus_queue_subscription_delivery(self) -> None:
         """Verify queue delivery via async subscription stream."""
+
         bus = InProcessEventBus()
 
         async def _publish_later() -> None:
@@ -361,7 +366,7 @@ class TestEventBusDeduplication:
 
         task = asyncio.create_task(_publish_later())
         sub_iter = bus.subscribe("inventory.alerts")
-        delivered = await anext(sub_iter)
+        delivered = await asyncio.wait_for(anext(sub_iter), timeout=2.0)
         await task
 
         assert delivered.event_id == "alert-evt-01"

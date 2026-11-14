@@ -4,8 +4,8 @@ Creates demo users in Supabase Auth and populates corresponding profiles table e
 Idempotent: Safely skips or updates existing users.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure backend/ is in sys.path
 backend_path = Path(__file__).resolve().parent.parent / "backend"

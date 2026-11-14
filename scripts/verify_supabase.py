@@ -1,7 +1,7 @@
 """Verification script for MediFlux Supabase schema and functions."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure backend/ directory is on sys.path
 backend_path = Path(__file__).resolve().parent.parent / "backend"

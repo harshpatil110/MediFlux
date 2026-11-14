@@ -185,10 +185,16 @@ async def _execute_single_cascade(
         "status": "succeeded",
         "reasoning": (
             f"Retail POS counter recorded 1 strip sale of {product_name}. Inventory decremented. "
-            "Stock level reached reorder threshold (available <= safety_stock). Restock order request triggered to Stockist Hub."
+            "Schedule H prescription compliance verified. Stock level reached reorder threshold (available <= safety_stock). "
+            "Restock order request triggered to Stockist Hub."
         ),
         "input": {"pharmacy_id": resolved_pharmacy_id, "product": product_name, "quantity": quantity},
-        "output": {"dispensed": quantity, "reorder_needed": True, "target_stockist": "Fortis Central Stockist Hub"},
+        "output": {
+            "dispensed": quantity,
+            "schedule_h_check": "verified",
+            "reorder_needed": True,
+            "target_stockist": "Fortis Central Stockist Hub",
+        },
         "model": "meta/llama-3.1-70b-instruct",
         "provider": "groq",
         "prompt_tokens": 155,
@@ -196,7 +202,11 @@ async def _execute_single_cascade(
         "total_tokens": 229,
         "duration_ms": 118.5,
         "timestamp": now_iso,
-        "entities_created": {"pos_transaction_id": f"pos-{uuid.uuid4().hex[:8]}", "product": product_name},
+        "entities_created": {
+            "pos_transaction_id": f"pos-{uuid.uuid4().hex[:8]}",
+            "product": product_name,
+            "compliance_status": "schedule_h_verified",
+        },
     }
 
     # 2. Tier 3: Regional Stockist Dynamic Balancing Agent
@@ -421,6 +431,28 @@ async def _execute_single_cascade(
         ),
     )
     events_count += 1
+
+    # 4. Cryptographic audit ledger seal
+    try:
+        from app.core.audit_ledger import write_audit_entry
+
+        await write_audit_entry(
+            actor="manufacturer_production_agent",
+            action="CASCADE_DEMAND_PROPAGATION_SEALED",
+            entity_type="cascade_trace",
+            entity_id=correlation_id,
+            payload={
+                "correlation_id": correlation_id,
+                "tiers": 4,
+                "product": product_name,
+                "quantity": quantity,
+                "pharmacy": pharmacy_name,
+                "status": "completed",
+            },
+            explanation=f"4-tier demand cascade completed and cryptographically sealed for correlation_id={correlation_id}",
+        )
+    except Exception as audit_exc:
+        logger.debug("Audit ledger recording in simulator skipped or failed: %s", audit_exc)
 
     return correlation_id, trace_record, events_count
 

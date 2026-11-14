@@ -7,6 +7,7 @@ Palette adhering to Warm Editorial Minimalism:
 """
 
 from pathlib import Path
+
 from PIL import Image, ImageDraw
 
 

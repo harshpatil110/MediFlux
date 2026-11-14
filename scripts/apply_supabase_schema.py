@@ -1,10 +1,11 @@
 """Database schema migration executor for Tasks 9 through 16."""
 
 import os
-from pathlib import Path
 import sys
-from dotenv import load_dotenv
+from pathlib import Path
+
 import psycopg2
+from dotenv import load_dotenv
 
 # Load environment configurations from both backend/.env and root .env
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -133,7 +134,7 @@ def apply_migrations():
         print(f"[X] Migration file not found: {sql_file}")
         return False
 
-    with open(sql_file, "r", encoding="utf-8") as f:
+    with open(sql_file, encoding="utf-8") as f:
         sql_content = f.read()
 
     conn = get_connection()
