@@ -52,3 +52,9 @@ policies:
     required_roles: ["pharmacist_in_charge", "compliance_officer", "admin"]
     expiry_hours: 12
     description: "Clinical review and schedule classification for unlisted or experimental medication."
+
+  cascade_partial_failure_escalation:
+    enabled: true
+    required_roles: ["admin", "system_admin", "compliance_officer"]
+    expiry_hours: 24
+    description: "Escalation for demand cascade failure across supply chain tiers."

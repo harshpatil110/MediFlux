@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { getApiBaseUrl, resetApiBaseUrl, setApiBaseUrl } from "../../config/env";
 import { useDesktopNotifications } from "../../hooks/useDesktopNotifications";
+import { api } from "../../lib/api";
 
 interface BackendSettingsModalProps {
   isOpen: boolean;
@@ -47,6 +48,20 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
   const [testingStatus, setTestingStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [healthResult, setHealthResult] = useState<HealthCheckResult | null>(null);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [isResettingDemo, setIsResettingDemo] = useState<boolean>(false);
+
+  const handleResetDemoState = async () => {
+    setIsResettingDemo(true);
+    try {
+      await api.demo.reset();
+      queryClient.invalidateQueries();
+      window.dispatchEvent(new CustomEvent("mediflux:backend-url-changed"));
+    } catch (err) {
+      console.warn("Failed to reset demo state:", err);
+    } finally {
+      setIsResettingDemo(false);
+    }
+  };
 
   // Detect desktop runtime shell
   const isDesktop =
@@ -295,6 +310,27 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
               ❄️ Test Quarantine Alert
             </button>
           </div>
+        </div>
+
+        {/* Demo State & Replay Controls */}
+        <div className="p-3 bg-[var(--bg-canvas)] border border-[var(--border-subtle)] flex items-center justify-between">
+          <div className="space-y-0.5">
+            <span className="text-xs font-mono font-bold text-[var(--text-primary)] block">
+              Demo Environment State
+            </span>
+            <span className="text-[11px] text-[var(--text-secondary)]">
+              Deterministic 6-Act sequence, offline LLM replay cache, and clean baseline restore.
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={isResettingDemo}
+            onClick={handleResetDemoState}
+            className="px-3 py-1.5 border border-[var(--border-subtle)] hover:bg-[var(--bg-surface)] text-xs font-mono flex items-center gap-1.5 transition-colors text-[var(--text-primary)] disabled:opacity-50"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 text-[var(--accent-teal)] ${isResettingDemo ? "animate-spin" : ""}`} />
+            <span>{isResettingDemo ? "Resetting..." : "Reset Demo"}</span>
+          </button>
         </div>
 
         {/* Modal Actions */}

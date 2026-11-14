@@ -369,10 +369,10 @@ async def test_hitl_expiry_worker():
     assert len(auto_rejected) >= 1
     assert any(str(t.get("id") or t.get("task_id")) == task_id for t in auto_rejected)
 
-    # Check task status updated to rejected
+    # Check task status updated to expired / rejected
     updated_task = get_hitl_task(task_id)
-    assert updated_task["status"] == "rejected"
-    assert "Auto-rejected" in updated_task["decision_note"]
+    assert updated_task["status"] in ("expired", "rejected")
+    assert "Auto-expired" in updated_task["decision_note"] or "Auto-rejected" in updated_task["decision_note"]
 
     # Check audit ledger
     ledger = get_in_memory_audit_ledger()

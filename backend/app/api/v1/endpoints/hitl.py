@@ -221,7 +221,61 @@ async def submit_hitl_decision(
             detail=f"HITL task with id '{task_id}' not found.",
         )
 
-    # 1. Verify task is pending
+    # 1. Inspect expires_at against current UTC time or verify if status is "expired"
+    now_utc = datetime.now(UTC)
+    is_expired = task.get("status") == "expired"
+    expires_at_val = task.get("expires_at")
+    if not is_expired and expires_at_val:
+        try:
+            exp_dt = (
+                expires_at_val
+                if isinstance(expires_at_val, datetime)
+                else datetime.fromisoformat(str(expires_at_val).replace("Z", "+00:00"))
+            )
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=UTC)
+            if exp_dt < now_utc:
+                is_expired = True
+        except Exception as parse_err:
+            logger.debug("Failed parsing task expires_at %s: %s", expires_at_val, parse_err)
+
+    if is_expired:
+        task["status"] = "expired"
+        _in_memory_hitl_tasks[task_id] = task
+        if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+            try:
+                client = get_service_db_client()
+                if client:
+                    client.table("hitl_tasks").update({"status": "expired"}).eq("id", task_id).execute()
+            except Exception as db_exc:
+                logger.warning("DB update to expired status failed: %s", db_exc)
+
+        # Log to audit_ledger
+        try:
+            from app.core.audit_ledger import write_audit_entry
+
+            await write_audit_entry(
+                actor=str(current_user.id),
+                action="HITL_TASK_EXPIRED_REJECTED",
+                entity_type="hitl_tasks",
+                entity_id=task_id,
+                payload={
+                    "task_id": task_id,
+                    "attempted_decision": body.decision,
+                    "status": "expired",
+                    "expires_at": str(expires_at_val),
+                },
+                explanation=f"Decision rejected: HITL task '{task_id}' has expired past deadline.",
+            )
+        except Exception as audit_exc:
+            logger.debug("write_audit_entry on expired HITL rejected: %s", audit_exc)
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Task has expired and cannot be approved",
+        )
+
+    # 2. Verify task is pending
     if task.get("status") != "pending":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

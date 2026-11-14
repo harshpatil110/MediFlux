@@ -70,8 +70,13 @@ class Settings(BaseSettings):
     )
 
     # Application Modes
-    LLM_CACHE_MODE: str = Field(
-        default="record", description="Cache mode: off, record, replay"
+    DEMO_MODE: bool = Field(default=False, description="Enable deterministic synthetic demo mode")
+    LLM_CACHE_MODE: Literal["off", "record", "replay"] = Field(
+        default="off", description="Cache mode: off, record, replay"
+    )
+    LLM_CACHE_PATH: str = Field(
+        default="fixtures/demo_cache/llm_replay_cache.json",
+        description="Path to JSON replay cache for deterministic demo and offline replays",
     )
     LLM_CACHE_DB_PATH: str = Field(
         default="llm_cache.db", description="Path to SQLite cache database"
@@ -79,7 +84,6 @@ class Settings(BaseSettings):
     AGENT_MODELS_CONFIG_PATH: str = Field(
         default="config/agent_models.yaml", description="Path to agent models yaml"
     )
-    DEMO_MODE: bool = Field(default=False, description="Enable deterministic synthetic demo mode")
     CASCADE_MODE: Literal["per_event", "micro_batch"] = Field(
         default="per_event", description="Cascade mode: per_event or micro_batch"
     )

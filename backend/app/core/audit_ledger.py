@@ -224,6 +224,7 @@ def verify_audit_chain(
                 "valid": False,
                 "total_entries": len(sorted_entries),
                 "broken_at_seq": seq,
+                "broken_at_id": entry.get("id"),
                 "reason": (
                     f"Previous hash mismatch detected at seq {seq}. "
                     f"Expected predecessor hash '{expected_prev_hash}', got '{actual_prev_hash}'."
@@ -254,6 +255,7 @@ def verify_audit_chain(
                 "valid": False,
                 "total_entries": len(sorted_entries),
                 "broken_at_seq": seq,
+                "broken_at_id": entry.get("id"),
                 "reason": f"Hash mismatch detected at seq {seq}. Database payload or sequence altered.",
             }
 

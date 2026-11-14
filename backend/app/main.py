@@ -4,12 +4,14 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.errors import SovereignLLMOfflineError
 from app.core.handlers import register_exception_handlers
 from app.core.logging import logger, setup_logging
 from app.core.middleware import CorrelationIdMiddleware
@@ -162,6 +164,22 @@ app.add_middleware(
 
 # 3. Standardized Global Exception Handlers
 register_exception_handlers(app)
+
+
+@app.exception_handler(SovereignLLMOfflineError)
+async def sovereign_llm_offline_exception_handler(_: Request, exc: SovereignLLMOfflineError) -> JSONResponse:
+    """Handle SovereignLLMOfflineError returning HTTP 503 with JSON detail."""
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": exc.message,
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+                "details": exc.details,
+            },
+        },
+    )
 
 
 # 4. Top-level Health Probes

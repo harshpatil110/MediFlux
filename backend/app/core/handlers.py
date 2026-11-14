@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.errors import SovereignLLMOfflineError
 from app.core.exceptions import AppException
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,17 @@ def build_error_response(
                 "details": details or {},
             },
         },
+    )
+
+
+async def sovereign_llm_offline_handler(_: Request, exc: SovereignLLMOfflineError) -> JSONResponse:
+    """Handle SovereignLLMOfflineError returning HTTP 503."""
+    logger.warning("SovereignLLMOfflineError [%s]: %s (details: %s)", exc.code, exc.message, exc.details)
+    return build_error_response(
+        status_code=exc.status_code,
+        code=exc.code,
+        message=exc.message,
+        details=exc.details,
     )
 
 
@@ -101,6 +113,7 @@ async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONRespons
 
 def register_exception_handlers(app: FastAPI) -> None:
     """Register all global exception handlers onto FastAPI instance."""
+    app.add_exception_handler(SovereignLLMOfflineError, sovereign_llm_offline_handler)
     app.add_exception_handler(AppException, app_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(FastAPIHTTPException, http_exception_handler)

@@ -4,7 +4,7 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from app.core.errors import MediFluxError
+from app.core.errors import MediFluxError, SensitiveDataRoutingError, SovereignLLMOfflineError
 
 T = TypeVar("T")
 
@@ -35,10 +35,6 @@ class LLMProviderError(LLMBaseError):
         super().__init__(full_msg, details)
         self.provider = provider
         self.status_code = status_code
-
-
-class SensitiveDataRoutingError(LLMBaseError):
-    """Raised when a sensitive query fails on local Ollama, strictly forbidding hosted fallback."""
 
 
 class LLMStructuredOutputError(LLMBaseError):
@@ -93,3 +89,16 @@ class LLMResponse(BaseModel, Generic[T]):
     latency_ms: float = 0.0
     cached: bool = False
     raw_content: str | None = None
+
+
+__all__ = [
+    "LLMBaseError",
+    "LLMCacheMissError",
+    "LLMProviderError",
+    "LLMResponse",
+    "LLMStructuredOutputError",
+    "RawCompletionResult",
+    "SensitiveDataRoutingError",
+    "SovereignLLMOfflineError",
+    "TokenUsage",
+]

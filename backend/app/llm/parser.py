@@ -119,6 +119,168 @@ def parse_and_validate(raw_text: str, response_model: type[T]) -> T:
     return TypeAdapter(response_model).validate_json(clean_json)
 
 
+def repair_json_string(raw_text: str) -> str:
+    """Repair malformed JSON string (strip fences, fix quotes, commas, balance brackets)."""
+    text = raw_text.strip()
+    if not text:
+        return "{}"
+
+    # 1. Strip markdown code fences (```json ... ``` or ``` ... ```)
+    fenced_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    if fenced_match:
+        text = fenced_match.group(1).strip()
+    elif text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    # 2. Locate starting bracket ({ or [)
+    first_brace = text.find("{")
+    first_bracket = text.find("[")
+
+    if first_brace != -1 and (first_bracket == -1 or first_brace < first_bracket):
+        start_idx = first_brace
+    elif first_bracket != -1:
+        start_idx = first_bracket
+    else:
+        start_idx = 0
+
+    text = text[start_idx:].strip()
+
+    # 3. Replace single-quoted keys with double-quoted keys: {'key': -> {"key":
+    text = re.sub(r"([{,]\s*)'([a-zA-Z0-9_\-\.]+)'\s*:", r'\1"\2":', text)
+
+    # 4. Replace unquoted keys with double-quoted keys: {key: or {, key: -> {"key":
+    text = re.sub(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_\-\.]*)\s*:", r'\1"\2":', text)
+
+    # 5. Replace single-quoted values with double quotes where safe (e.g. : 'val' -> : "val")
+    text = re.sub(r":\s*'([^']*)'", r': "\1"', text)
+    # Also in arrays: ['foo', 'bar'] -> ["foo", "bar"]
+    text = re.sub(r"(\[\s*|\,\s*)'([^']*)'", r'\1"\2"', text)
+
+    # 6. Remove trailing commas before closing braces/brackets
+    text = re.sub(r",\s*([\]}])", r"\1", text)
+
+    # 6b. Replace unquoted Python literals True, False, None with true, false, null
+    def _sub_literal(m: re.Match[str]) -> str:
+        if m.group(1):
+            return m.group(1)
+        val = m.group(2)
+        if val == "True":
+            return "true"
+        elif val == "False":
+            return "false"
+        elif val == "None":
+            return "null"
+        return m.group(0)
+
+    text = re.sub(
+        r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')|\b(True|False|None)\b',
+        _sub_literal,
+        text,
+    )
+
+    # 7. Balance brackets and unclosed string quotes
+    in_string = False
+    escape = False
+    stack: list[str] = []
+    rebuilt_chars: list[str] = []
+
+    for char in text:
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            rebuilt_chars.append(char)
+        else:
+            if char == '"':
+                in_string = True
+                rebuilt_chars.append(char)
+            elif char in ("{", "["):
+                stack.append(char)
+                rebuilt_chars.append(char)
+            elif char == "}":
+                if stack and stack[-1] == "{":
+                    stack.pop()
+                    rebuilt_chars.append(char)
+            elif char == "]":
+                if stack and stack[-1] == "[":
+                    stack.pop()
+                    rebuilt_chars.append(char)
+            else:
+                rebuilt_chars.append(char)
+
+    if in_string:
+        rebuilt_chars.append('"')
+
+    while stack:
+        open_bracket = stack.pop()
+        if open_bracket == "{":
+            rebuilt_chars.append("}")
+        elif open_bracket == "[":
+            rebuilt_chars.append("]")
+
+    result = "".join(rebuilt_chars).strip()
+    result = re.sub(r",\s*([\]}])", r"\1", result)
+    return result
+
+
+def parse_and_repair_llm_json(
+    raw_text: str,
+    response_model: type[T],
+    fallback_factory: Callable[[], T] | None = None,
+) -> T:
+    """Parse and repair malformed LLM JSON string, validating against response_model.
+
+    Handles:
+    - Markdown code fences (```json ... ```)
+    - Unbalanced brackets and braces ({ ... } and [ ... ])
+    - Trailing commas in objects and arrays
+    - Unquoted or single-quoted keys
+    - Graceful fallback using fallback_factory without raising unhandled json.JSONDecodeError.
+    """
+    # 1. Quick try with standard parse
+    try:
+        return parse_and_validate(raw_text, response_model)
+    except Exception:
+        pass
+
+    # 2. Repair candidate string
+    repaired_text = repair_json_string(raw_text)
+
+    try:
+        clean_json = extract_json_str(repaired_text) or repaired_text
+        if hasattr(response_model, "model_validate_json"):
+            return response_model.model_validate_json(clean_json)
+
+        from pydantic import TypeAdapter
+
+        return TypeAdapter(response_model).validate_json(clean_json)
+    except Exception as exc:
+        logger.warning(
+            "parse_and_repair_llm_json failed validation: %s (repaired: %s)",
+            exc,
+            repaired_text,
+        )
+        if fallback_factory is not None:
+            try:
+                return fallback_factory()
+            except Exception as fb_err:
+                logger.error("fallback_factory invocation failed: %s", fb_err)
+
+        raise LLMStructuredOutputError(
+            message=f"Failed to parse and repair LLM output for {getattr(response_model, '__name__', str(response_model))}: {exc}",
+            raw_output=raw_text,
+            details={"error": str(exc), "repaired": repaired_text},
+        ) from None
+
+
 async def execute_repair_loop(
     complete_fn: Callable[[list[dict[str, str]]], Awaitable[RawCompletionResult]],
     messages: list[dict[str, str]],

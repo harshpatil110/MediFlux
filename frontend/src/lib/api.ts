@@ -563,4 +563,24 @@ export const api = {
   overview: {
     getKpis: () => apiRequest<OverviewKpis>("/api/v1/overview/kpis"),
   },
+
+  // --------------------------------------------------------------------------
+  // Demo & System Resilience (Task 29)
+  // --------------------------------------------------------------------------
+  demo: {
+    reset: () =>
+      apiRequest<{ status: string; message: string; [key: string]: any }>(
+        "/api/v1/demo/reset",
+        { method: "POST" }
+      ),
+    getStatus: () =>
+      apiRequest<{
+        demo_mode: boolean;
+        cache_mode: string;
+        cache_entries: number;
+        modules_status: Record<string, string>;
+        total_batches: number;
+        quarantined_batches: string[];
+      }>("/api/v1/demo/status"),
+  },
 };

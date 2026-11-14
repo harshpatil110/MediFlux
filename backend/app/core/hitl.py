@@ -27,6 +27,7 @@ __all__ = [
     "get_hitl_task",
     "clear_hitl_tasks",
     "get_in_memory_hitl_tasks",
+    "is_task_expired",
     "register_resumable_graph",
     "get_resumable_graph",
 ]
@@ -104,6 +105,26 @@ def resolve_hitl_task(task_id: str, status: str = "approved", decision_reason: s
         _in_memory_hitl_tasks[tid]["decision_reason"] = decision_reason
         _in_memory_hitl_tasks[tid]["decision_note"] = decision_reason
         _in_memory_hitl_tasks[tid]["decided_at"] = datetime.now(UTC).isoformat()
+
+
+def is_task_expired(task: dict[str, Any]) -> bool:
+    """Return True if task status is 'expired' or expires_at is in the past."""
+    if task.get("status") == "expired":
+        return True
+    expires_at_val = task.get("expires_at")
+    if not expires_at_val:
+        return False
+    try:
+        exp_dt = (
+            expires_at_val
+            if isinstance(expires_at_val, datetime)
+            else datetime.fromisoformat(str(expires_at_val).replace("Z", "+00:00"))
+        )
+        if exp_dt.tzinfo is None:
+            exp_dt = exp_dt.replace(tzinfo=UTC)
+        return exp_dt < datetime.now(UTC)
+    except Exception:
+        return False
 
 
 # -----------------------------------------------------------------------------

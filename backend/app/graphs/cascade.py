@@ -62,7 +62,7 @@ class CascadeState(TypedDict, total=False):
     hitl_status: dict[str, Any] | None
     trace: list[dict[str, Any]]
     errors: list[dict[str, Any]]
-    status: Literal["pending", "completed", "partial", "failed", "waiting_hitl"]
+    status: Literal["pending", "completed", "partial", "partial_failure", "failed", "waiting_hitl"]
     modify_in_progress: bool
     is_burst: bool
     is_cross_border: bool
@@ -524,10 +524,48 @@ async def stockist_node(state: CascadeState, router: Any = None) -> dict[str, An
             trace_step="error",
         )
 
+        try:
+            from app.core.hitl import request_human_approval
+
+            await request_human_approval(
+                task_type="cascade_partial_failure_escalation",
+                node_id=str(state.get("pharmacy_id") or "00000000-0000-0000-0000-000000000000"),
+                correlation_id=corr_id,
+                details={
+                    "failed_tier": "stockist",
+                    "error": str(exc),
+                    "correlation_id": corr_id,
+                    "pharmacy_result": state.get("pharmacy_result"),
+                },
+                risk_level="high",
+            )
+        except Exception as hitl_exc:
+            logger.warning("HITL escalation in stockist_node failed: %s", hitl_exc)
+
+        try:
+            from app.core.audit_ledger import write_audit_entry
+
+            await write_audit_entry(
+                actor="StockistAgent",
+                action="CASCADE_TIER_PARTIAL_FAILURE",
+                entity_type="cascade_state",
+                entity_id=corr_id,
+                payload={
+                    "tier": "stockist",
+                    "error": str(exc),
+                    "status": "partial_failure",
+                    "correlation_id": corr_id,
+                },
+                explanation=f"Stockist tier failed: {exc}. Retained pharmacy result and marked partial_failure.",
+            )
+        except Exception as audit_exc:
+            logger.warning("Audit ledger recording in stockist_node failed: %s", audit_exc)
+
         return {
             "stockist_result": {"status": "failed", "error": str(exc)},
             "trace": trace,
             "errors": errors,
+            "status": "partial_failure",
         }
 
 
@@ -683,12 +721,50 @@ async def distributor_node(state: CascadeState, router: Any = None) -> dict[str,
             trace_step="error",
         )
 
+        try:
+            from app.core.hitl import request_human_approval
+
+            await request_human_approval(
+                task_type="cascade_partial_failure_escalation",
+                node_id=str(state.get("pharmacy_id") or "00000000-0000-0000-0000-000000000000"),
+                correlation_id=corr_id,
+                details={
+                    "failed_tier": "distributor",
+                    "error": str(exc),
+                    "correlation_id": corr_id,
+                    "pharmacy_result": state.get("pharmacy_result"),
+                    "stockist_result": state.get("stockist_result"),
+                },
+                risk_level="high",
+            )
+        except Exception as hitl_exc:
+            logger.warning("HITL escalation in distributor_node failed: %s", hitl_exc)
+
+        try:
+            from app.core.audit_ledger import write_audit_entry
+
+            await write_audit_entry(
+                actor="distributor_agent",
+                action="CASCADE_TIER_PARTIAL_FAILURE",
+                entity_type="cascade_state",
+                entity_id=corr_id,
+                payload={
+                    "tier": "distributor",
+                    "error": str(exc),
+                    "status": "partial_failure",
+                    "correlation_id": corr_id,
+                },
+                explanation=f"Distributor tier failed: {exc}. Retained earlier results and marked partial_failure.",
+            )
+        except Exception as audit_exc:
+            logger.warning("Audit ledger recording in distributor_node failed: %s", audit_exc)
+
         return {
             "settlement_result": {"status": "failed", "error": str(exc), "approved": False},
             "distributor_result": {"status": "failed", "error": str(exc)},
             "trace": trace,
             "errors": errors,
-            "status": "partial",
+            "status": "partial_failure",
         }
 
 
@@ -815,12 +891,51 @@ async def manufacturer_node(state: CascadeState, router: Any = None) -> dict[str
             trace_step="error",
         )
 
+        try:
+            from app.core.hitl import request_human_approval
+
+            await request_human_approval(
+                task_type="cascade_partial_failure_escalation",
+                node_id=str(state.get("pharmacy_id") or "00000000-0000-0000-0000-000000000000"),
+                correlation_id=corr_id,
+                details={
+                    "failed_tier": "manufacturer",
+                    "error": str(exc),
+                    "correlation_id": corr_id,
+                    "pharmacy_result": state.get("pharmacy_result"),
+                    "stockist_result": state.get("stockist_result"),
+                    "distributor_result": state.get("distributor_result"),
+                },
+                risk_level="high",
+            )
+        except Exception as hitl_exc:
+            logger.warning("HITL escalation in manufacturer_node failed: %s", hitl_exc)
+
+        try:
+            from app.core.audit_ledger import write_audit_entry
+
+            await write_audit_entry(
+                actor="manufacturer_agent",
+                action="CASCADE_TIER_PARTIAL_FAILURE",
+                entity_type="cascade_state",
+                entity_id=corr_id,
+                payload={
+                    "tier": "manufacturer",
+                    "error": str(exc),
+                    "status": "partial_failure",
+                    "correlation_id": corr_id,
+                },
+                explanation=f"Manufacturer tier failed: {exc}. Retained earlier results and marked partial_failure.",
+            )
+        except Exception as audit_exc:
+            logger.warning("Audit ledger recording in manufacturer_node failed: %s", audit_exc)
+
         return {
             "demand_signal": {"trend": "error", "error": str(exc)},
             "manufacturer_result": {"status": "failed", "error": str(exc)},
             "trace": trace,
             "errors": errors,
-            "status": "partial",
+            "status": "partial_failure",
         }
 
 
@@ -928,12 +1043,53 @@ async def _execute_tier_node(
             details={"error": str(exc)},
         )
 
+        try:
+            from app.core.hitl import request_human_approval
+
+            await request_human_approval(
+                task_type="cascade_partial_failure_escalation",
+                node_id=str(state.get("pharmacy_id") or "00000000-0000-0000-0000-000000000000"),
+                correlation_id=corr_id,
+                details={
+                    "failed_tier": tier,
+                    "error": str(exc),
+                    "correlation_id": corr_id,
+                    "retained_earlier_results": {
+                        "pharmacy": state.get("pharmacy_result"),
+                        "stockist": state.get("stockist_result"),
+                        "distributor": state.get("distributor_result"),
+                    },
+                },
+                risk_level="high",
+            )
+        except Exception as hitl_exc:
+            logger.warning("HITL escalation in _execute_tier_node failed: %s", hitl_exc)
+
+        try:
+            from app.core.audit_ledger import write_audit_entry
+
+            await write_audit_entry(
+                actor=agent_name,
+                action="CASCADE_TIER_PARTIAL_FAILURE",
+                entity_type="cascade_state",
+                entity_id=corr_id,
+                payload={
+                    "tier": tier,
+                    "error": str(exc),
+                    "status": "partial_failure",
+                    "correlation_id": corr_id,
+                },
+                explanation=f"Cascade tier '{tier}' failed; retained earlier tiers and marked partial_failure.",
+            )
+        except Exception as audit_exc:
+            logger.warning("Audit ledger recording in _execute_tier_node failed: %s", audit_exc)
+
         # Resilient error isolation: do not crash graph
         return {
-            f"{tier}_result": {"error": str(exc)},
+            f"{tier}_result": {"status": "failed", "error": str(exc)},
             "trace": trace,
             "errors": errors,
-            "status": "partial",
+            "status": "partial_failure",
         }
 
 
@@ -972,13 +1128,55 @@ async def finalize_node(state: CascadeState) -> dict[str, Any]:
 
     # Determine final cascade status
     if state.get("status") == "waiting_hitl":
-        final_status: Literal["completed", "partial", "failed", "waiting_hitl"] = "waiting_hitl"
-    elif errors or state.get("status") == "partial":
-        final_status: Literal["completed", "partial", "failed", "waiting_hitl"] = "partial"
+        final_status: Literal["completed", "partial", "partial_failure", "failed", "waiting_hitl"] = "waiting_hitl"
+    elif state.get("status") == "partial_failure" or errors:
+        final_status = "partial_failure"
+    elif state.get("status") == "partial":
+        final_status = "partial"
     elif not active_tiers:
         final_status = "failed"
     else:
         final_status = "completed"
+
+    if final_status == "partial_failure":
+        try:
+            from app.core.hitl import request_human_approval
+
+            await request_human_approval(
+                task_type="cascade_partial_failure_escalation",
+                node_id=str(state.get("pharmacy_id") or "00000000-0000-0000-0000-000000000000"),
+                correlation_id=corr_id,
+                details={
+                    "status": "partial_failure",
+                    "correlation_id": corr_id,
+                    "errors": errors,
+                    "pharmacy_result": state.get("pharmacy_result"),
+                    "stockist_result": state.get("stockist_result"),
+                    "distributor_result": state.get("distributor_result"),
+                    "manufacturer_result": state.get("manufacturer_result"),
+                },
+                risk_level="high",
+            )
+        except Exception as hitl_exc:
+            logger.warning("HITL escalation in finalize_node failed: %s", hitl_exc)
+
+        try:
+            from app.core.audit_ledger import write_audit_entry
+
+            await write_audit_entry(
+                actor="cascade_graph",
+                action="CASCADE_PARTIAL_FAILURE_FINALIZED",
+                entity_type="cascade_trace",
+                entity_id=corr_id,
+                payload={
+                    "correlation_id": corr_id,
+                    "status": "partial_failure",
+                    "errors": errors,
+                },
+                explanation=f"Cascade completed with partial_failure for correlation_id={corr_id}. Escalated to HITL.",
+            )
+        except Exception as audit_exc:
+            logger.warning("Audit ledger recording in finalize_node failed: %s", audit_exc)
 
     record = {
         "correlation_id": corr_id,
@@ -1048,16 +1246,22 @@ def build_cascade_graph(
     def _route_from_pharmacy(s: CascadeState) -> str:
         if s.get("status") == "waiting_hitl":
             return END
+        if s.get("status") == "partial_failure":
+            return "finalize"
         return "stockist" if "stockist" in s.get("active_tiers", []) else "finalize"
 
     def _route_from_stockist(s: CascadeState) -> str:
         if s.get("status") == "waiting_hitl":
             return END
+        if s.get("status") == "partial_failure":
+            return "finalize"
         return "distributor" if "distributor" in s.get("active_tiers", []) else "finalize"
 
     def _route_from_distributor(s: CascadeState) -> str:
         if s.get("status") == "waiting_hitl":
             return END
+        if s.get("status") == "partial_failure":
+            return "finalize"
         settlement = s.get("settlement_result")
         if settlement and not settlement.get("approved", True):
             return "finalize"

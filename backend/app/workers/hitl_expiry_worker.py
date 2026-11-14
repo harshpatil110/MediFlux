@@ -77,8 +77,8 @@ async def process_expired_hitl_tasks() -> list[dict[str, Any]]:
         task_type = str(task.get("task_type") or task.get("step_name") or "unknown")
 
         # Mutate task record
-        task["status"] = "rejected"
-        task["decision_note"] = "Auto-rejected: Task expired without human intervention."
+        task["status"] = "expired"
+        task["decision_note"] = "Auto-expired: Task expired without human intervention."
         task["decided_at"] = now_iso
         task["decided_by"] = "system:hitl_expiry_worker"
 
@@ -88,8 +88,8 @@ async def process_expired_hitl_tasks() -> list[dict[str, Any]]:
                 client = get_service_db_client()
                 if client:
                     client.table("hitl_tasks").update({
-                        "status": "rejected",
-                        "decision_note": "Auto-rejected: Task expired without human intervention.",
+                        "status": "expired",
+                        "decision_note": "Auto-expired: Task expired without human intervention.",
                         "decided_at": now_iso,
                     }).eq("id", task_id).execute()
             except Exception as exc:
@@ -114,6 +114,7 @@ async def process_expired_hitl_tasks() -> list[dict[str, Any]]:
             {
                 "approved": False,
                 "decision": "reject",
+                "status": "expired",
                 "reason": "expired",
                 "note": "Auto-rejected: Task expired without human intervention.",
             },
@@ -127,7 +128,8 @@ async def process_expired_hitl_tasks() -> list[dict[str, Any]]:
             correlation_id=corr_id,
             payload={
                 "task_id": task_id,
-                "status": "rejected",
+                "status": "expired",
+                "decision": "reject",
                 "reason": "expired",
                 "event_type": "hitl_expired",
             },

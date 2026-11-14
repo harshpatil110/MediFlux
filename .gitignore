@@ -47,6 +47,7 @@ dist-ssr/
 *.tsbuildinfo
 
 # IDE & OS
+.gemini/
 .vscode/
 .idea/
 *.swp

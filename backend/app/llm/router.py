@@ -7,7 +7,9 @@ from typing import Any, Literal, TypeVar
 import yaml
 
 from app.core.config import settings
+from app.core.errors import SovereignLLMOfflineError
 from app.llm.cache import llm_cache
+from app.llm.fault import check_and_raise_fault
 from app.llm.parser import execute_repair_loop, inject_schema
 from app.llm.providers import LLMProvider, NvidiaProvider, OllamaProvider, OpenRouterProvider
 from app.llm.schemas import (
@@ -16,7 +18,6 @@ from app.llm.schemas import (
     LLMResponse,
     LLMStructuredOutputError,
     RawCompletionResult,
-    SensitiveDataRoutingError,
 )
 from app.llm.telemetry import llm_telemetry
 
@@ -157,9 +158,9 @@ class LLMRouter:
           SensitiveDataRoutingError and NEVER fail over to hosted providers.
         - If sensitivity="normal": routes along fallback chain (nvidia -> openrouter -> ollama).
         """
-        # 1. Check persistent SQLite cache
+        # 1. Check persistent replay & SQLite cache
         cache_key = llm_cache.compute_cache_key(agent, messages, response_model)
-        cached_response = llm_cache.get(cache_key, response_model)
+        cached_response = llm_cache.get(cache_key, response_model, agent=agent, messages=messages)
         if cached_response is not None:
             llm_telemetry.record(cached_response, agent, task_type)
             return cached_response
@@ -171,11 +172,12 @@ class LLMRouter:
         if sensitivity == "sensitive":
             ollama_prov = self.providers.get("ollama")
             if not ollama_prov:
-                raise SensitiveDataRoutingError("Ollama provider is not registered in router")
+                raise SovereignLLMOfflineError("Ollama provider is not registered in router")
 
             ollama_model = self.get_model_for_agent(agent, "ollama")
 
             async def _call_ollama(msgs: list[dict[str, str]]) -> RawCompletionResult:
+                check_and_raise_fault("ollama")
                 return await ollama_prov.complete(
                     messages=msgs,
                     model=ollama_model,
@@ -184,6 +186,7 @@ class LLMRouter:
                 )
 
             try:
+                check_and_raise_fault("ollama")
                 parsed_data, completion_res = await execute_repair_loop(
                     complete_fn=_call_ollama,
                     messages=injected_messages,
@@ -198,8 +201,9 @@ class LLMRouter:
                     agent,
                     exc,
                 )
-                raise SensitiveDataRoutingError(
-                    f"Sensitive data routing failed on local Ollama: {exc}"
+                raise SovereignLLMOfflineError(
+                    f"Sensitive data routing failed on local Ollama: {exc}",
+                    details={"agent": agent, "error": str(exc)},
                 ) from exc
 
             response = LLMResponse[T](
@@ -214,7 +218,13 @@ class LLMRouter:
                 raw_content=completion_res.content,
             )
             llm_telemetry.record(response, agent, task_type)
-            llm_cache.set(cache_key, agent, response)
+            llm_cache.set(
+                cache_key,
+                agent,
+                response,
+                messages=messages,
+                response_model=response_model,
+            )
             return response
 
         # 4. Normal task execution with fallback chain
@@ -226,6 +236,19 @@ class LLMRouter:
         for prov_name in fallback_chain:
             provider = self.providers.get(prov_name)
             if not provider:
+                continue
+
+            # Check fault injection early for instant failover (< 100ms)
+            try:
+                check_and_raise_fault(prov_name)
+            except (LLMProviderError, LLMBaseError) as fault_exc:
+                logger.warning(
+                    "Fault injected on provider [%s] for agent [%s]: %s. Failing over immediately...",
+                    prov_name,
+                    agent,
+                    fault_exc,
+                )
+                chain_errors.append((prov_name, str(fault_exc)))
                 continue
 
             # Skip providers without configured keys if required
@@ -243,12 +266,15 @@ class LLMRouter:
 
             current_provider = provider
             current_model = model
+            current_prov_name = prov_name
 
             async def _make_call(
                 msgs: list[dict[str, str]],
                 p: LLMProvider = current_provider,
                 m: str = current_model,
+                pn: str = current_prov_name,
             ) -> RawCompletionResult:
+                check_and_raise_fault(pn)
                 return await p.complete(
                     messages=msgs,
                     model=m,
@@ -282,7 +308,13 @@ class LLMRouter:
                     raw_content=completion_res.content,
                 )
                 llm_telemetry.record(response, agent, task_type)
-                llm_cache.set(cache_key, agent, response)
+                llm_cache.set(
+                    cache_key,
+                    agent,
+                    response,
+                    messages=messages,
+                    response_model=response_model,
+                )
                 return response
 
             except (LLMProviderError, LLMStructuredOutputError, LLMBaseError) as exc:

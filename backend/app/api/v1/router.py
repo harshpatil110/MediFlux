@@ -10,6 +10,7 @@ from app.api.v1.endpoints.cascade import router as cascade_router
 from app.api.v1.endpoints.coldchain import router as coldchain_router
 from app.api.v1.endpoints.compliance import router as compliance_router
 from app.api.v1.endpoints.copilot import router as copilot_router
+from app.api.v1.endpoints.demo import router as demo_router
 from app.api.v1.endpoints.developer import router as developer_router
 from app.api.v1.endpoints.developer import webhooks_alias_router
 from app.api.v1.endpoints.events import router as events_router
@@ -54,6 +55,7 @@ api_router.include_router(search_router)
 api_router.include_router(developer_router)
 api_router.include_router(webhooks_alias_router)
 api_router.include_router(mcp_router)
+api_router.include_router(demo_router)
 
 
 @api_router.get("/status", tags=["System Status"])

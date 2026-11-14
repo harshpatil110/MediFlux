@@ -9,6 +9,7 @@ import {
   LogOut,
   Moon,
   Radio,
+  RotateCcw,
   Settings,
   Sun,
   UserCheck,
@@ -23,6 +24,7 @@ import { StatusBadge } from "../shared/StatusBadge";
 import { SseDebugPanel } from "./SseDebugPanel";
 import { BackendSettingsModal } from "./BackendSettingsModal";
 import { useEventStream } from "../../hooks/useEventStream";
+import { api } from "../../lib/api";
 
 interface AppShellProps {
   children?: React.ReactNode;
@@ -37,12 +39,35 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [isSseDebugOpen, setIsSseDebugOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isResettingDemo, setIsResettingDemo] = useState(false);
+  const [demoStatus, setDemoStatus] = useState<string>("REPLAY");
 
   useEffect(() => {
     const handleOpenSettings = () => setIsSettingsOpen(true);
     window.addEventListener("mediflux:open-settings", handleOpenSettings);
     return () => window.removeEventListener("mediflux:open-settings", handleOpenSettings);
   }, []);
+
+  useEffect(() => {
+    api.demo
+      .getStatus()
+      .then((s) => {
+        setDemoStatus(s.demo_mode || s.cache_mode === "replay" ? "DEMO REPLAY" : "LIVE");
+      })
+      .catch(() => setDemoStatus("DEMO REPLAY"));
+  }, []);
+
+  const handleResetDemo = async () => {
+    setIsResettingDemo(true);
+    try {
+      await api.demo.reset();
+      window.dispatchEvent(new CustomEvent("mediflux:backend-url-changed"));
+    } catch (err) {
+      console.warn("Failed to reset demo state:", err);
+    } finally {
+      setIsResettingDemo(false);
+    }
+  };
 
   // Background stream for live status pill in top header
   const { events, connectionState } = useEventStream({
@@ -227,6 +252,29 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
               <span className="px-1 py-0.2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[10px] text-[var(--text-secondary)]">
                 {events.length}
               </span>
+            </button>
+
+            {/* Demo Replay / Live Mode Indicator */}
+            <span
+              className={`hidden md:inline-flex items-center px-2 py-0.5 text-[10px] font-mono border uppercase tracking-wider ${
+                demoStatus === "DEMO REPLAY"
+                  ? "bg-teal-50 text-teal-800 border-teal-300 dark:bg-teal-950/60 dark:text-teal-200"
+                  : "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200"
+              }`}
+            >
+              {demoStatus}
+            </span>
+
+            {/* Reset Demo State Trigger */}
+            <button
+              type="button"
+              disabled={isResettingDemo}
+              onClick={handleResetDemo}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--bg-canvas)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] transition-colors text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+              title="Reset Demo State to Clean Baseline (Modules, Batches, Tasks)"
+            >
+              <RotateCcw className={`w-3 h-3 text-[var(--accent-teal)] ${isResettingDemo ? "animate-spin" : ""}`} />
+              <span className="hidden lg:inline text-[11px]">Reset Demo</span>
             </button>
 
             {/* Backend Connection Settings Pill */}

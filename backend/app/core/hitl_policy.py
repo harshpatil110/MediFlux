@@ -63,6 +63,12 @@ _DEFAULT_POLICIES: dict[str, dict[str, Any]] = {
         "expiry_hours": 12,
         "description": "Clinical review and schedule classification for unlisted or experimental medication.",
     },
+    "cascade_partial_failure_escalation": {
+        "enabled": True,
+        "required_roles": ["admin", "system_admin", "compliance_officer"],
+        "expiry_hours": 24,
+        "description": "Escalation for demand cascade failure across supply chain tiers.",
+    },
 }
 
 _cached_policies: dict[str, dict[str, Any]] | None = None

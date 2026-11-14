@@ -1,0 +1,233 @@
+{
+  "03035b7f0476358ac9f87b50ce648cb17bfa352678c31747d4f4fb18d2c44e45": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "1a3d89e0cfed2aeb6e337ea717cff43f13798bf8e03cbef316ddb48cd0e161bd": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "1cae03fe235c85f2accb5480df6b6a404597d8d76ce136fddc7ac5171bf94471": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "2a41441ba1e30f3221cefc1e18af7a155d42d7744eab9b1e6ae9a6f106502b01": {
+    "agent": "compliance_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "meta-llama/llama-3.1-70b-instruct:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "56a8a9e9ed532905f3f1c31f1c313e786e5c0ec4a6187605ec194818d407cac5": {
+    "agent": "analytics_agent",
+    "completion_tokens": 12,
+    "data_json": "{\"decision\":\"fallback_accepted\",\"tokens_counted\":42}",
+    "latency_ms": 8.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 30,
+    "provider": "openrouter",
+    "raw_content": "{\"decision\": \"fallback_accepted\", \"tokens_counted\": 42}",
+    "total_tokens": 42
+  },
+  "6b2b6c03dc4ad8922b883eb15364974d1a79e96ca8c5c7afd4791b1378ecdf8f": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "736993800087c77ca6f5da823d88634ffa659df9d9f926297dbe1a5179dca44c": {
+    "agent": "compliance_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "meta-llama/llama-3.1-70b-instruct:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "8f7ce49fce9e93fda301a1be4a199b9d13b7a5df5e5b3d1d93d2652f62040d9d": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "a56688da48e25e7c847142190088903d6c049200163686c464727ac47ed97969": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "ce0e4fbfc0e6917a9b59c3cd1d38b744e536921afe4984b1dfd28962ffd807e9": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "d0351cbb6920a92ad1f05169cf05c15635d1569a1eed862b1d54c144e9150a7f": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "d606b74f5b67c8d6aa4ecaecbe72449827389a796303aaf4b2d29a31efbc8991": {
+    "agent": "analytics_agent",
+    "completion_tokens": 12,
+    "data_json": "{\"decision\":\"fallback_accepted\",\"tokens_counted\":42}",
+    "latency_ms": 8.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 30,
+    "provider": "openrouter",
+    "raw_content": "{\"decision\": \"fallback_accepted\", \"tokens_counted\": 42}",
+    "total_tokens": 42
+  },
+  "dd3422ba34f8a9f9e32c811059ef41eb1a683abbf975ae69512b832ba56d8a6c": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "e276ab5a916c27d24fa127ac3c24434a13162f8afdb73bafd70b4dad49bc18fa": {
+    "agent": "analytics_agent",
+    "completion_tokens": 10,
+    "data_json": "{\"message\":\"fallback_ok\",\"value\":100}",
+    "latency_ms": 1.5,
+    "model": "google/gemma-2-9b-it:free",
+    "prompt_tokens": 10,
+    "provider": "openrouter",
+    "raw_content": "{\"message\": \"fallback_ok\", \"value\": 100}",
+    "total_tokens": 20
+  },
+  "norm:adapter_forge_agent:demo_act_2": {
+    "agent": "adapter_forge_agent",
+    "completion_tokens": 160,
+    "data_json": "{\"adapter_name\": \"legacy_pharmacy_csv_translator\", \"version\": 1, \"python_code\": \"def translate(payload):\\n    return {'event_type': 'retail.sale', 'quantity': int(payload.get('qty', 1)), 'sku': payload.get('code', 'MED-650')}\", \"test_passed\": true, \"summary\": \"Synthesized AST-verified translator for legacy retail format.\"}",
+    "latency_ms": 18.0,
+    "model": "replay-qwen2.5-coder",
+    "prompt_tokens": 240,
+    "provider": "cached_replay",
+    "raw_content": "{\"adapter_name\": \"legacy_pharmacy_csv_translator\", \"version\": 1, \"python_code\": \"def translate(payload):\\n    return {'event_type': 'retail.sale', 'quantity': int(payload.get('qty', 1)), 'sku': payload.get('code', 'MED-650')}\", \"test_passed\": true, \"summary\": \"Synthesized AST-verified translator for legacy retail format.\"}",
+    "total_tokens": 400
+  },
+  "norm:copilot_agent:demo_act_6": {
+    "agent": "copilot_agent",
+    "completion_tokens": 150,
+    "data_json": "{\"answer\": \"The MediFlux Autonomous Supply Chain operates with zero stockouts across 4 tiers. 1 batch was auto-quarantined due to a 14.2C thermal excursion, and the Dynamic Balancing Agent has already dispatched replacement stock from Mumbai Hub to Pune Retail Node.\", \"citations\": [{\"source\": \"coldchain.batches\", \"content\": \"Batch BATCH-BIO-001 quarantined at Mumbai Central Storage Hub\"}, {\"source\": \"audit_ledger\", \"content\": \"Cryptographic SHA-256 hash chain verified with 0 broken links\"}], \"tools_used\": [\"lookup_inventory\", \"check_coldchain\", \"verify_audit_ledger\"]}",
+    "latency_ms": 16.0,
+    "model": "replay-llama-3.1-70b",
+    "prompt_tokens": 210,
+    "provider": "cached_replay",
+    "raw_content": "{\"answer\": \"The MediFlux Autonomous Supply Chain operates with zero stockouts across 4 tiers. 1 batch was auto-quarantined due to a 14.2C thermal excursion, and the Dynamic Balancing Agent has already dispatched replacement stock from Mumbai Hub to Pune Retail Node.\", \"citations\": [{\"source\": \"coldchain.batches\", \"content\": \"Batch BATCH-BIO-001 quarantined at Mumbai Central Storage Hub\"}, {\"source\": \"audit_ledger\", \"content\": \"Cryptographic SHA-256 hash chain verified with 0 broken links\"}], \"tools_used\": [\"lookup_inventory\", \"check_coldchain\", \"verify_audit_ledger\"]}",
+    "total_tokens": 360
+  },
+  "norm:demand_forecasting_agent:demo_act_1": {
+    "agent": "demand_forecasting_agent",
+    "completion_tokens": 64,
+    "data_json": "{\"forecast_quantity\": 120, \"confidence\": 0.94, \"reorder_urgency\": \"high\", \"lead_time_days\": 2, \"reasoning\": \"Single retail strip consumption triggered automatic buffer depletion. Reorder threshold breached at Stockist Hub.\"}",
+    "latency_ms": 14.5,
+    "model": "replay-llama-3.1-70b",
+    "prompt_tokens": 128,
+    "provider": "cached_replay",
+    "raw_content": "{\"forecast_quantity\": 120, \"confidence\": 0.94, \"reorder_urgency\": \"high\", \"lead_time_days\": 2, \"reasoning\": \"Single retail strip consumption triggered automatic buffer depletion. Reorder threshold breached at Stockist Hub.\"}",
+    "total_tokens": 192
+  },
+  "norm:excursion_analyst_agent:demo_act_5": {
+    "agent": "excursion_analyst_agent",
+    "completion_tokens": 135,
+    "data_json": "{\"excursion_detected\": true, \"peak_temperature\": 14.2, \"breach_duration_hours\": 3.5, \"arrhenius_viability_pct\": 42.0, \"quarantine_recommended\": true, \"trigger_dynamic_rebalance\": true, \"reasoning\": \"Thermal envelope excursion breached 8.0C threshold for > 2 hours. Arrhenius model indicates severe biological degradation; isolate immediately.\"}",
+    "latency_ms": 17.5,
+    "model": "replay-llama-3.1-70b",
+    "prompt_tokens": 280,
+    "provider": "cached_replay",
+    "raw_content": "{\"excursion_detected\": true, \"peak_temperature\": 14.2, \"breach_duration_hours\": 3.5, \"arrhenius_viability_pct\": 42.0, \"quarantine_recommended\": true, \"trigger_dynamic_rebalance\": true, \"reasoning\": \"Thermal envelope excursion breached 8.0C threshold for > 2 hours. Arrhenius model indicates severe biological degradation; isolate immediately.\"}",
+    "total_tokens": 415
+  },
+  "norm:prescription_scanner_agent:demo_act_4": {
+    "agent": "prescription_scanner_agent",
+    "completion_tokens": 120,
+    "data_json": "{\"patient_initials\": \"R.K.\", \"doctor_name\": \"Dr. A. K. Sharma\", \"doctor_registration_no\": \"MCI-2019-88412\", \"doctor_verified\": true, \"drugs\": [{\"name\": \"Amoxicillin 500mg\", \"schedule\": \"H\", \"quantity\": 10, \"requires_rx\": true}], \"decision\": \"approve_dispense\", \"reasoning\": \"Physician MCI credential validated against registry; valid Schedule H statutory dispense.\"}",
+    "latency_ms": 15.0,
+    "model": "replay-qwen2.5-coder",
+    "prompt_tokens": 195,
+    "provider": "cached_replay",
+    "raw_content": "{\"patient_initials\": \"R.K.\", \"doctor_name\": \"Dr. A. K. Sharma\", \"doctor_registration_no\": \"MCI-2019-88412\", \"doctor_verified\": true, \"drugs\": [{\"name\": \"Amoxicillin 500mg\", \"schedule\": \"H\", \"quantity\": 10, \"requires_rx\": true}], \"decision\": \"approve_dispense\", \"reasoning\": \"Physician MCI credential validated against registry; valid Schedule H statutory dispense.\"}",
+    "total_tokens": 315
+  },
+  "norm:regulatory_analyst_agent:demo_act_3": {
+    "agent": "regulatory_analyst_agent",
+    "completion_tokens": 140,
+    "data_json": "{\"authority\": \"CDSCO / NPPA\", \"gazette_notification_id\": \"DPCO-2026-041\", \"drug_name\": \"Paracetamol 650mg\", \"new_ceiling_price\": 1.85, \"previous_ceiling_price\": 2.40, \"effective_immediately\": true, \"requires_code_mutation\": true, \"affected_schedules\": [\"H\", \"OTC\"], \"summary\": \"Mandatory ceiling price revision per NPPA Order 41/2026.\"}",
+    "latency_ms": 22.0,
+    "model": "replay-llama-3.1-70b",
+    "prompt_tokens": 310,
+    "provider": "cached_replay",
+    "raw_content": "{\"authority\": \"CDSCO / NPPA\", \"gazette_notification_id\": \"DPCO-2026-041\", \"drug_name\": \"Paracetamol 650mg\", \"new_ceiling_price\": 1.85, \"previous_ceiling_price\": 2.40, \"effective_immediately\": true, \"requires_code_mutation\": true, \"affected_schedules\": [\"H\", \"OTC\"], \"summary\": \"Mandatory ceiling price revision per NPPA Order 41/2026.\"}",
+    "total_tokens": 450
+  },
+  "norm:supervisor_agent:demo_act_1": {
+    "agent": "supervisor_agent",
+    "completion_tokens": 55,
+    "data_json": "{\"action\": \"propagate_all_tiers\", \"eligible_tiers\": [\"pharmacy\", \"stockist\", \"distributor\", \"manufacturer\"], \"priority\": \"normal\", \"reasoning\": \"Demand signal verified against inventory balances; proceed with complete 4-tier cascade.\"}",
+    "latency_ms": 11.2,
+    "model": "replay-llama-3.1-70b",
+    "prompt_tokens": 110,
+    "provider": "cached_replay",
+    "raw_content": "{\"action\": \"propagate_all_tiers\", \"eligible_tiers\": [\"pharmacy\", \"stockist\", \"distributor\", \"manufacturer\"], \"priority\": \"normal\", \"reasoning\": \"Demand signal verified against inventory balances; proceed with complete 4-tier cascade.\"}",
+    "total_tokens": 165
+  }
+}
