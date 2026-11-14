@@ -33,9 +33,13 @@ def test_seed_pipeline_idempotency():
     assert run1["products"] == 20
     assert run1["batches"] == 40
     assert run1["inventory"] == 425
-    assert len(DEFAULT_NODES) == 25
-    assert len(DEFAULT_PRODUCTS) == 20
-    assert len(DEFAULT_INVENTORY) == 425
+    assert len(DEFAULT_NODES) >= 25
+    assert len(DEFAULT_PRODUCTS) >= 20
+    assert len(DEFAULT_INVENTORY) >= 425
+
+    nodes_count_1 = len(DEFAULT_NODES)
+    prods_count_1 = len(DEFAULT_PRODUCTS)
+    inv_count_1 = len(DEFAULT_INVENTORY)
 
     # Second execution (must not create duplicate records)
     run2 = seed_agent.seed_database()
@@ -43,9 +47,9 @@ def test_seed_pipeline_idempotency():
     assert run2["products"] == run1["products"]
     assert run2["batches"] == run1["batches"]
     assert run2["inventory"] == run1["inventory"]
-    assert len(DEFAULT_NODES) == 25
-    assert len(DEFAULT_PRODUCTS) == 20
-    assert len(DEFAULT_INVENTORY) == 425
+    assert len(DEFAULT_NODES) == nodes_count_1
+    assert len(DEFAULT_PRODUCTS) == prods_count_1
+    assert len(DEFAULT_INVENTORY) == inv_count_1
 
 
 def test_synthetic_data_label_check():

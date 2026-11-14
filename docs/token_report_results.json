@@ -1,0 +1,198 @@
+{
+  "timestamp": "2026-11-14T14:23:38.610560+00:00",
+  "per_agent_tokens": {
+    "pharmacy_telemetry_agent": {
+      "tier": "Tier 4 (Pharmacy Edge)",
+      "role": "Inventory Telemetry & Replenishment Signal",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 182,
+      "completion_tokens": 68,
+      "total_tokens": 250
+    },
+    "stockist_allocation_agent": {
+      "tier": "Tier 3 (Stockist Hub)",
+      "role": "Multi-Pharmacy Reorder Allocation & Credit Check",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 215,
+      "completion_tokens": 84,
+      "total_tokens": 299
+    },
+    "distributor_logistics_agent": {
+      "tier": "Tier 2 (Distributor Layer)",
+      "role": "Consolidated Shipment Routing & Fleet Dispatch",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 234,
+      "completion_tokens": 92,
+      "total_tokens": 326
+    },
+    "manufacturer_production_agent": {
+      "tier": "Tier 1 (Manufacturer Plant)",
+      "role": "Production Line Rescheduling & Raw Material Check",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 268,
+      "completion_tokens": 114,
+      "total_tokens": 382
+    },
+    "adapter_forge_agent": {
+      "tier": "Integration / Adapters",
+      "role": "Zero-Code Legacy Schema Synthesis & AST Guard",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 448,
+      "completion_tokens": 276,
+      "total_tokens": 724
+    },
+    "regulatory_gazette_agent": {
+      "tier": "Compliance / Regulatory",
+      "role": "Statutory Gazette Parsing & DPCO Ceiling Analysis",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 512,
+      "completion_tokens": 308,
+      "total_tokens": 820
+    },
+    "prescription_sovereign_agent": {
+      "tier": "Edge Retail / Rx",
+      "role": "Multimodal Rx Scanning & CDSCO Schedule H Check",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 486,
+      "completion_tokens": 194,
+      "total_tokens": 680
+    },
+    "coldchain_excursion_agent": {
+      "tier": "IoT / Quality Assurance",
+      "role": "Arrhenius Kinetic Shelf-Life & Auto-Quarantine",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 342,
+      "completion_tokens": 126,
+      "total_tokens": 468
+    },
+    "network_copilot_agent": {
+      "tier": "Control Plane / Copilot",
+      "role": "Grounded Natural Language Query & Audit Proof",
+      "model": "meta-llama/llama-3.1-70b-instruct",
+      "prompt_tokens": 395,
+      "completion_tokens": 218,
+      "total_tokens": 613
+    }
+  },
+  "per_cascade_summary": {
+    "agents_included": [
+      "pharmacy_telemetry_agent",
+      "stockist_allocation_agent",
+      "distributor_logistics_agent",
+      "manufacturer_production_agent"
+    ],
+    "prompt_tokens": 899,
+    "completion_tokens": 358,
+    "total_tokens": 1257
+  },
+  "cost_extrapolation_matrix": [
+    {
+      "tier_name": "Pilot",
+      "scope": "1 City (e.g. Pune / Hyderabad)",
+      "pharmacies": 50,
+      "events_per_month": 15000,
+      "monthly_prompt_tokens": 13485000,
+      "monthly_completion_tokens": 5370000,
+      "monthly_total_tokens": 18855000,
+      "provider": "NVIDIA NIM (Free Tier)",
+      "monthly_cost_usd": 0.0,
+      "notes": "Hosted NIM free endpoints for open models (Llama 3.3 70B, Gemma 2 27B)"
+    },
+    {
+      "tier_name": "Pilot",
+      "scope": "1 City (e.g. Pune / Hyderabad)",
+      "pharmacies": 50,
+      "events_per_month": 15000,
+      "monthly_prompt_tokens": 13485000,
+      "monthly_completion_tokens": 5370000,
+      "monthly_total_tokens": 18855000,
+      "provider": "OpenRouter (Free Tier)",
+      "monthly_cost_usd": 0.0,
+      "notes": "Free tier models with rate limiting / burst throttling"
+    },
+    {
+      "tier_name": "Pilot",
+      "scope": "1 City (e.g. Pune / Hyderabad)",
+      "pharmacies": 50,
+      "events_per_month": 15000,
+      "monthly_prompt_tokens": 13485000,
+      "monthly_completion_tokens": 5370000,
+      "monthly_total_tokens": 18855000,
+      "provider": "Commercial Reference (GPT-4o / Claude 3.5)",
+      "monthly_cost_usd": 87.41,
+      "notes": "Commercial frontier models reference pricing ($2.50 in / $10.00 out)"
+    },
+    {
+      "tier_name": "Regional",
+      "scope": "5 Major Cities (Western / Southern Corridor)",
+      "pharmacies": 500,
+      "events_per_month": 150000,
+      "monthly_prompt_tokens": 134850000,
+      "monthly_completion_tokens": 53700000,
+      "monthly_total_tokens": 188550000,
+      "provider": "NVIDIA NIM (Free Tier)",
+      "monthly_cost_usd": 0.0,
+      "notes": "Hosted NIM free endpoints for open models (Llama 3.3 70B, Gemma 2 27B)"
+    },
+    {
+      "tier_name": "Regional",
+      "scope": "5 Major Cities (Western / Southern Corridor)",
+      "pharmacies": 500,
+      "events_per_month": 150000,
+      "monthly_prompt_tokens": 134850000,
+      "monthly_completion_tokens": 53700000,
+      "monthly_total_tokens": 188550000,
+      "provider": "OpenRouter (Free Tier)",
+      "monthly_cost_usd": 0.0,
+      "notes": "Free tier models with rate limiting / burst throttling"
+    },
+    {
+      "tier_name": "Regional",
+      "scope": "5 Major Cities (Western / Southern Corridor)",
+      "pharmacies": 500,
+      "events_per_month": 150000,
+      "monthly_prompt_tokens": 134850000,
+      "monthly_completion_tokens": 53700000,
+      "monthly_total_tokens": 188550000,
+      "provider": "Commercial Reference (GPT-4o / Claude 3.5)",
+      "monthly_cost_usd": 874.12,
+      "notes": "Commercial frontier models reference pricing ($2.50 in / $10.00 out)"
+    },
+    {
+      "tier_name": "National",
+      "scope": "Pan-India Tier-1 & Tier-2 Hubs",
+      "pharmacies": 10000,
+      "events_per_month": 3000000,
+      "monthly_prompt_tokens": 2697000000,
+      "monthly_completion_tokens": 1074000000,
+      "monthly_total_tokens": 3771000000,
+      "provider": "NVIDIA NIM (Free Tier)",
+      "monthly_cost_usd": 0.0,
+      "notes": "Hosted NIM free endpoints for open models (Llama 3.3 70B, Gemma 2 27B)"
+    },
+    {
+      "tier_name": "National",
+      "scope": "Pan-India Tier-1 & Tier-2 Hubs",
+      "pharmacies": 10000,
+      "events_per_month": 3000000,
+      "monthly_prompt_tokens": 2697000000,
+      "monthly_completion_tokens": 1074000000,
+      "monthly_total_tokens": 3771000000,
+      "provider": "OpenRouter (Free Tier)",
+      "monthly_cost_usd": 0.0,
+      "notes": "Free tier models with rate limiting / burst throttling"
+    },
+    {
+      "tier_name": "National",
+      "scope": "Pan-India Tier-1 & Tier-2 Hubs",
+      "pharmacies": 10000,
+      "events_per_month": 3000000,
+      "monthly_prompt_tokens": 2697000000,
+      "monthly_completion_tokens": 1074000000,
+      "monthly_total_tokens": 3771000000,
+      "provider": "Commercial Reference (GPT-4o / Claude 3.5)",
+      "monthly_cost_usd": 17482.5,
+      "notes": "Commercial frontier models reference pricing ($2.50 in / $10.00 out)"
+    }
+  ]
+}

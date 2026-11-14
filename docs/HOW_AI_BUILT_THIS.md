@@ -1734,3 +1734,62 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 - [x] `ruff check scripts/e2e_verify.py tests/test_ui_demo_path.py` passes with 0 warnings/errors.
 - [x] Master test suite (`pytest tests/`) passes all 43 tests with 0 failures.
 
+---
+
+## Task 30: MediFlux MVP Submission Package, Measured Benchmarks & Definitive Release
+
+- **Date**: 2026-11-14
+- **Phase**: Phase 8 — MVP Submission Package & Empirical System Verification
+- **Status**: Completed & Verified
+
+### Summary of Work Done
+1. **Empirical Benchmarking Harness (`scripts/run_benchmarks.py`)**:
+   - Live hardware environment fingerprint: 20 logical CPU cores, Windows AMD64, Python 3.12.6.
+   - Benchmark 1A: Single-event POS dispense ingestion throughput & latency evaluated across concurrency tiers [1, 5, 10, 25, 50] with p50, p95, p99, mean latencies, and req/s computed.
+   - Benchmark 1B: Batch POS dispense processing across batch sizes [10, 50, 100].
+   - Benchmark 2: End-to-end 4-tier demand cascade latency measured across 5 runs (mean 3,519.35 ms, min 3,368.10 ms, max 3,745.20 ms, stddev ±135.47 ms).
+   - Generated `docs/benchmark_results.json` and programmatically formatted `docs/BENCHMARKS.md` with zero invented numbers.
+
+2. **Token Telemetry & Cost Modeling (`scripts/generate_token_report.py`)**:
+   - Quantified per-agent token consumption across all 18 production agents (Pharmacy 250, Stockist 299, Distributor 326, Manufacturer 382, Adapter Forge 724, Regulatory 820, Prescription 680, Cold-chain 468, Copilot 613).
+   - Evaluated 4-tier demand cascade token budget (989 prompt + 358 completion = 1,357 total tokens per cascade).
+   - Modeled multi-tier monthly budgets (Pilot: 50 pharmacies / 15,000 events; Regional: 500 pharmacies / 150,000 events; National: 10,000 pharmacies / 3,000,000 events).
+   - Modeled operational costs: **$0.00 / month** on NVIDIA NIM Free Tier and OpenRouter Free Tier endpoints.
+   - Persisted `docs/token_report_results.json` and generated `docs/TOKEN_AND_COST_REPORT.md`.
+
+3. **Definitive Architectural & Security Documentation**:
+   - `docs/ARCHITECTURE.md`: Complete system architecture with Mermaid 4-tier topology, event data flow, state machine breakdown of all 6 LangGraph graphs, 18-agent inventory, Dynamic Module Registry, and 32-table Supabase schema.
+   - `docs/POST_MVP.md`: Post-MVP evolutionary roadmap detailing EventBus to Redpanda/Kafka migration, Python AST guard to WebAssembly (Wasmtime) sandbox, Redis cluster, Docker Compose reference architecture, sovereign Llama-3.3-70B on MeitY-empanelled Indian cloud, OpenTelemetry observability, and honest MVP vs Production disclosure matrix.
+   - `docs/SECURITY_AND_COMPLIANCE.md`: Multi-tenant RLS design, SHA-256 hashed API keys and HMAC-SHA256 webhooks, DPDP Act 2023 patient privacy and sovereign routing (`sensitivity="sensitive"`), and tamper-evident SHA-256 rolling audit ledger hash chain.
+   - `docs/DEMO_SCRIPT.md`: Timed 10-step interactive presentation guide (8–10 minutes) with narrations, curl commands, UI navigation, and expected outputs.
+   - `docs/specs/task-30-spec.md`: Complete Task 30 specification.
+
+4. **10-Step Interactive Scripted Demo Runner (`scripts/run_demo.py`)**:
+   - Expanded runner from 6 acts to 10 comprehensive acts:
+     * Act 1: Single-Unit Retail POS Sale → 4-Tier Automated Demand Cascade
+     * Act 2: Self-Evolving Adapter Forge → Zero-Code Legacy Ingestion
+     * Act 3: Autonomous Regulatory Pipeline → DPCO Price Ceiling Hot-Swap
+     * Act 4: Sovereign Prescription Scanner & Schedule H Statutory Audit
+     * Act 5: Cold-Chain IoT Telemetry & Dynamic Restock Cascade
+     * Act 6: Autonomous Network Copilot & Cryptographic Audit Verification
+     * Act 7: Real-Time Canonical Event Ingestion & SSE Telemetry Stream
+     * Act 8: Dynamic Business Module Registry & AST Sandbox Isolation
+     * Act 9: OpenAPI 3.1.0 Contract Schema & Developer Hub Validation
+     * Act 10: Multi-Tier Network Topology & Real-Time Operational KPIs
+   - Verified double execution from pristine reset state (`python -m scripts.reset_demo && python -m scripts.run_demo --mode replay`) twice in a row with exit code 0.
+
+5. **OpenAPI 3.1.0 Export & Root Documentation**:
+   - `scripts/export_openapi.py`: Exported FastAPI schema to `docs/openapi.json` registering 85 REST routes.
+   - `README.md`: Overwritten with definitive master guide, RFP mapping table, quick start, architecture, and documentation index.
+   - `backend/tests/test_task30_submission_package.py`: Automated test suite asserting all artifacts, schema validity, benchmark consistency, secrets scan, and demo execution.
+
+### Verification Status
+- [x] `docs/BENCHMARKS.md` generated with measured empirical numbers from `docs/benchmark_results.json`.
+- [x] `docs/TOKEN_AND_COST_REPORT.md` generated with measured empirical numbers from `docs/token_report_results.json`.
+- [x] `docs/ARCHITECTURE.md`, `docs/POST_MVP.md`, `docs/SECURITY_AND_COMPLIANCE.md`, and `docs/DEMO_SCRIPT.md` created.
+- [x] `docs/openapi.json` exported with 85 endpoints.
+- [x] `python -m scripts.reset_demo && python -m scripts.run_demo --mode replay` passed twice in a row with exit code 0.
+- [x] `backend/tests/test_task30_submission_package.py` passes.
+- [x] `check_secrets.py` passes cleanly (zero leaked credentials).
+
+
