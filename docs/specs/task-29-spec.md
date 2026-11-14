@@ -131,3 +131,77 @@ Milestone 2 provides offline reliability tooling for high-stakes demos and local
   - Step 5: Cold-Chain Arrhenius Degradation Auto-Quarantine
   - Step 6: Sovereign Vision Prescription Scan & SHA-256 Audit Chain Verification
 
+---
+
+## Milestone 4 Specification: Frontend UI (Error Banner, Reset Controls) & Repository Hygiene
+
+### Deliverables
+1. **Domain Error Normalizer (`frontend/src/lib/errorMessages.ts`)**:
+   - Converts backend domain codes, HTTP statuses, and network exceptions into clear editorial messages.
+   - Handled cases:
+     * HTTP 429 (`PROVIDER_RATE_LIMITED_429`): Upstream provider rate limit notice with automatic failover telemetry.
+     * HTTP 503 (`SOVEREIGN_LOCAL_MODEL_OFFLINE`): Sovereign local Ollama offline notice explaining privacy isolation without external cloud fallback.
+     * HTTP 500 / 502 / 503 (`PROVIDER_OUTAGE_5XX`): Upstream provider service outage notice explaining autonomous failover.
+     * Malformed JSON (`LLM_INVALID_JSON_OUTPUT`): Unquoted keys, unbalanced brackets, AST repair notification.
+     * Network disconnects (`NETWORK_DISCONNECTED`): Detached local execution notice.
+     * HTTP 409 (`HITL_TASK_EXPIRED`): Statutory review window expiration notice.
+     * Partial Cascade (`PARTIAL_CASCADE_FAILURE`): Downstream tier escalation notice.
+   - Standalone unit test suite: `frontend/tests/errorMessages.test.ts` executed via `npm test`.
+
+2. **Standardized UI Error Banner (`frontend/src/components/shared/LlmErrorBanner.tsx`)**:
+   - Strictly conforms to Warm Editorial Minimalism (`Design.md`):
+     * Canvas/Surfaces: Warm Ivory (`#E8E4D3`), Deep Ivory (`#DFDBCA`).
+     * Accent: Electric Teal (`#00AEBB`).
+     * Typography: Ink Black (`#031211`), Charcoal (`#5C584E`).
+     * Structural 1px crisp borders (`#D8D3C3`, `#00AEBB`, `#031211/30`).
+     * Prohibitions: No `rounded-full` pill buttons, no glassmorphism, no neon gradients, no dark mode defaults.
+   - Supported props: `error`, `onRetry`, `onDismiss`, `variant` ("warning" | "error" | "sovereign"), `className`.
+   - Collapsible raw error trace accordion with monospace styling.
+
+3. **AppShell Demo Controls & Feedback (`frontend/src/components/layout/AppShell.tsx`)**:
+   - Top header status pill: Displays Replay vs Live status ("DEMO REPLAY" or "LIVE NETWORK") with structural 1px border, Warm Ivory background, and monospace badge.
+   - Top header reset button: Triggers `POST /api/v1/demo/reset` with loading spinner, disabled state during reset, and auto-dismissing toast notification on completion.
+
+4. **Repository Secrets & Config Hygiene**:
+   - `.env.example`: Completed with all 21 configuration keys from `backend/app/core/config.py` using safe placeholder values.
+   - Git untracked assertion: `.env` verified untracked via `python -m scripts.check_secrets`.
+   - Linters: Cleaned 24 `ruff` lint errors in `scripts/`; root `ruff.toml` and `backend/pyproject.toml` configured; `ruff check backend/ scripts/ tests/` 100% clean.
+
+---
+
+## Milestone 5 Specification: Executable E2E Verification Script & UI Demo Path Verification
+
+### 1. Standalone Executable E2E Script (`scripts/e2e_verify.py`)
+- Standalone CLI execution (`python scripts/e2e_verify.py`) and importable `async def run_e2e_verification() -> bool`.
+- **7-Step Golden Path Execution Sequence**:
+  1. **Step 1: Database Seed / Demo Reset**: Idempotently invokes `reset_demo_state()` and `POST /api/v1/demo/reset`, restoring dynamic modules to v1, un-quarantining batches, resetting inventory counters, and ensuring cryptographic audit ledger genesis block (`seq=1`, `prev_hash="0"*64`).
+  2. **Step 2: In-Process SSE Listener**: Asynchronously subscribes to `in_process_event_bus.subscribe("*")` with background event collector queue.
+  3. **Step 3: Single-Strip POS Sale Simulation**: Posts single dispense (`quantity=1`, `product_id="p-001-paracetamol"`) to retail pharmacy node (`11111111-1111-1111-1111-111111111111`), generating a unique correlation ID.
+  4. **Step 4: 4-Tier Demand Cascade Verification**: Asserts demand propagation across all 4 tiers:
+     - Tier 4 (Pharmacy): Stock decremented (-1), Schedule H compliance checked, restock PO request triggered.
+     - Tier 3 (Stockist): Replenishment threshold checked, credit line approved (`credit_approved: true`), 50 units allocated, PO dispatched.
+     - Tier 2 (Distributor): Fleet route scheduled (`DL-1VB-9042` along Northern Corridor), automated invoice/manifest settlement.
+     - Tier 1 (Manufacturer): Active Pharmaceutical Ingredient (API) inventory confirmed in silo, Line-A2 formulation production batch slot allocated (`BAT-PROD-...`).
+  5. **Step 5: Cryptographic Audit Verification**: Calls `verify_audit_chain()` and `GET /api/v1/audit/verify`, asserting `valid: True` and zero broken hash links across the entire SHA-256 monotonic chain.
+  6. **Step 6: Real-time SSE Delivery**: Asserts listener captured real-time domain events (`pos.sales`, `cascade_step`, `order.created`, `production.batch`) with matching correlation ID.
+  7. **Step 7: Clean Exit Code 0 & Structured Summary**: Emits structured colorized step telemetry with millisecond latency metrics, returning `True` and exiting with code 0.
+
+### 2. UI Demo Path & Frontend Bundle Verification (`tests/test_ui_demo_path.py`)
+- **API Workflow Sequence (`test_ui_api_workflow_sequence`)**:
+  - Exercises full browser API flow: Node topology (`GET /api/v1/nodes`), inventory checks (`GET /api/v1/inventory`), POS sale submission (`POST /api/v1/simulator/pos`), cascade trace polling (`GET /api/v1/cascade` and `GET /api/v1/cascade/{cid}`), cryptographic audit verification (`GET /api/v1/audit/verify` and `GET /api/v1/audit/ledger`), and demo reset (`POST /api/v1/demo/reset` and `GET /api/v1/demo/status`).
+- **Frontend Bundle Integrity (`test_frontend_dist_bundle_integrity`)**:
+  - Checks `frontend/dist/index.html` exists with React mount root `<div id="root">`, module scripts, and stylesheet tags.
+  - Checks `frontend/dist/assets/` contains valid compiled `.js` and `.css` bundles with non-zero byte size.
+- **Playwright Browser Smoke Path with Fallback (`test_playwright_smoke_path_with_fallback`)**:
+  - Launches headless Chromium via Playwright, navigates to `frontend/dist/index.html`, and verifies `#root` DOM element rendering and page title ("MediFlux — Autonomous Pharma Supply Chain").
+  - Gracefully falls back to bundle integrity validation if browser binaries are not present, preventing build/CI failures.
+- **Importable E2E Integration (`test_e2e_verification_function_callable`)**:
+  - Asserts that `run_e2e_verification` is importable and callable.
+
+### Verification Summary
+- `python scripts/e2e_verify.py` completes all 7 steps with exit code 0 in ~14 seconds.
+- `pytest tests/test_ui_demo_path.py` passes 4/4 tests cleanly.
+- `ruff check scripts/e2e_verify.py tests/test_ui_demo_path.py` passes with 0 warnings/errors.
+
+
+

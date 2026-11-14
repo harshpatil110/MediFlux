@@ -539,15 +539,25 @@ def visible_node_ids(user: CurrentUser) -> list[str]:
     if not user.node_id and user.role != "admin":
         return []
 
-    # Admin has global visibility
+    # Admin has global visibility across all nodes
     if user.role == "admin":
-        return [
+        admin_nodes = [
             "11111111-1111-1111-1111-111111111111",
             "22222222-2222-2222-2222-222222222222",
             "33333333-3333-3333-3333-333333333333",
             "44444444-4444-4444-4444-444444444444",
             "55555555-5555-5555-5555-555555555555",
         ]
+        try:
+            from app.api.v1.endpoints.nodes import DEFAULT_NODES
+
+            for n in DEFAULT_NODES:
+                nid = n.get("id")
+                if nid and nid not in admin_nodes:
+                    admin_nodes.append(nid)
+        except Exception:
+            pass
+        return admin_nodes
 
     # Pharmacy only sees own node
     if user.role in ("pharmacy", "pharmacist"):

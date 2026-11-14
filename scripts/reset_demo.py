@@ -127,11 +127,13 @@ def reset_demo_state() -> dict[str, Any]:
     except Exception as exc:
         logger.warning("Inventory reset exception: %s", exc)
 
-    # 7. Clear In-Memory Audit Ledger
+    # 7. Clear In-Memory Audit Ledger & Restore Genesis Baseline
     try:
+        from app.api.v1.endpoints.audit import _seed_audit_ledger_if_empty
         from app.core.audit_ledger import clear_in_memory_audit_ledger
 
         clear_in_memory_audit_ledger()
+        _seed_audit_ledger_if_empty()
         results["audit_ledger_cleared"] = True
     except Exception as exc:
         logger.warning("Audit ledger reset exception: %s", exc)

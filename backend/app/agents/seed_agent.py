@@ -620,47 +620,52 @@ class SeedAgent:
         counts: dict[str, int] = {}
 
         # 1. Update in-memory state for API endpoints and test runtimes
-        # Sync DEFAULT_NODES
-        DEFAULT_NODES.clear()
+        # Sync DEFAULT_NODES: preserve core baseline nodes and merge synthetic nodes
+        existing_node_ids = {n["id"] for n in DEFAULT_NODES}
         for n in data["nodes"]:
-            DEFAULT_NODES.append({
-                "id": n["id"],
-                "tier": n["tier"],
-                "name": n["name"],
-                "region": n["region"],
-                "parent_id": n["parent_id"],
-                "address": n["address"],
-                "is_active": n["is_active"],
-            })
+            if n["id"] not in existing_node_ids:
+                DEFAULT_NODES.append({
+                    "id": n["id"],
+                    "tier": n["tier"],
+                    "name": n["name"],
+                    "region": n["region"],
+                    "parent_id": n["parent_id"],
+                    "address": n["address"],
+                    "is_active": n["is_active"],
+                })
 
-        # Sync DEFAULT_PRODUCTS
-        DEFAULT_PRODUCTS.clear()
+        # Sync DEFAULT_PRODUCTS: preserve core baseline products and merge synthetic products
+        existing_prod_ids = {p["id"] for p in DEFAULT_PRODUCTS}
         for p in data["products"]:
-            DEFAULT_PRODUCTS.append({
-                "id": p["id"],
-                "name": p["name"],
-                "generic_name": p["generic_name"],
-                "schedule_class": p["schedule_class"],
-                "is_cold_chain": p["is_cold_chain"],
-                "storage_min_c": p["storage_min_c"],
-                "storage_max_c": p["storage_max_c"],
-                "is_lifesaving": p["is_lifesaving"],
-                "unit": p["unit"],
-                "price_per_unit": p["price_per_unit"],
-            })
+            if p["id"] not in existing_prod_ids:
+                DEFAULT_PRODUCTS.append({
+                    "id": p["id"],
+                    "name": p["name"],
+                    "generic_name": p["generic_name"],
+                    "schedule_class": p["schedule_class"],
+                    "is_cold_chain": p["is_cold_chain"],
+                    "storage_min_c": p["storage_min_c"],
+                    "storage_max_c": p["storage_max_c"],
+                    "is_lifesaving": p["is_lifesaving"],
+                    "unit": p["unit"],
+                    "price_per_unit": p["price_per_unit"],
+                })
 
         # Sync DEFAULT_INVENTORY & _in_memory_inventory in events.service
-        DEFAULT_INVENTORY.clear()
+        existing_inv_ids = {inv["id"] for inv in DEFAULT_INVENTORY}
         for inv in data["inventory"]:
-            DEFAULT_INVENTORY.append({
-                "id": inv["id"],
-                "node_id": inv["node_id"],
-                "product_id": inv["product_id"],
-                "batch_id": inv["batch_id"],
-                "quantity": inv["quantity"],
-                "reserved": inv["reserved"],
-                "safety_stock": inv["safety_stock"],
-            })
+            if inv["id"] not in existing_inv_ids:
+                DEFAULT_INVENTORY.append({
+                    "id": inv["id"],
+                    "node_id": inv["node_id"],
+                    "product_id": inv["product_id"],
+                    "batch_id": inv["batch_id"],
+                    "quantity": inv["quantity"],
+                    "reserved": inv.get("reserved", 0),
+                    "safety_stock": inv.get("safety_stock", 10),
+                    "product_name": inv.get("product_name", "Medicine"),
+                    "batch_no": inv.get("batch_no", "BAT-001"),
+                })
             set_in_memory_stock(
                 pharmacy_id=inv["node_id"],
                 product_id=inv["product_id"],
