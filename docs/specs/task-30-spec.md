@@ -58,3 +58,4 @@ Task 30 formalizes the definitive submission package for **MediFlux** (also desi
 - **Zero Invented Numbers**: Every single number in `BENCHMARKS.md` and `TOKEN_AND_COST_REPORT.md` is strictly computed and loaded from measured JSON files.
 - **Zero Deferred Tech**: Zero Redis, Docker, WASM, or Kafka introduced into MVP code.
 - **Automated Test Suite**: `backend/tests/test_task30_submission_package.py` tests all documentation files, contract validation, secrets cleanliness, and demo replay capability.
+

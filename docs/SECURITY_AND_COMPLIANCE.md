@@ -119,3 +119,4 @@ flowchart LR
 | **AST Inspection Boundary** | Static AST AST parsing | Strict blacklist of all dangerous ast nodes | Wasmtime WebAssembly sandboxing |
 | **MCI Doctor Registry** | Local Supabase mock table | Idempotent registry with realistic MCI formats | Direct API integration with NMC National Registry |
 | **Transport Layer Security** | Local HTTP in dev mode | TLS enforced in production Supabase cloud | Mutual TLS (mTLS) between all inter-node services |
+

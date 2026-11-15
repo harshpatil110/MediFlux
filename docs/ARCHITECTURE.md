@@ -202,3 +202,4 @@ MediFlux utilizes **Supabase PostgreSQL** with **pgvector** and Row-Level Securi
 | **Manufacturing** | `production_lines`, `production_batches` |
 | **Control Plane & Audit** | `audit_ledger`, `hitl_tasks`, `modules`, `adapters`, `agent_runs` |
 | **Integration & Webhooks** | `webhook_subscriptions`, `webhook_deliveries`, `credit_accounts` |
+

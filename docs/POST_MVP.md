@@ -140,3 +140,4 @@ To ensure absolute transparency regarding the MVP implementation scope versus fu
 | **LLM Provider Stack** | Hybrid multi-provider (NVIDIA NIM free + OpenRouter free + Local Ollama fallback + Deterministic Replay) | Dedicated self-hosted Llama-3.3-70B cluster inside a MeitY-certified Indian Tier-IV data center |
 | **Messaging & Queuing** | Async In-Process EventBus with Supabase event table fallback | Distributed Redpanda / Kafka cluster with multi-partition consumer groups |
 | **Dynamic Module Guard** | Python AST static inspection prohibiting banned builtins and system calls | WebAssembly (Wasmtime) sandbox isolation with hardware memory limits |
+
