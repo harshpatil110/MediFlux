@@ -25,10 +25,20 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
+set "LAN_FLAG="
+set "CHECK_ONLY="
+set "DESKTOP_FLAG="
+
+for %%A in (%*) do (
+    if "%%A"=="--lan" set "LAN_FLAG=--lan"
+    if "%%A"=="--check-only" set "CHECK_ONLY=--check-only"
+    if "%%A"=="--desktop" set "DESKTOP_FLAG=--desktop"
+)
+
 REM Check if --check-only argument passed
-if "%~1"=="--check-only" (
-    python "%SCRIPT_DIR%start_all.py" --check-only
-    exit /b %ERRORLEVEL%
+if defined CHECK_ONLY (
+    python "%SCRIPT_DIR%start_all.py" !LAN_FLAG! --check-only
+    exit /b !ERRORLEVEL!
 )
 
 REM Determine python interpreter
@@ -40,14 +50,20 @@ if exist "%BACKEND_DIR%\venv\Scripts\python.exe" (
     echo [Backend] Using system Python executable
 )
 
-echo [Backend] Starting FastAPI server on http://localhost:8000 ...
-start "MediFlux Backend" /D "%BACKEND_DIR%" "%PYTHON_EXEC%" -m uvicorn app.main:app --reload --port 8000
+if defined LAN_FLAG (
+    set "UVICORN_HOST=0.0.0.0"
+    echo [Backend] Starting FastAPI server on host 0.0.0.0:8000 (LAN enabled) ...
+) else (
+    set "UVICORN_HOST=127.0.0.1"
+    echo [Backend] Starting FastAPI server on http://localhost:8000 ...
+)
+
+start "MediFlux Backend" /D "%BACKEND_DIR%" "%PYTHON_EXEC%" -m uvicorn app.main:app --reload --host !UVICORN_HOST! --port 8000
 
 echo [Frontend] Starting Vite development server on http://localhost:5173 ...
 start "MediFlux Frontend" /D "%FRONTEND_DIR%" npm.cmd run dev
 
-REM Check if desktop flag is requested
-if "%~1"=="--desktop" (
+if defined DESKTOP_FLAG (
     echo [Desktop] Starting MediFlux Desktop application...
     start "MediFlux Desktop" /D "%DESKTOP_DIR%" npm.cmd run desktop:dev
 )

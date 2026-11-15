@@ -1,0 +1,17 @@
+{
+  "name": "@mediflux/shared",
+  "version": "1.0.0",
+  "description": "MediFlux / NexusChain shared schemas, enums, SSE events, and OpenAPI contracts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "keywords": ["mediflux", "nexuschain", "pharmacy", "supply-chain", "shared"],
+  "author": "MediFlux Team",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

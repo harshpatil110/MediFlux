@@ -3,7 +3,8 @@
 
 param (
     [switch]$Desktop,
-    [switch]$CheckOnly
+    [switch]$CheckOnly,
+    [switch]$Lan
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +15,9 @@ $FrontendDir = Join-Path $RootDir "frontend"
 $DesktopDir = Join-Path $RootDir "desktop"
 
 if ($CheckOnly) {
-    & python (Join-Path $ScriptDir "start_all.py") --check-only
+    $checkArgs = @((Join-Path $ScriptDir "start_all.py"), "--check-only")
+    if ($Lan) { $checkArgs += "--lan" }
+    & python @checkArgs
     exit $LASTEXITCODE
 }
 
@@ -43,8 +46,14 @@ if (Test-Path $VenvPython) {
     Write-Host "[Backend] Using system Python executable" -ForegroundColor Yellow
 }
 
-Write-Host "[Backend] Starting FastAPI server on http://localhost:8000 ..." -ForegroundColor Green
-$BackendProcess = Start-Process -FilePath $PythonExec -ArgumentList "-m uvicorn app.main:app --reload --port 8000" -WorkingDirectory $BackendDir -PassThru
+$UvicornHost = if ($Lan) { "0.0.0.0" } else { "127.0.0.1" }
+if ($Lan) {
+    & python (Join-Path $ScriptDir "start_all.py") --lan --check-only
+    Write-Host "[Backend] Starting FastAPI server on host 0.0.0.0:8000 (LAN enabled) ..." -ForegroundColor Green
+} else {
+    Write-Host "[Backend] Starting FastAPI server on http://localhost:8000 ..." -ForegroundColor Green
+}
+$BackendProcess = Start-Process -FilePath $PythonExec -ArgumentList "-m uvicorn app.main:app --reload --host $UvicornHost --port 8000" -WorkingDirectory $BackendDir -PassThru
 
 Write-Host "[Frontend] Starting Vite development server on http://localhost:5173 ..." -ForegroundColor Green
 $FrontendProcess = Start-Process -FilePath "npm.cmd" -ArgumentList "run dev" -WorkingDirectory $FrontendDir -PassThru
