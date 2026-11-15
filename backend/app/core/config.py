@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # LLM Provider credentials
     NVIDIA_API_KEY: str | None = Field(default=None, description="NVIDIA NIM API key")
     OPENROUTER_API_KEY: str | None = Field(default=None, description="OpenRouter API key")
+
+    # OCR provider (OCR.space free tier, used on Vercel where no tesseract binary exists)
+    OCR_SPACE_API_KEY: str | None = Field(
+        default=None, description="OCR.space API key (env OCR_SPACE_API_KEY)"
+    )
     OLLAMA_BASE_URL: str = Field(
         default="http://localhost:11434/v1", description="Local Ollama endpoint"
     )

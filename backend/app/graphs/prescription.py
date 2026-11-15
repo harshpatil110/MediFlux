@@ -11,6 +11,8 @@ import json
 import logging
 import re
 import uuid
+
+import httpx
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, TypedDict
@@ -445,6 +447,70 @@ def _parse_text_deterministically(raw_text: str, meta: dict[str, Any]) -> dict[s
 
 
 # -----------------------------------------------------------------------------
+# OCR.space (Vercel) with local pytesseract fallback
+# -----------------------------------------------------------------------------
+# Vercel serverless has no tesseract binary, so prescription OCR goes through
+# the OCR.space API (free tier: 25,000 requests/month, 1 MB max per file).
+# The key lives in the OCR_SPACE_API_KEY env var and is never committed.
+# When the key is absent (local dev), pytesseract is used exactly as before.
+OCR_SPACE_URL = "https://api.ocr.space/parse/image"
+OCR_SPACE_MAX_BYTES = 1_000_000  # free-tier per-file limit
+
+
+def _compress_for_ocr_space(pil_image: Image.Image) -> bytes:
+    """Downscale + JPEG-compress an image so the upload lands under 1 MB.
+
+    Phone photos of prescriptions are usually several MB, so cap the longest
+    side at 2000 px, then step down JPEG quality and size until under the
+    limit (or until a reasonable minimum, in which case the API will reject
+    it honestly rather than us silently sending a huge file).
+    """
+    img = pil_image.convert("RGB")
+    img.thumbnail((2000, 2000), Image.LANCZOS)
+    data = b""
+    while True:
+        for quality in (85, 70, 55, 40, 25):
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=quality, optimize=True)
+            data = buf.getvalue()
+            if len(data) <= OCR_SPACE_MAX_BYTES:
+                return data
+        if img.width <= 800 and img.height <= 800:
+            return data
+        img = img.resize(
+            (max(1, int(img.width * 0.7)), max(1, int(img.height * 0.7))),
+            Image.LANCZOS,
+        )
+
+
+async def _ocr_space_text(pil_image: Image.Image) -> str:
+    """OCR one image via OCR.space; returns "" when no key is configured."""
+    api_key = settings.OCR_SPACE_API_KEY
+    if not api_key:
+        return ""
+    payload = {
+        "apikey": api_key,
+        "language": "eng",
+        "OCREngine": "2",
+        "isOverlayRequired": "false",
+    }
+    files = {
+        "file": ("prescription.jpg", _compress_for_ocr_space(pil_image), "image/jpeg"),
+    }
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(OCR_SPACE_URL, data=payload, files=files)
+        resp.raise_for_status()
+        body = resp.json()
+    if body.get("IsErroredOnProcessing"):
+        error = body.get("ErrorMessage") or body.get("ErrorDetails") or "unknown OCR.space error"
+        raise RuntimeError(f"OCR.space failed: {error}")
+    results = body.get("ParsedResults") or []
+    if not results:
+        return ""
+    return (results[0].get("ParsedText") or "").strip()
+
+
+# -----------------------------------------------------------------------------
 # Node 1: Prescription Parser Agent (prescription_parser_node)
 # -----------------------------------------------------------------------------
 async def prescription_parser_node(state: PrescriptionState) -> dict[str, Any]:
@@ -489,11 +555,21 @@ async def prescription_parser_node(state: PrescriptionState) -> dict[str, Any]:
         meta = getattr(pil_image, "text", {}) or {}
         raw_text = meta.get("raw_text", "")
         if not raw_text:
+            # OCR.space first (Vercel has no tesseract binary); pytesseract
+            # remains the local fallback when the key is absent or the API
+            # call fails, so local dev behaviour is unchanged.
             try:
-                import pytesseract
-                raw_text = pytesseract.image_to_string(pil_image)
-            except Exception:
+                raw_text = await _ocr_space_text(pil_image)
+            except Exception as exc:
+                logger.warning("OCR.space failed, falling back to local tesseract: %s", exc)
                 raw_text = ""
+            if not raw_text:
+                try:
+                    import pytesseract
+
+                    raw_text = pytesseract.image_to_string(pil_image)
+                except Exception:
+                    raw_text = ""
 
     # 2. Local Sovereign LLM Extraction with strict sensitivity='sensitive'
     parsed_info: dict[str, Any] = {}
