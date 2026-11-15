@@ -307,27 +307,22 @@ async def get_current_user(
         # Check query params for browser EventSource / SSE connections and demo headers
         if request is not None:
             q_token = request.query_params.get("token") or request.query_params.get("demo_role")
-            if q_token and q_token in DEMO_USERS:
-                data = DEMO_USERS[q_token]
-                return CurrentUser(
-                    id=data["id"],
-                    user_id=data["user_id"],
-                    email=data["email"],
-                    role=data["role"],
-                    node_id=data["node_id"],
-                )
-            h_role = request.headers.get("X-User-Role")
-            if h_role:
-                h_node = request.headers.get("X-Node-Id")
-                h_uid = request.headers.get("X-User-Id", f"usr-{h_role}-demo")
-                return CurrentUser(
-                    id=h_uid,
-                    user_id=h_uid,
-                    email=f"{h_role}@mediflux.in",
-                    role=h_role,
-                    node_id=h_node,
-                )
-        raise UnauthorizedError("Authentication required: Missing Authorization header or X-API-Key")
+            if q_token:
+                authorization = f"Bearer {q_token}"
+            else:
+                h_role = request.headers.get("X-User-Role")
+                if h_role:
+                    h_node = request.headers.get("X-Node-Id")
+                    h_uid = request.headers.get("X-User-Id", f"usr-{h_role}-demo")
+                    return CurrentUser(
+                        id=h_uid,
+                        user_id=h_uid,
+                        email=f"{h_role}@mediflux.in",
+                        role=h_role,
+                        node_id=h_node,
+                    )
+        if not authorization:
+            raise UnauthorizedError("Authentication required: Missing Authorization header or X-API-Key")
 
     parts = authorization.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":

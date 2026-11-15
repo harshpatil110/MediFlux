@@ -18,6 +18,7 @@ from app.api.v1.endpoints.hitl import router as hitl_router
 from app.api.v1.endpoints.ingest import router as ingest_router
 from app.api.v1.endpoints.inventory import router as inventory_router
 from app.api.v1.endpoints.mcp import router as mcp_router
+from app.api.v1.endpoints.mobile import router as mobile_router
 from app.api.v1.endpoints.modules import router as modules_router
 from app.api.v1.endpoints.nodes import router as nodes_router
 from app.api.v1.endpoints.overview import router as overview_router
@@ -44,6 +45,7 @@ api_router.include_router(hitl_router)
 api_router.include_router(stream_router)
 api_router.include_router(modules_router)
 api_router.include_router(simulator_router)
+api_router.include_router(mobile_router)
 api_router.include_router(adapters_router)
 api_router.include_router(ingest_router)
 api_router.include_router(regulatory_router)

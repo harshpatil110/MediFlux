@@ -12,100 +12,100 @@
 
 export interface AgentMetricByAgent {
   agent: string;
-  avg_latency_ms: number;
-  completion_tokens: number;
-  failures: number;
   graph: string;
-  prompt_tokens: number;
   runs: number;
+  failures: number;
+  avg_latency_ms: number;
+  prompt_tokens: number;
+  completion_tokens: number;
   total_tokens: number;
 }
 
 export interface AgentMetricByProvider {
-  avg_latency_ms: number;
-  failures: number;
-  model: string;
   provider: string;
+  model: string;
   runs: number;
+  failures: number;
+  avg_latency_ms: number;
   total_tokens: number;
 }
 
 export interface AgentMetricsResponse {
+  total_runs: number;
+  succeeded_runs: number;
+  failed_runs: number;
   average_latency_ms: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
   by_agent: AgentMetricByAgent[];
   by_provider: AgentMetricByProvider[];
-  failed_runs: number;
-  succeeded_runs: number;
-  total_completion_tokens: number;
-  total_prompt_tokens: number;
-  total_runs: number;
-  total_tokens: number;
 }
 
 /** Response containing plaintext API key returned once upon creation. */
 export interface ApiKeyCreatedResponse {
-  /** Plaintext key alias */
-  api_key: string;
-  created_at: string;
   id: string;
+  name: string;
+  key_prefix: string;
   /** Plaintext key returned once and only once */
   key: string;
-  key_prefix: string;
-  name: string;
+  /** Plaintext key alias */
+  api_key: string;
+  scopes: string[];
   node_id?: string | null;
   rate_limit: number;
-  scopes: string[];
+  created_at: string;
 }
 
 export interface Body_upload_prescription_api_v1_prescriptions_post {
-  correlation_id?: string | null;
   file?: string | null;
   node_id?: string | null;
+  correlation_id?: string | null;
 }
 
 export interface CascadeFullTrace {
-  completed_at: string;
   correlation_id: string;
   started_at: string;
-  status?: string;
-  steps?: CascadeStepDetail[];
+  completed_at: string;
   total_duration_ms: number;
   total_tokens: number;
+  status?: string;
   trigger_event?: Record<string, unknown>;
+  steps?: CascadeStepDetail[];
 }
 
 export interface CascadeStepDetail {
-  agent_name: string;
-  completion_tokens: number;
-  duration_ms: number;
-  entities_created?: Record<string, unknown>;
-  input?: Record<string, unknown>;
-  model: string;
-  node_id: string;
-  node_name: string;
-  output?: Record<string, unknown>;
-  prompt_tokens: number;
-  provider: string;
-  reasoning: string;
-  status?: string;
   /** Tier level: 4 (Pharmacy) -> 3 (Stockist) -> 2 (Distributor) -> 1 (Manufacturer) */
   tier: number;
   tier_label: string;
-  timestamp: string;
+  agent_name: string;
+  node_id: string;
+  node_name: string;
+  status?: string;
+  reasoning: string;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  model: string;
+  provider: string;
+  prompt_tokens: number;
+  completion_tokens: number;
   total_tokens: number;
+  duration_ms: number;
+  timestamp: string;
+  entities_created?: Record<string, unknown>;
 }
 
 export interface CascadeSummaryItem {
   correlation_id: string;
-  pharmacy_name: string;
-  product_name: string;
-  quantity: number;
-  status?: string;
-  tiers_completed?: string;
   timestamp: string;
+  trigger_summary: string;
+  product_name: string;
+  pharmacy_name: string;
+  quantity: number;
+  tiers_completed?: string;
   total_duration_ms: number;
   total_tokens: number;
-  trigger_summary: string;
+  status?: string;
 }
 
 /** Schema for triggering synthetic IoT telemetry simulation. */
@@ -120,97 +120,98 @@ export interface ColdChainSimulateRequest {
 
 /** Payload for conversational copilot query. */
 export interface CopilotQueryRequest {
-  /** Optional target node ID */
-  node_id?: string | null;
-  /** Alternative field for operational question */
-  query?: string | null;
   /** Operational question to ask the Copilot */
   question?: string | null;
-  /** Optional region filter */
-  region?: string | null;
+  /** Alternative field for operational question */
+  query?: string | null;
   /** Enable Server-Sent Events progressive streaming */
   stream?: boolean;
+  /** Optional region filter */
+  region?: string | null;
+  /** Optional target node ID */
+  node_id?: string | null;
 }
 
 /** Schema for provisioning a new scoped developer API key. */
 export interface CreateApiKeyRequest {
   /** Human-readable label for key */
   name?: string;
+  /** Allowed scopes: read:inventory, write:events, read:stream, read:audit, use:copilot, manage:adapters, * */
+  scopes?: string[];
   /** Optional node UUID binding */
   node_id?: string | null;
   /** Requests permitted per minute */
   rate_limit?: number;
-  /** Allowed scopes: read:inventory, write:events, read:stream, read:audit, use:copilot, manage:adapters, * */
-  scopes?: string[];
 }
 
 /** Schema for registering an outbound webhook subscription. */
 export interface CreateWebhookRequest {
-  /** Event types: order.created, shipment.dispatched, batch.quarantined, hitl.created, hitl.decided, module.activated, * */
-  events?: string[];
-  /** Optional node UUID scoping */
-  node_id?: string | null;
-  /** Optional shared secret; auto-generated if omitted */
-  secret?: string | null;
   /** Target HTTPS/HTTP webhook receiver URL */
   url: string;
+  /** Event types: order.created, shipment.dispatched, batch.quarantined, hitl.created, hitl.decided, module.activated, * */
+  events?: string[];
+  /** Optional shared secret; auto-generated if omitted */
+  secret?: string | null;
+  /** Optional node UUID scoping */
+  node_id?: string | null;
 }
 
 export interface EnrichedUserProfile {
-  allowed_routes?: string[];
-  email?: string | null;
-  full_name?: string | null;
   id: string;
-  node_id?: string | null;
-  node_name?: string | null;
-  region?: string | null;
+  user_id: string;
+  email?: string | null;
   role: string;
   role_name?: string | null;
+  full_name?: string | null;
+  node_id?: string | null;
+  node_name?: string | null;
   tier?: string | null;
-  user_id: string;
+  region?: string | null;
+  allowed_routes?: string[];
+  permissions?: Record<string, unknown>;
 }
 
 /** Payload to trigger autonomous adapter synthesis and testing. */
 export interface GenerateAdapterRequest {
-  /** Human-readable description of source system */
-  description?: string | null;
-  /** Optional target canonical dictionary */
-  expected_output?: Record<string, unknown> | null;
-  /** Test hook for guard violation verification */
-  injected_bad_code?: string | null;
-  /** Maximum self-healing retry iterations */
-  max_attempts?: number;
   /** Unique alphanumeric identifier for the adapter module */
   name: string;
   /** Raw legacy sample payload (CSV text, XML string, or JSON dict/list) */
   sample_payload: unknown;
+  /** Optional target canonical dictionary */
+  expected_output?: Record<string, unknown> | null;
+  /** Human-readable description of source system */
+  description?: string | null;
   /** Target canonical schema ('SaleEvent' or 'BatchUpdate') */
   target_schema?: string;
+  /** Maximum self-healing retry iterations */
+  max_attempts?: number;
+  /** Test hook for guard violation verification */
+  injected_bad_code?: string | null;
 }
 
 /** Payload for submitting an approval or rejection decision on a pending HITL task. */
 export interface HITLDecisionRequest {
-  /** Operator identity submitting the decision. */
-  decided_by?: string | null;
   /** Decision choice: 'approve'/'approved' to execute gated action, 'reject'/'rejected' to abort/cancel. */
   decision?: "approve" | "approved" | "reject" | "rejected";
   /** Justification note for human decision audit trail. */
   note?: string | null;
   /** Alias for justification note. */
   reason?: string | null;
+  /** Operator identity submitting the decision. */
+  decided_by?: string | null;
 }
 
 /** Response returned upon submitting a decision for a HITL task. */
 export interface HITLDecisionResponse {
-  decided_at?: string | null;
-  decided_by?: string | null;
-  decision: string;
-  execution_outcome?: Record<string, unknown> | null;
-  resumed?: boolean;
-  resumed_workflow?: Record<string, unknown> | null;
   status: string;
-  task?: Record<string, unknown>;
   task_id: string;
+  decision: string;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  resumed?: boolean;
+  task?: Record<string, unknown>;
+  execution_outcome?: Record<string, unknown> | null;
+  resumed_workflow?: Record<string, unknown> | null;
 }
 
 export interface HTTPValidationError {
@@ -219,35 +220,35 @@ export interface HTTPValidationError {
 
 /** Payload to submit a regulatory notice for ingestion and pipeline execution. */
 export interface IngestNoticeRequest {
-  /** Override auto-deploy gating */
-  auto_deploy?: boolean | null;
-  /** Publishing authority */
-  source?: string | null;
   /** Raw regulatory text or Gazette order */
   text?: string | null;
-  /** Subject or Gazette reference title */
-  title?: string | null;
   /** URL of official regulatory portal */
   url?: string | null;
+  /** Publishing authority */
+  source?: string | null;
+  /** Subject or Gazette reference title */
+  title?: string | null;
+  /** Override auto-deploy gating */
+  auto_deploy?: boolean | null;
 }
 
 /** Inventory item balance with batch and SKU information. */
 export interface InventoryItemResponse {
-  batch_id: string;
-  batch_no?: string | null;
   id: string;
   node_id: string;
   product_id: string;
-  product_name?: string | null;
+  batch_id: string;
   quantity: number;
   reserved?: number;
   safety_stock?: number;
   updated_at?: string;
+  product_name?: string | null;
+  batch_no?: string | null;
 }
 
 export interface JSONRPCRequest {
-  id?: string | number | null;
   jsonrpc?: string;
+  id?: string | number | null;
   method: string;
   params?: Record<string, unknown>;
 }
@@ -266,143 +267,219 @@ export interface LoginResponse {
 }
 
 export interface MCPContentItem {
-  text: string;
   type?: string;
+  text: string;
 }
 
 export interface MCPToolCallRequest {
-  /** Arguments to pass to the tool */
-  arguments?: Record<string, unknown>;
   /** Tool name to execute */
   name?: string | null;
-  /** Alias for arguments */
-  parameters?: Record<string, unknown> | null;
   /** Alias for tool name */
   tool?: string | null;
+  /** Arguments to pass to the tool */
+  arguments?: Record<string, unknown>;
+  /** Alias for arguments */
+  parameters?: Record<string, unknown> | null;
 }
 
 export interface MCPToolCallResponse {
   content: MCPContentItem[];
-  is_error?: boolean;
   structured_content?: Record<string, unknown> | null;
+  is_error?: boolean;
 }
 
 export interface MCPToolsListResponse {
+  tools: Record<string, unknown>[];
   count: number;
   protocol_version?: string;
-  tools: Record<string, unknown>[];
+}
+
+export interface MobileScope {
+  /** Active user role */
+  role: string;
+  /** Bound supply chain node ID */
+  node_id?: string | null;
+  /** Bound supply chain node display name */
+  node_name?: string | null;
+}
+
+export interface MobileSummaryResponse {
+  /** Number of events recorded today within user RLS scope */
+  events_today: number;
+  /** Number of inventory items at or below safety stock threshold */
+  low_stock_count: number;
+  /** Number of pending HITL approval decisions visible to caller */
+  open_approvals: number;
+  /** Number of quarantined pharmaceutical batches within scope */
+  quarantined_batches: number;
+  /** Correlation ID of the latest supply chain demand cascade */
+  last_cascade_correlation_id?: string | null;
+  /** Active user and bound node RLS context */
+  scope: MobileScope;
+  /** ISO 8601 timestamp of summary generation */
+  generated_at: string;
 }
 
 /** Represents a specific version of a dynamic business rule or adapter module. */
 export interface ModuleVersion {
+  id?: string;
+  /** Unique module identifier, e.g. margin_rules */
+  name: string;
+  /** Sequential integer version */
+  version?: number;
+  /** Category of rule or adapter */
+  kind: string;
+  /** Executable Python code adhering to def run(input: dict) -> dict */
+  source_code: string;
+  /** Executable verification code def test_run() or test assertions */
+  tests_source: string;
+  /** staging, active, or retired */
+  status?: "staging" | "active" | "retired";
   checksum?: string | null;
   created_at?: string;
   created_by?: string;
-  id?: string;
-  /** Category of rule or adapter */
-  kind: string;
-  /** Unique module identifier, e.g. margin_rules */
-  name: string;
-  /** Executable Python code adhering to def run(input: dict) -> dict */
-  source_code: string;
-  /** staging, active, or retired */
-  status?: "staging" | "active" | "retired";
-  /** Executable verification code def test_run() or test assertions */
-  tests_source: string;
-  /** Sequential integer version */
-  version?: number;
 }
 
 /** Pharma supply chain node representation. */
 export interface NodeResponse {
-  address?: string | null;
-  created_at?: string;
   id: string;
-  is_active?: boolean;
-  name: string;
-  parent_id?: string | null;
-  region: string;
   tier: string;
+  name: string;
+  region: string;
+  parent_id?: string | null;
+  address?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+}
+
+export interface NormalizedEvent {
+  /** Unique event identifier */
+  id: string;
+  /** Canonical event UUID */
+  event_id: string;
+  /** Domain event type / topic */
+  event_type: string;
+  /** Event bus topic */
+  topic: string;
+  /** Display name of emitting agent */
+  agent_name: string;
+  /** Supply chain tier of event origin */
+  tier: string;
+  /** One-line operational description */
+  summary: string;
+  /** Supply cascade correlation ID */
+  correlation_id: string;
+  /** Originating node ID */
+  node_id?: string | null;
+  /** Originating node display name */
+  node_name?: string | null;
+  /** Event generation ISO timestamp */
+  created_at: string;
+  /** Detailed domain event payload */
+  payload?: Record<string, unknown>;
 }
 
 export interface OverviewKpisResponse {
-  active_batches?: number;
   events_today: number;
-  inventory_records?: number;
+  total_events: number;
+  stockout_risks: number;
   open_approvals: number;
   quarantined_batches: number;
-  stockout_risks: number;
-  total_events: number;
   total_nodes?: number;
   total_products?: number;
+  active_batches?: number;
+  inventory_records?: number;
 }
 
 export interface PaginatedResponse_InventoryItemResponse_ {
-  has_more?: boolean;
   items: InventoryItemResponse[];
   next_cursor?: string | null;
+  has_more?: boolean;
   total_count?: number | null;
 }
 
 export interface PaginatedResponse_NodeResponse_ {
-  has_more?: boolean;
   items: NodeResponse[];
   next_cursor?: string | null;
+  has_more?: boolean;
   total_count?: number | null;
 }
 
 export interface PaginatedResponse_ProductResponse_ {
-  has_more?: boolean;
   items: ProductResponse[];
   next_cursor?: string | null;
+  has_more?: boolean;
   total_count?: number | null;
 }
 
 export interface PosTriggerRequest {
   mode?: "single" | "steady" | "burst" | "stockout";
+  product_id?: string | null;
   node_id?: string | null;
   pharmacy_id?: string | null;
-  product_id?: string | null;
   quantity?: number;
 }
 
 export interface PosTriggerResponse {
-  cascade: Record<string, unknown>;
-  correlation_id: string;
-  events_created: number;
-  mode: string;
   status?: string;
+  correlation_id: string;
+  mode: string;
+  events_created: number;
+  cascade: Record<string, unknown>;
 }
 
 /** Payload to test live pricing calculation against active pricing module. */
 export interface PriceCheckRequest {
+  /** Product SKU */
+  sku?: string;
+  /** Base unit price before regulatory cap */
+  unit_price?: number;
+  /** Quantity */
+  quantity?: number;
   /** Optional drug name */
   drug_name?: string | null;
   /** Module kind */
   module_kind?: string | null;
   /** Arbitrary extra fields */
   payload?: Record<string, unknown> | null;
-  /** Quantity */
-  quantity?: number;
-  /** Product SKU */
-  sku?: string;
-  /** Base unit price before regulatory cap */
-  unit_price?: number;
 }
 
 /** Pharmaceutical product catalog item. */
 export interface ProductResponse {
-  created_at?: string;
-  generic_name: string;
   id: string;
-  is_cold_chain?: boolean;
-  is_lifesaving?: boolean;
   name: string;
-  price_per_unit: number;
+  generic_name: string;
   schedule_class?: string;
-  storage_max_c?: number | null;
+  is_cold_chain?: boolean;
   storage_min_c?: number | null;
+  storage_max_c?: number | null;
+  is_lifesaving?: boolean;
   unit?: string;
+  price_per_unit: number;
+  created_at?: string;
+}
+
+export interface RecentEventsResponse {
+  /** List of chronologically ordered recent events */
+  events: NormalizedEvent[];
+  /** Number of events returned */
+  count: number;
+  /** Latest event ID cursor for subsequent queries */
+  latest_event_id?: string | null;
+  /** Server ISO timestamp at query evaluation */
+  server_ts: string;
+}
+
+export interface RefreshRequest {
+  refresh_token?: string | null;
+  token?: string | null;
+}
+
+export interface RefreshResponse {
+  access_token: string;
+  token_type?: string;
+  expires_in?: number;
+  refresh_token?: string | null;
 }
 
 /** Payload to revert an adapter to a prior version. */
@@ -413,102 +490,102 @@ export interface RollbackAdapterRequest {
 
 /** Point-of-Sale dispense event for instantaneous single-unit propagation. */
 export interface SaleEvent {
-  /** Dispensed pharmaceutical batch ID */
-  batch_id: string;
   event_id?: string;
   /** ID of the dispensing pharmacy node */
   pharmacy_id: string;
   /** Master catalog product ID */
   product_id: string;
+  /** Dispensed pharmaceutical batch ID */
+  batch_id: string;
   /** Quantity dispensed in units / strips */
   quantity?: number;
+  timestamp?: string;
   /** Event source identifier */
   source?: string;
-  timestamp?: string;
 }
 
 /** Cold-chain IoT telemetry event for temperature, humidity, and shock tracking. */
 export interface SensorReadingEvent {
+  event_id?: string;
   /** Cold-chain pharmaceutical batch ID */
   batch_id?: string;
-  correlation_id?: string;
-  /** Duration interval in minutes */
-  duration_minutes?: number;
-  event_id?: string;
-  /** Relative humidity percentage */
-  humidity?: number;
-  /** Simulation mode: normal, excursion, shock */
-  mode?: string;
-  /** Node or vehicle holding the sensor */
-  node_id?: string | null;
   /** Master catalog product ID */
   product_id?: string | null;
-  /** Physical or virtual IoT sensor identifier */
-  sensor_id?: string;
+  /** Node or vehicle holding the sensor */
+  node_id?: string | null;
   /** Active transit shipment ID */
   shipment_id?: string | null;
-  /** Physical acceleration / shock impact in Gs */
-  shock_g?: number;
-  /** Backward-compatible temperature field */
-  temperature?: number | null;
+  /** Physical or virtual IoT sensor identifier */
+  sensor_id?: string;
   /** Current temperature in Celsius */
   temperature_c?: number;
-  timestamp?: string;
+  /** Backward-compatible temperature field */
+  temperature?: number | null;
+  /** Relative humidity percentage */
+  humidity?: number;
+  /** Physical acceleration / shock impact in Gs */
+  shock_g?: number;
+  /** Duration interval in minutes */
+  duration_minutes?: number;
+  /** Simulation mode: normal, excursion, shock */
+  mode?: string;
   /** Timestamp string */
   ts?: string | null;
+  timestamp?: string;
+  correlation_id?: string;
 }
 
 /** Payload to trigger a background POS traffic simulation. */
 export interface SimulationRunRequest {
+  mode?: "single" | "steady" | "burst" | "stockout_run";
+  /** Sales per second for steady mode */
+  rate?: number;
   /** Simulation duration in seconds */
   duration_seconds?: number;
   /** Total sales for burst mode */
   intensity?: number;
-  mode?: "single" | "steady" | "burst" | "stockout_run";
-  /** Sales per second for steady mode */
-  rate?: number;
-  /** Optional geographic region filter */
-  region?: string | null;
   /** Optional target pharmacy UUID */
   target_node_id?: string | null;
   /** Optional target product UUID */
   target_product_id?: string | null;
+  /** Optional geographic region filter */
+  region?: string | null;
 }
 
 export interface SimulationRunResponse {
-  mode: string;
-  simulation_id: string;
   status: string;
+  simulation_id: string;
+  mode: string;
 }
 
 export interface SimulationStatusResponse {
-  errors_count?: number;
-  events_sent?: number;
-  last_event_time?: string | null;
-  mode?: string | null;
-  rate?: number | null;
   simulation_id?: string | null;
   status: string;
+  mode?: string | null;
+  rate?: number | null;
+  events_sent?: number;
+  errors_count?: number;
+  last_event_time?: string | null;
   target_node_id?: string | null;
   target_product_id?: string | null;
 }
 
 /** Schema for manually triggering a signed test webhook delivery. */
 export interface TestWebhookRequest {
-  /** Payload data */
-  data?: Record<string, unknown>;
   /** Event type to simulate */
   event_type?: string;
   /** Subscription ID to test */
   subscription_id?: string | null;
+  /** Payload data */
+  data?: Record<string, unknown>;
 }
 
 export interface ValidationError {
-  ctx?: Record<string, unknown>;
-  input?: unknown;
   loc: (string | number)[];
   msg: string;
   type: string;
+  input?: unknown;
+  ctx?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -634,6 +711,13 @@ export interface ApiOperations {
     parameters: { authorization?: string | null; "X-API-Key"?: string | null };
     requestBody: undefined;
     response: EnrichedUserProfile;
+  };
+  /** Refresh Session Access Token */
+  'POST /api/v1/auth/refresh': {
+    operationId: 'post__api_v1_auth_refresh';
+    parameters: undefined;
+    requestBody: RefreshRequest;
+    response: RefreshResponse;
   };
   /** List Recent Cascade Runs */
   'GET /api/v1/cascade': {
@@ -803,6 +887,13 @@ export interface ApiOperations {
     requestBody: SaleEvent;
     response: unknown;
   };
+  /** Get Recent Normalized Events (Mobile & Polling Fallback) */
+  'GET /api/v1/events/recent': {
+    operationId: 'get__api_v1_events_recent';
+    parameters: { since?: string | null; topics?: string | null; limit?: number; authorization?: string | null; "X-API-Key"?: string | null };
+    requestBody: undefined;
+    response: RecentEventsResponse;
+  };
   /** Ingest Point-of-Sale Dispense Event */
   'POST /api/v1/events/sale': {
     operationId: 'post__api_v1_events_sale';
@@ -921,6 +1012,13 @@ export interface ApiOperations {
     parameters: { authorization?: string | null; "X-API-Key"?: string | null };
     requestBody: undefined;
     response: EnrichedUserProfile;
+  };
+  /** Get Mobile Operational Summary KPIs */
+  'GET /api/v1/mobile/summary': {
+    operationId: 'get__api_v1_mobile_summary';
+    parameters: { authorization?: string | null; "X-API-Key"?: string | null };
+    requestBody: undefined;
+    response: MobileSummaryResponse;
   };
   /** List Active Modules */
   'GET /api/v1/modules': {
