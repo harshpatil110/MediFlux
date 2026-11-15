@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -15,9 +19,15 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@mediflux/shared": ["../packages/shared/src/index.ts"],
-      "@mediflux/shared/*": ["../packages/shared/src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@mediflux/shared": [
+        "../packages/shared/src/index.ts"
+      ],
+      "@mediflux/shared/*": [
+        "../packages/shared/src/*"
+      ]
     }
   },
   "include": [
@@ -25,7 +35,9 @@
     "app/**/*.ts",
     "app/**/*.tsx",
     "src/**/*.ts",
-    "src/**/*.tsx"
-  ]
+    "src/**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "extends": "expo/tsconfig.base"
 }
-
