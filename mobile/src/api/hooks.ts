@@ -97,3 +97,4 @@ export function usePendingHitlTasks() {
 export function useColdChainBatches() {
   return useApiQuery<Array<any>>('/api/v1/coldchain/batches');
 }
+

@@ -68,3 +68,4 @@ export interface HitlTaskEvent {
   summary?: string;
   reasoning?: string;
 }
+

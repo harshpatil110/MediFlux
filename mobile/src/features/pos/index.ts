@@ -12,3 +12,4 @@ export interface PosScanItem {
   unitPrice: number;
   schedule: string;
 }
+

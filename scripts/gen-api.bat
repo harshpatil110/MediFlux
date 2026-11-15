@@ -18,3 +18,4 @@ if %ERRORLEVEL% EQU 0 (
     echo [ERROR] OpenAPI code generation failed with code %ERRORLEVEL%.
 )
 exit /b %ERRORLEVEL%
+

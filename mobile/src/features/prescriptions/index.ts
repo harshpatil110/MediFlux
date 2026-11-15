@@ -11,3 +11,4 @@ export interface PrescriptionScanResult {
   schedule: string;
   isCompliant: boolean;
 }
+

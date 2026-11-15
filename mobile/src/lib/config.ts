@@ -178,3 +178,4 @@ export function useBackendHealth(pollIntervalMs: number = 30000) {
 
   return { health, refresh, setUrl: setBackendUrl };
 }
+

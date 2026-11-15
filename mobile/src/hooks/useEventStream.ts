@@ -105,3 +105,4 @@ export function useEventStream({
 
   return { events, isConnected, lastError, clearEvents };
 }
+

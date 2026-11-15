@@ -53,3 +53,4 @@ export class ApiError extends Error {
     return new ApiError('UNKNOWN_ERROR', 'An unexpected error occurred', status);
   }
 }
+

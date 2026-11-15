@@ -10,3 +10,4 @@ export interface CopilotMessage {
   timestamp: string;
   citations?: Array<{ title: string; source: string; snippet: string }>;
 }
+

@@ -139,3 +139,4 @@ This synchronizes strongly typed interfaces and endpoint registries to:
 - `packages/shared/src/generated-api.ts`
 - `mobile/src/api/generated.ts`
 - `frontend/src/types/generated-api.ts`
+

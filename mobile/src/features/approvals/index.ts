@@ -8,3 +8,4 @@ export interface HitlDecisionRequest {
   decision: 'approved' | 'rejected';
   reason?: string;
 }
+

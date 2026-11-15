@@ -11,3 +11,4 @@ export interface ColdChainAlert {
   severity: 'warning' | 'critical';
   timestamp: string;
 }
+

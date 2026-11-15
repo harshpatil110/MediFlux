@@ -10,3 +10,4 @@ export interface CascadeStep {
   status: 'pending' | 'active' | 'completed' | 'failed';
   timestamp: string;
 }
+

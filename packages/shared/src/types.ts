@@ -107,3 +107,4 @@ export interface HealthCheckResponse {
   active_nodes?: number;
   database?: string;
 }
+

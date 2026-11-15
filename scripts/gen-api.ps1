@@ -23,3 +23,4 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "`n[ERROR] Code generation failed with exit code $LASTEXITCODE" -ForegroundColor Red
     exit $LASTEXITCODE
 }
+

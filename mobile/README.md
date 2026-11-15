@@ -61,3 +61,4 @@ The mobile client features dynamic backend URL configuration with `/health` reac
 | **Physical Phone / Expo Go** | `http://<LAN_IP>:8000` | Start backend with `python -m scripts.start_all --lan` |
 
 The `ConnectionBanner` at the top of the mobile application displays real-time reachability status and latency, allowing instant tap-to-configure switching between presets.
+

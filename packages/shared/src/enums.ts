@@ -76,3 +76,4 @@ export type DrugSchedule =
   | 'Narcotic';
 
 export type ColdChainStatus = 'active' | 'warning' | 'quarantined' | 'compromised';
+

@@ -47,3 +47,4 @@ export function useNetworkStatus(intervalMs: number = 20000): NetworkStatus {
 
   return { isOnline, backend: backendHealth, checkNow };
 }
+
