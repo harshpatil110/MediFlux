@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "mediflux-backend"
 version = "0.1.0"
 description = "MediFlux: AI-native hyper-connected pharmaceutical supply chain ecosystem for India"
-readme = "README.md"
 requires-python = ">=3.11"
 authors = [
     { name = "MediFlux Team" }
@@ -57,3 +56,6 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 
+
+[tool.setuptools.packages.find]
+include = ["app*"]
