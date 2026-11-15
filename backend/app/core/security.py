@@ -396,13 +396,13 @@ async def get_current_user(
             role=role,
             node_id=node_id,
         )
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as err:
         from app.core.exceptions import AppException
         raise AppException(
             message="Session token has expired. Please refresh credentials.",
             code="TOKEN_EXPIRED",
             status_code=401,
-        )
+        ) from err
     except jwt.PyJWTError as exc:
         # If running in local disconnected/test environment, permit test tokens
         if token.startswith("test-") or len(token) == 36:
@@ -414,6 +414,18 @@ async def get_current_user(
                 node_id="11111111-1111-1111-1111-111111111111",
             )
         raise UnauthorizedError(f"Invalid authentication token: {exc}") from exc
+
+
+async def get_current_user_optional(
+    authorization: Annotated[str | None, Header()] = None,
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    request: Request = None,
+) -> CurrentUser | None:
+    """Optional user dependency that returns None if credentials are absent or invalid."""
+    try:
+        return await get_current_user(authorization=authorization, x_api_key=x_api_key, request=request)
+    except Exception:
+        return None
 
 
 # -----------------------------------------------------------------------------

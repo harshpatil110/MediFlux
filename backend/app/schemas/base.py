@@ -35,6 +35,8 @@ class ProductResponse(BaseModel):
     id: str
     name: str
     generic_name: str
+    sku: str | None = None
+    barcode: str | None = None
     schedule_class: str = "GENERAL"
     is_cold_chain: bool = False
     storage_min_c: float | None = None

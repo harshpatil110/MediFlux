@@ -3,6 +3,8 @@
  * Conforming strictly to design.md
  */
 
+import { Platform } from 'react-native';
+
 export const colors = {
   // Canvas & Surfaces
   canvas: {
@@ -53,6 +55,10 @@ export const colors = {
 };
 
 export const typography = {
+  fontFamily: {
+    sans: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
+    mono: Platform.select({ ios: 'Courier New', android: 'monospace', default: 'monospace' }),
+  },
   // Editorial Typographic Hierarchy
   fontSize: {
     display: 32,

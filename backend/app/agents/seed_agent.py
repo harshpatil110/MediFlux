@@ -40,6 +40,7 @@ class SyntheticProduct(BaseModel):
     sku: str
     name: str
     generic_name: str
+    barcode: str | None = None
     schedule_class: str = "GENERAL"
     is_cold_chain: bool = False
     storage_min_c: float | None = None
@@ -350,6 +351,7 @@ class SeedAgent:
                 SyntheticProduct(
                     id=prod_id,
                     sku=sku,
+                    barcode=item.get("barcode"),
                     name=item["product_name"],
                     generic_name=derived_generic_name,
                     schedule_class=sched_class,

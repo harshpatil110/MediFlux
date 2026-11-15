@@ -75,23 +75,28 @@ export interface CascadeFullTrace {
 }
 
 export interface CascadeStepDetail {
-  /** Tier level: 4 (Pharmacy) -> 3 (Stockist) -> 2 (Distributor) -> 1 (Manufacturer) */
+  /** Tier level: 5 (Supervisor) -> 4 (Pharmacy) -> 3 (Stockist) -> 2 (Distributor) -> 1 (Manufacturer) */
   tier: number;
   tier_label: string;
+  stage?: string | null;
   agent_name: string;
   node_id: string;
   node_name: string;
   status?: string;
+  state?: string | null;
   reasoning: string;
   input?: Record<string, unknown>;
   output?: Record<string, unknown>;
-  model: string;
-  provider: string;
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  duration_ms: number;
-  timestamp: string;
+  structured_output?: Record<string, unknown>;
+  skip_reason?: string | null;
+  hitl_task_id?: string | null;
+  model?: string;
+  provider?: string;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  duration_ms?: number;
+  timestamp?: string;
   entities_created?: Record<string, unknown>;
 }
 
@@ -294,6 +299,52 @@ export interface MCPToolsListResponse {
   protocol_version?: string;
 }
 
+export interface MobileSaleRequest {
+  /** Client unique UUID for idempotency */
+  event_id?: string | null;
+  /** Product UUID or SKU */
+  product_id: string;
+  /** Scanned barcode string */
+  barcode?: string | null;
+  /** Selected pharmaceutical batch UUID */
+  batch_id: string;
+  /** Dispensing pharmacy node ID */
+  node_id?: string | null;
+  /** Pharmacy node ID alias */
+  pharmacy_id?: string | null;
+  /** Quantity to dispense */
+  quantity?: number;
+  /** Attached prescription UUID */
+  prescription_id?: string | null;
+  /** Unit retail price */
+  unit_price?: number | null;
+  /** POS source indicator */
+  source?: string;
+}
+
+export interface MobileSaleResponse {
+  /** Execution status ('succeeded', 'accepted', 'duplicate') */
+  status: string;
+  /** Whether inventory was decremented in this call */
+  applied: boolean;
+  /** True if this event_id was previously executed */
+  idempotent_replay?: boolean;
+  /** Event UUID */
+  event_id: string;
+  /** Demand cascade correlation ID */
+  correlation_id: string;
+  /** Remaining batch stock */
+  remaining_quantity?: number | null;
+  /** Whether 4-tier demand cascade was triggered */
+  cascade_triggered?: boolean;
+  /** Full 5-stage demand cascade trace */
+  cascade?: Record<string, unknown> | null;
+  /** True if flagged for Schedule H compliance review */
+  compliance_hold?: boolean;
+  /** Compliance or inventory warning message */
+  warning?: string | null;
+}
+
 export interface MobileScope {
   /** Active user role */
   role: string;
@@ -444,11 +495,42 @@ export interface PriceCheckRequest {
   payload?: Record<string, unknown> | null;
 }
 
+export interface ProductBarcodeLookupResponse {
+  id: string;
+  name: string;
+  generic_name: string;
+  sku: string;
+  barcode: string;
+  schedule_class: string;
+  requires_prescription: boolean;
+  is_lifesaving: boolean;
+  is_cold_chain: boolean;
+  storage_min_c?: number | null;
+  storage_max_c?: number | null;
+  unit_price: number;
+  batches?: ProductBatchDetail[];
+}
+
+export interface ProductBatchDetail {
+  batch_id: string;
+  batch_no: string;
+  expiry_date: string;
+  days_to_expiry: number;
+  is_near_expiry?: boolean;
+  status?: string;
+  available_quantity: number;
+  reserved_quantity?: number;
+  safety_stock?: number;
+  node_id?: string | null;
+}
+
 /** Pharmaceutical product catalog item. */
 export interface ProductResponse {
   id: string;
   name: string;
   generic_name: string;
+  sku?: string | null;
+  barcode?: string | null;
   schedule_class?: string;
   is_cold_chain?: boolean;
   storage_min_c?: number | null;
@@ -884,8 +966,8 @@ export interface ApiOperations {
   'POST /api/v1/events/pos': {
     operationId: 'post__api_v1_events_pos';
     parameters: { "X-Correlation-ID"?: string | null; "X-API-Key"?: string | null; authorization?: string | null };
-    requestBody: SaleEvent;
-    response: unknown;
+    requestBody: MobileSaleRequest;
+    response: MobileSaleResponse;
   };
   /** Get Recent Normalized Events (Mobile & Polling Fallback) */
   'GET /api/v1/events/recent': {
@@ -898,8 +980,8 @@ export interface ApiOperations {
   'POST /api/v1/events/sale': {
     operationId: 'post__api_v1_events_sale';
     parameters: { "X-Correlation-ID"?: string | null; "X-API-Key"?: string | null; authorization?: string | null };
-    requestBody: SaleEvent;
-    response: unknown;
+    requestBody: MobileSaleRequest;
+    response: MobileSaleResponse;
   };
   /** Batch Ingest Point-of-Sale Dispense Events */
   'POST /api/v1/events/sale/batch': {
@@ -1086,9 +1168,16 @@ export interface ApiOperations {
   /** List Products */
   'GET /api/v1/products': {
     operationId: 'get__api_v1_products';
-    parameters: { search?: string | null; schedule_class?: string | null; is_cold_chain?: boolean | null; limit?: number; cursor?: string | null };
+    parameters: { search?: string | null; q?: string | null; schedule_class?: string | null; is_cold_chain?: boolean | null; limit?: number; cursor?: string | null };
     requestBody: undefined;
     response: PaginatedResponse_ProductResponse_;
+  };
+  /** Lookup Product by Barcode or SKU */
+  'GET /api/v1/products/by-barcode/{code}': {
+    operationId: 'get__api_v1_products_by_barcode__code_';
+    parameters: { code: string; authorization?: string | null; "X-API-Key"?: string | null };
+    requestBody: undefined;
+    response: ProductBarcodeLookupResponse;
   };
   /** Trigger Manual Regulatory Crawl Across Configured Sources */
   'POST /api/v1/regulatory/check-now': {

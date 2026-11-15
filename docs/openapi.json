@@ -1712,13 +1712,88 @@
         }
       }
     },
+    "/api/v1/products/by-barcode/{code}": {
+      "get": {
+        "tags": [
+          "Product Catalog"
+        ],
+        "summary": "Lookup Product by Barcode or SKU",
+        "description": "Retrieve product details and FEFO-sorted batches for scanning at retail pharmacy counter.",
+        "operationId": "get_product_by_barcode_api_v1_products_by_barcode__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductBarcodeLookupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/products": {
       "get": {
         "tags": [
           "Product Catalog"
         ],
         "summary": "List Products",
-        "description": "Retrieve catalog products with optional filtering by schedule class or cold-chain requirement.",
+        "description": "Retrieve catalog products with optional filtering by schedule class, query, or cold-chain.",
         "operationId": "list_products_api_v1_products_get",
         "parameters": [
           {
@@ -1738,6 +1813,24 @@
               "title": "Search"
             },
             "description": "Search by name or generic name"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search query alias (name, generic, sku, barcode)",
+              "title": "Q"
+            },
+            "description": "Search query alias (name, generic, sku, barcode)"
           },
           {
             "name": "schedule_class",
@@ -1783,7 +1876,7 @@
               "type": "integer",
               "maximum": 100,
               "minimum": 1,
-              "default": 20,
+              "default": 50,
               "title": "Limit"
             }
           },
@@ -2239,7 +2332,7 @@
           "Events & POS Ingestion"
         ],
         "summary": "Ingest Point-of-Sale Dispense Event",
-        "description": "Atomic, zero-LLM retail POS sale ingestion that decrements inventory and broadcasts to pos.sales.",
+        "description": "Atomic, idempotent retail POS sale ingestion that decrements inventory, enforces Schedule H checks, and triggers 5-stage demand cascade.",
         "operationId": "ingest_sale_event_api_v1_events_sale_post",
         "parameters": [
           {
@@ -2296,17 +2389,19 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SaleEvent"
+                "$ref": "#/components/schemas/MobileSaleRequest"
               }
             }
           }
         },
         "responses": {
-          "202": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MobileSaleResponse"
+                }
               }
             }
           },
@@ -2329,7 +2424,7 @@
           "Events & POS Ingestion"
         ],
         "summary": "Point-of-Sale Event Ingestion Alias",
-        "description": "Ingest a single Point-of-Sale event, atomically apply inventory deduction, and publish to the event bus.",
+        "description": "Ingest a single Point-of-Sale event with strict idempotency, quarantine check, and 5-stage cascade.",
         "operationId": "ingest_sale_event_api_v1_events_pos_post",
         "parameters": [
           {
@@ -2386,17 +2481,19 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SaleEvent"
+                "$ref": "#/components/schemas/MobileSaleRequest"
               }
             }
           }
         },
         "responses": {
-          "202": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MobileSaleResponse"
+                }
               }
             }
           },
@@ -6897,11 +6994,22 @@
           "tier": {
             "type": "integer",
             "title": "Tier",
-            "description": "Tier level: 4 (Pharmacy) -> 3 (Stockist) -> 2 (Distributor) -> 1 (Manufacturer)"
+            "description": "Tier level: 5 (Supervisor) -> 4 (Pharmacy) -> 3 (Stockist) -> 2 (Distributor) -> 1 (Manufacturer)"
           },
           "tier_label": {
             "type": "string",
             "title": "Tier Label"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
           },
           "agent_name": {
             "type": "string",
@@ -6920,6 +7028,18 @@
             "title": "Status",
             "default": "succeeded"
           },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "default": "done"
+          },
           "reasoning": {
             "type": "string",
             "title": "Reasoning"
@@ -6934,33 +7054,67 @@
             "type": "object",
             "title": "Output"
           },
+          "structured_output": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Structured Output"
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          },
+          "hitl_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hitl Task Id"
+          },
           "model": {
             "type": "string",
-            "title": "Model"
+            "title": "Model",
+            "default": "meta/llama-3.1-70b-instruct"
           },
           "provider": {
             "type": "string",
-            "title": "Provider"
+            "title": "Provider",
+            "default": "groq"
           },
           "prompt_tokens": {
             "type": "integer",
-            "title": "Prompt Tokens"
+            "title": "Prompt Tokens",
+            "default": 140
           },
           "completion_tokens": {
             "type": "integer",
-            "title": "Completion Tokens"
+            "title": "Completion Tokens",
+            "default": 60
           },
           "total_tokens": {
             "type": "integer",
-            "title": "Total Tokens"
+            "title": "Total Tokens",
+            "default": 200
           },
           "duration_ms": {
             "type": "number",
-            "title": "Duration Ms"
+            "title": "Duration Ms",
+            "default": 25.0
           },
           "timestamp": {
             "type": "string",
-            "title": "Timestamp"
+            "title": "Timestamp",
+            "default": ""
           },
           "entities_created": {
             "additionalProperties": true,
@@ -6975,14 +7129,7 @@
           "agent_name",
           "node_id",
           "node_name",
-          "reasoning",
-          "model",
-          "provider",
-          "prompt_tokens",
-          "completion_tokens",
-          "total_tokens",
-          "duration_ms",
-          "timestamp"
+          "reasoning"
         ],
         "title": "CascadeStepDetail"
       },
@@ -7939,6 +8086,198 @@
         ],
         "title": "MCPToolsListResponse"
       },
+      "MobileSaleRequest": {
+        "properties": {
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id",
+            "description": "Client unique UUID for idempotency"
+          },
+          "product_id": {
+            "type": "string",
+            "title": "Product Id",
+            "description": "Product UUID or SKU"
+          },
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode",
+            "description": "Scanned barcode string"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id",
+            "description": "Selected pharmaceutical batch UUID"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id",
+            "description": "Dispensing pharmacy node ID"
+          },
+          "pharmacy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pharmacy Id",
+            "description": "Pharmacy node ID alias"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Quantity",
+            "description": "Quantity to dispense",
+            "default": 1
+          },
+          "prescription_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prescription Id",
+            "description": "Attached prescription UUID"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price",
+            "description": "Unit retail price"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "POS source indicator",
+            "default": "pos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "batch_id"
+        ],
+        "title": "MobileSaleRequest"
+      },
+      "MobileSaleResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Execution status ('succeeded', 'accepted', 'duplicate')"
+          },
+          "applied": {
+            "type": "boolean",
+            "title": "Applied",
+            "description": "Whether inventory was decremented in this call"
+          },
+          "idempotent_replay": {
+            "type": "boolean",
+            "title": "Idempotent Replay",
+            "description": "True if this event_id was previously executed",
+            "default": false
+          },
+          "event_id": {
+            "type": "string",
+            "title": "Event Id",
+            "description": "Event UUID"
+          },
+          "correlation_id": {
+            "type": "string",
+            "title": "Correlation Id",
+            "description": "Demand cascade correlation ID"
+          },
+          "remaining_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Quantity",
+            "description": "Remaining batch stock"
+          },
+          "cascade_triggered": {
+            "type": "boolean",
+            "title": "Cascade Triggered",
+            "description": "Whether 4-tier demand cascade was triggered",
+            "default": true
+          },
+          "cascade": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cascade",
+            "description": "Full 5-stage demand cascade trace"
+          },
+          "compliance_hold": {
+            "type": "boolean",
+            "title": "Compliance Hold",
+            "description": "True if flagged for Schedule H compliance review",
+            "default": false
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning",
+            "description": "Compliance or inventory warning message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "applied",
+          "event_id",
+          "correlation_id"
+        ],
+        "title": "MobileSaleResponse"
+      },
       "MobileScope": {
         "properties": {
           "role": {
@@ -8595,6 +8934,157 @@
         "title": "PriceCheckRequest",
         "description": "Payload to test live pricing calculation against active pricing module."
       },
+      "ProductBarcodeLookupResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "generic_name": {
+            "type": "string",
+            "title": "Generic Name"
+          },
+          "sku": {
+            "type": "string",
+            "title": "Sku"
+          },
+          "barcode": {
+            "type": "string",
+            "title": "Barcode"
+          },
+          "schedule_class": {
+            "type": "string",
+            "title": "Schedule Class"
+          },
+          "requires_prescription": {
+            "type": "boolean",
+            "title": "Requires Prescription"
+          },
+          "is_lifesaving": {
+            "type": "boolean",
+            "title": "Is Lifesaving"
+          },
+          "is_cold_chain": {
+            "type": "boolean",
+            "title": "Is Cold Chain"
+          },
+          "storage_min_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Min C"
+          },
+          "storage_max_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Max C"
+          },
+          "unit_price": {
+            "type": "number",
+            "title": "Unit Price"
+          },
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/ProductBatchDetail"
+            },
+            "type": "array",
+            "title": "Batches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "generic_name",
+          "sku",
+          "barcode",
+          "schedule_class",
+          "requires_prescription",
+          "is_lifesaving",
+          "is_cold_chain",
+          "unit_price"
+        ],
+        "title": "ProductBarcodeLookupResponse"
+      },
+      "ProductBatchDetail": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "batch_no": {
+            "type": "string",
+            "title": "Batch No"
+          },
+          "expiry_date": {
+            "type": "string",
+            "title": "Expiry Date"
+          },
+          "days_to_expiry": {
+            "type": "integer",
+            "title": "Days To Expiry"
+          },
+          "is_near_expiry": {
+            "type": "boolean",
+            "title": "Is Near Expiry",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "active"
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity"
+          },
+          "reserved_quantity": {
+            "type": "integer",
+            "title": "Reserved Quantity",
+            "default": 0
+          },
+          "safety_stock": {
+            "type": "integer",
+            "title": "Safety Stock",
+            "default": 20
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "batch_no",
+          "expiry_date",
+          "days_to_expiry",
+          "available_quantity"
+        ],
+        "title": "ProductBatchDetail"
+      },
       "ProductResponse": {
         "properties": {
           "id": {
@@ -8608,6 +9098,28 @@
           "generic_name": {
             "type": "string",
             "title": "Generic Name"
+          },
+          "sku": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku"
+          },
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
           },
           "schedule_class": {
             "type": "string",

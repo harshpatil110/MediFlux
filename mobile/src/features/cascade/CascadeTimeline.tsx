@@ -7,35 +7,42 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, radii } from '../../theme/tokens';
 import { Badge } from '../../components/Badge';
 import { Card } from '../../components/Card';
 
+export type CascadeStageName = 'supervisor' | 'pharmacy' | 'stockist' | 'distributor' | 'manufacturer';
+export type CascadeStepState = 'completed' | 'waiting_approval' | 'running' | 'skipped' | 'failed' | 'succeeded' | 'pending';
+
 export interface CascadeStep {
-  tier: number;
-  tier_label: string;
-  agent_name: string;
-  node_id: string;
-  node_name: string;
-  status: string;
-  reasoning: string;
-  input?: Record<string, any>;
+  stage?: CascadeStageName;
+  state?: CascadeStepState;
+  tier?: number;
+  tier_label?: string;
+  agent_name?: string;
+  node_id?: string;
+  node_name?: string;
+  status?: string;
+  reasoning?: string;
+  skip_reason?: string | null;
+  hitl_task_id?: string | null;
+  structured_output?: Record<string, any>;
+  entities_created?: Record<string, any>;
   output?: Record<string, any>;
+  input?: Record<string, any>;
   model?: string;
   provider?: string;
-  prompt_tokens?: number;
-  completion_tokens?: number;
+  duration_ms?: number;
   total_tokens?: number;
-  duration_ms: number;
-  timestamp: string;
-  entities_created?: Record<string, any>;
+  timestamp?: string;
 }
 
 export interface CascadeTrace {
   correlation_id: string;
   started_at: string;
-  completed_at: string;
+  completed_at?: string;
   total_duration_ms: number;
   total_tokens: number;
   status: string;
@@ -50,7 +57,16 @@ export interface CascadeTimelineProps {
   onRefresh?: () => void;
 }
 
+const STAGE_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; tierBadge: string }> = {
+  supervisor: { label: 'Supervisor Router', icon: 'git-network-outline', tierBadge: 'CTRL' },
+  pharmacy: { label: 'Pharmacy Edge (T1)', icon: 'storefront-outline', tierBadge: 'T1' },
+  stockist: { label: 'Stockist Hub (T2)', icon: 'business-outline', tierBadge: 'T2' },
+  distributor: { label: 'Distributor Layer (T3)', icon: 'trail-sign-outline', tierBadge: 'T3' },
+  manufacturer: { label: 'Manufacturer Plant (T4)', icon: 'flask-outline', tierBadge: 'T4' },
+};
+
 export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTimelineProps) {
+  const router = useRouter();
   const [expandedStepIndex, setExpandedStepIndex] = useState<number | null>(null);
 
   if (loading) {
@@ -85,7 +101,7 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Trace Overview Card */}
-      <Card title="Demand Cascade Trace" subtitle="Multi-Tier Autonomous Propagation">
+      <Card title="Demand Cascade Trace" subtitle="Instant Multi-Tier Autonomous Propagation">
         <View style={styles.overviewHeader}>
           <View style={styles.idRow}>
             <Text style={styles.idLabel}>CORRELATION ID</Text>
@@ -102,16 +118,16 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
             <Text style={styles.metaItemLabel}>DURATION</Text>
-            <Text style={styles.metaItemValue}>{Math.round(trace.total_duration_ms)} ms</Text>
+            <Text style={styles.metaItemValue}>{Math.round(trace.total_duration_ms || 0)} ms</Text>
           </View>
           <View style={styles.metaItem}>
             <Text style={styles.metaItemLabel}>LLM TOKENS</Text>
-            <Text style={styles.metaItemValue}>{trace.total_tokens} tok</Text>
+            <Text style={styles.metaItemValue}>{trace.total_tokens || 0} tok</Text>
           </View>
           <View style={styles.metaItem}>
-            <Text style={styles.metaItemLabel}>TIERS REACHED</Text>
+            <Text style={styles.metaItemLabel}>STAGES REACHED</Text>
             <Text style={styles.metaItemValue}>
-              {trace.steps.length}/4 (100% Propagation)
+              {trace.steps.length}/5 Propagation
             </Text>
           </View>
         </View>
@@ -120,9 +136,9 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
           <View style={styles.triggerBanner}>
             <Ionicons name="flash-outline" size={16} color={colors.accent.primary} />
             <Text style={styles.triggerText}>
-              Trigger: Dispensed {trigger.quantity || 1} unit(s) of{' '}
-              <Text style={{ fontWeight: '700' }}>{trigger.product_name}</Text> at{' '}
-              {trigger.pharmacy_name || 'Retail Pharmacy'}.
+              Trigger: Dispensed {trigger.quantity || 1} strip(s) of{' '}
+              <Text style={{ fontWeight: '700' }}>{trigger.product_name}</Text> (Batch{' '}
+              {trigger.batch_number || 'N/A'})
             </Text>
           </View>
         )}
@@ -130,76 +146,161 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
 
       {/* Vertical Steps Progression */}
       <View style={styles.timelineSection}>
-        <Text style={styles.sectionTitle}>PROPAGATION CHAIN STEPS</Text>
+        <Text style={styles.sectionTitle}>5-STAGE DEMAND PROPAGATION PIPELINE</Text>
         <Text style={styles.sectionSubtitle}>
-          Instantaneous demand cascade from point-of-sale to manufacturing plant:
+          Real-time autonomous dispatch through retail counter, stockist, regional distributor, and manufacturing plant:
         </Text>
 
         <View style={styles.stepsContainer}>
           {trace.steps.map((step, idx) => {
             const isLast = idx === trace.steps.length - 1;
             const isExpanded = expandedStepIndex === idx;
-            const stepSuccess = step.status.toLowerCase() === 'succeeded';
+
+            const stageKey = (step.stage || `tier-${step.tier}`).toLowerCase();
+            const config = STAGE_CONFIG[stageKey] || {
+              label: step.tier_label || `Tier ${step.tier || idx}`,
+              icon: 'cube-outline',
+              tierBadge: step.tier ? `T${step.tier}` : `S${idx}`,
+            };
+
+            const rawState = (step.state || step.status || 'completed').toLowerCase();
+            const isSuccess = rawState === 'completed' || rawState === 'succeeded';
+            const isWaitingApproval = rawState === 'waiting_approval';
+            const isSkipped = rawState === 'skipped';
+            const isFailed = rawState === 'failed';
+
+            const outputData = step.structured_output || step.entities_created || step.output || {};
 
             return (
-              <View key={`step-${step.tier}-${idx}`} style={styles.stepWrapper}>
+              <View key={`step-${idx}-${stageKey}`} style={styles.stepWrapper}>
                 {/* Left Connector Column */}
                 <View style={styles.indicatorCol}>
                   <View
                     style={[
                       styles.stepCircle,
-                      stepSuccess ? styles.circleSuccess : styles.circlePending,
+                      isSuccess && styles.circleSuccess,
+                      isWaitingApproval && styles.circleWaiting,
+                      isSkipped && styles.circleSkipped,
+                      isFailed && styles.circleFailed,
                     ]}
                   >
-                    <Text style={styles.stepTierNum}>T{step.tier}</Text>
+                    <Text style={styles.stepTierNum}>{config.tierBadge}</Text>
                   </View>
-                  {!isLast && <View style={styles.verticalLine} />}
+                  {!isLast && (
+                    <View
+                      style={[
+                        styles.verticalLine,
+                        isSuccess ? styles.verticalLineSuccess : null,
+                      ]}
+                    />
+                  )}
                 </View>
 
                 {/* Right Step Content */}
                 <View style={styles.stepContentCol}>
-                  <TouchableOpacity
-                    style={styles.stepCard}
-                    onPress={() => setExpandedStepIndex(isExpanded ? null : idx)}
-                    activeOpacity={0.7}
+                  <View
+                    style={[
+                      styles.stepCard,
+                      isWaitingApproval && styles.stepCardWaiting,
+                      isSkipped && styles.stepCardSkipped,
+                    ]}
                   >
                     <View style={styles.stepHeaderRow}>
                       <View style={styles.tierPill}>
-                        <Text style={styles.tierPillText}>
-                          {step.tier_label || `TIER ${step.tier}`}
-                        </Text>
+                        <Ionicons name={config.icon} size={14} color={colors.accent.primary} />
+                        <Text style={styles.tierPillText}>{config.label}</Text>
                       </View>
-                      <View style={styles.stepDurationPill}>
-                        <Text style={styles.stepDurationText}>
-                          {Math.round(step.duration_ms)} ms
-                        </Text>
-                      </View>
+
+                      {isSuccess && <Badge label="COMPLETED" variant="emerald" />}
+                      {isWaitingApproval && <Badge label="APPROVAL PENDING" variant="amber" />}
+                      {isSkipped && <Badge label="SKIPPED" variant="neutral" />}
+                      {isFailed && <Badge label="FAILED" variant="coral" />}
                     </View>
 
-                    <Text style={styles.agentName}>{step.agent_name}</Text>
-                    <Text style={styles.nodeName}>{step.node_name}</Text>
+                    <Text style={styles.agentName}>{step.agent_name || config.label}</Text>
+                    {step.node_name && <Text style={styles.nodeName}>{step.node_name}</Text>}
 
-                    <View style={styles.reasoningBox}>
-                      <Text style={styles.reasoningText}>{step.reasoning}</Text>
-                    </View>
+                    {/* Step Reasoning */}
+                    {step.reasoning ? (
+                      <View style={styles.reasoningBox}>
+                        <Text style={styles.reasoningText}>{step.reasoning}</Text>
+                      </View>
+                    ) : null}
 
-                    {/* Expand / Collapse Structured Output */}
-                    <View style={styles.expandActionRow}>
+                    {/* Skip Reason Callout */}
+                    {isSkipped && step.skip_reason && (
+                      <View style={styles.skipCallout}>
+                        <Ionicons name="information-circle-outline" size={14} color={colors.text.secondary} />
+                        <Text style={styles.skipCalloutText}>{step.skip_reason}</Text>
+                      </View>
+                    )}
+
+                    {/* Actionable Human In The Loop approval button */}
+                    {isWaitingApproval && (
+                      <View style={styles.hitlActionBox}>
+                        <View style={styles.hitlInfoRow}>
+                          <Ionicons name="time" size={16} color={colors.status.warning} />
+                          <Text style={styles.hitlNoticeText}>
+                            High-value replenishment order requires manager sign-off.
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.reviewApprovalBtn}
+                          onPress={() => router.push('/(tabs)/approvals' as any)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.reviewApprovalBtnText}>REVIEW APPROVALS IN APP →</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* Formatted Output Grid if available */}
+                    {outputData && Object.keys(outputData).length > 0 && (
+                      <View style={styles.formattedGrid}>
+                        {outputData.order_id && (
+                          <View style={styles.gridRow}>
+                            <Text style={styles.gridLabel}>ORDER GENERATED:</Text>
+                            <Text style={styles.gridValMono}>{outputData.order_id}</Text>
+                          </View>
+                        )}
+                        {outputData.reorder_quantity && (
+                          <View style={styles.gridRow}>
+                            <Text style={styles.gridLabel}>REORDER QUANTITY:</Text>
+                            <Text style={styles.gridValBold}>{outputData.reorder_quantity} units</Text>
+                          </View>
+                        )}
+                        {outputData.production_batch_id && (
+                          <View style={styles.gridRow}>
+                            <Text style={styles.gridLabel}>MFG BATCH ID:</Text>
+                            <Text style={styles.gridValMono}>{outputData.production_batch_id}</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Expand / Collapse Raw JSON Toggle */}
+                    <TouchableOpacity
+                      style={styles.expandActionRow}
+                      onPress={() => setExpandedStepIndex(isExpanded ? null : idx)}
+                      activeOpacity={0.7}
+                    >
                       <Text style={styles.expandActionText}>
-                        {isExpanded ? 'HIDE STRUCTURED OUTPUT ▲' : 'VIEW STRUCTURED OUTPUT ▼'}
+                        {isExpanded ? 'HIDE RAW TELEMETRY ▲' : 'VIEW RAW TELEMETRY DATA ▼'}
                       </Text>
-                      <Text style={styles.tokenTag}>{step.total_tokens ?? 0} tokens</Text>
-                    </View>
+                      <Text style={styles.tokenTag}>
+                        {Math.round(step.duration_ms || 0)}ms • {step.total_tokens ?? 0} tok
+                      </Text>
+                    </TouchableOpacity>
 
                     {isExpanded && (
                       <View style={styles.expandedOutputBox}>
-                        <Text style={styles.outputHeading}>Entities Created / Updated:</Text>
+                        <Text style={styles.outputHeading}>Raw Structured Output / Payload:</Text>
                         <Text style={styles.outputJson}>
-                          {JSON.stringify(step.entities_created || step.output || {}, null, 2)}
+                          {JSON.stringify(outputData, null, 2)}
                         </Text>
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             );
@@ -249,59 +350,62 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.caption,
     color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: spacing.base,
+    maxWidth: 280,
+    marginBottom: spacing.md,
   },
   retryBtn: {
     backgroundColor: colors.accent.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
     borderRadius: radii.sm,
   },
   retryBtnText: {
     color: '#FFFFFF',
-    fontSize: typography.fontSize.micro,
     fontWeight: typography.fontWeight.bold,
-    letterSpacing: 0.5,
+    fontSize: typography.fontSize.caption,
+    letterSpacing: typography.letterSpacing.wide,
   },
   overviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   idRow: {
     flex: 1,
-    marginRight: spacing.sm,
   },
   idLabel: {
     fontSize: typography.fontSize.micro,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.text.secondary,
+    color: colors.text.muted,
+    fontFamily: typography.fontFamily.mono,
     letterSpacing: typography.letterSpacing.wide,
     marginBottom: 2,
   },
   idValueMono: {
-    fontSize: typography.fontSize.caption,
-    fontFamily: 'monospace',
+    fontSize: typography.fontSize.body,
+    fontFamily: typography.fontFamily.mono,
     fontWeight: typography.fontWeight.bold,
-    color: colors.accent.primary,
+    color: colors.text.primary,
   },
   metaGrid: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.border.default,
-    paddingVertical: spacing.sm,
-    marginVertical: spacing.sm,
+    justifyContent: 'space-between',
+    backgroundColor: colors.canvas.elevated,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    marginBottom: spacing.sm,
   },
   metaItem: {
     flex: 1,
+    alignItems: 'center',
   },
   metaItemLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.text.secondary,
-    letterSpacing: 0.5,
+    fontSize: typography.fontSize.micro,
+    color: colors.text.muted,
+    fontFamily: typography.fontFamily.mono,
     marginBottom: 2,
   },
   metaItemValue: {
@@ -312,85 +416,105 @@ const styles = StyleSheet.create({
   triggerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.accent.subtle,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    padding: spacing.sm,
+    borderColor: colors.accent.border,
     borderRadius: radii.sm,
+    padding: spacing.sm,
     gap: spacing.xs,
-    marginTop: spacing.xs,
   },
   triggerText: {
-    flex: 1,
     fontSize: typography.fontSize.caption,
     color: colors.text.primary,
-    lineHeight: 18,
+    flex: 1,
   },
   timelineSection: {
-    marginTop: spacing.base,
+    marginTop: spacing.lg,
   },
   sectionTitle: {
-    fontSize: typography.fontSize.micro,
+    fontSize: typography.fontSize.caption,
     fontWeight: typography.fontWeight.bold,
+    letterSpacing: typography.letterSpacing.wide,
     color: colors.text.secondary,
-    letterSpacing: typography.letterSpacing.widest,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   sectionSubtitle: {
     fontSize: typography.fontSize.caption,
-    color: colors.text.secondary,
-    marginBottom: spacing.base,
+    color: colors.text.muted,
+    marginBottom: spacing.md,
   },
   stepsContainer: {
-    paddingLeft: 4,
+    position: 'relative',
   },
   stepWrapper: {
     flexDirection: 'row',
+    marginBottom: spacing.md,
   },
   indicatorCol: {
-    width: 32,
+    width: 36,
     alignItems: 'center',
+    marginRight: spacing.sm,
   },
   stepCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.canvas.elevated,
+    borderWidth: 1.5,
+    borderColor: colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
     zIndex: 2,
   },
   circleSuccess: {
-    backgroundColor: '#031211',
-    borderColor: '#00AEBB',
+    borderColor: colors.status.success,
+    backgroundColor: colors.status.successSubtle,
   },
-  circlePending: {
-    backgroundColor: colors.canvas.surface,
+  circleWaiting: {
+    borderColor: colors.status.warning,
+    backgroundColor: colors.status.warningSubtle,
+  },
+  circleSkipped: {
     borderColor: colors.border.default,
+    backgroundColor: colors.canvas.elevated,
+  },
+  circleFailed: {
+    borderColor: colors.status.danger,
+    backgroundColor: colors.status.dangerSubtle,
   },
   stepTierNum: {
-    color: '#00AEBB',
-    fontSize: 10,
-    fontWeight: '800',
-    fontFamily: 'monospace',
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
   },
   verticalLine: {
-    flex: 1,
     width: 2,
-    backgroundColor: '#D8D3C3',
-    marginVertical: 2,
+    flex: 1,
+    backgroundColor: colors.border.default,
+    marginVertical: 4,
+  },
+  verticalLineSuccess: {
+    backgroundColor: colors.accent.primary,
   },
   stepContentCol: {
     flex: 1,
-    paddingLeft: spacing.sm,
-    paddingBottom: spacing.base,
   },
   stepCard: {
     backgroundColor: colors.canvas.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border.default,
-    borderRadius: radii.sm,
     padding: spacing.md,
+  },
+  stepCardWaiting: {
+    borderColor: colors.status.warning,
+    backgroundColor: '#FFFDF5',
+  },
+  stepCardSkipped: {
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.canvas.elevated,
+    opacity: 0.9,
   },
   stepHeaderRow: {
     flexDirection: 'row',
@@ -399,91 +523,150 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   tierPill: {
-    backgroundColor: colors.canvas.elevated,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 3,
-    borderWidth: 0.5,
-    borderColor: colors.border.default,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   tierPillText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    color: colors.accent.primary,
-  },
-  stepDurationPill: {
-    backgroundColor: colors.canvas.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  stepDurationText: {
-    fontSize: 9,
-    fontFamily: 'monospace',
-    fontWeight: '700',
-    color: colors.text.secondary,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
   },
   agentName: {
-    fontSize: typography.fontSize.caption,
-    fontWeight: typography.fontWeight.black,
+    fontSize: typography.fontSize.body,
+    fontWeight: typography.fontWeight.bold,
     color: colors.text.primary,
   },
   nodeName: {
-    fontSize: typography.fontSize.micro,
+    fontSize: typography.fontSize.caption,
     color: colors.text.secondary,
-    marginBottom: spacing.xs + 2,
+    marginBottom: spacing.xs,
   },
   reasoningBox: {
-    backgroundColor: colors.canvas.primary,
-    borderWidth: 1,
-    borderColor: colors.border.default,
+    backgroundColor: colors.canvas.elevated,
     borderRadius: radii.sm,
     padding: spacing.sm,
     marginVertical: spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent.primary,
   },
   reasoningText: {
     fontSize: typography.fontSize.caption,
     color: colors.text.primary,
     lineHeight: 18,
   },
+  skipCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: spacing.xs,
+    backgroundColor: colors.canvas.alternate,
+    borderRadius: radii.sm,
+    marginTop: spacing.xs,
+  },
+  skipCalloutText: {
+    fontSize: typography.fontSize.caption,
+    color: colors.text.secondary,
+    flex: 1,
+    fontStyle: 'italic',
+  },
+  hitlActionBox: {
+    backgroundColor: colors.status.warningSubtle,
+    borderWidth: 1,
+    borderColor: colors.status.warning,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  hitlInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.xs,
+  },
+  hitlNoticeText: {
+    fontSize: typography.fontSize.caption,
+    color: colors.text.primary,
+    fontWeight: typography.fontWeight.medium,
+    flex: 1,
+  },
+  reviewApprovalBtn: {
+    backgroundColor: colors.status.warning,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+  },
+  reviewApprovalBtnText: {
+    color: '#031211',
+    fontWeight: typography.fontWeight.bold,
+    fontSize: typography.fontSize.caption,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  formattedGrid: {
+    backgroundColor: colors.canvas.elevated,
+    borderRadius: radii.sm,
+    padding: spacing.xs,
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  gridLabel: {
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
+    color: colors.text.muted,
+  },
+  gridValMono: {
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.accent.primary,
+  },
+  gridValBold: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+  },
   expandActionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
     paddingTop: spacing.xs,
-    borderTopWidth: 0.5,
-    borderTopColor: colors.border.default,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
   },
   expandActionText: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    letterSpacing: typography.letterSpacing.wide,
     color: colors.accent.primary,
-    letterSpacing: 0.5,
   },
   tokenTag: {
-    fontSize: 9,
-    fontFamily: 'monospace',
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
     color: colors.text.muted,
   },
   expandedOutputBox: {
-    marginTop: spacing.sm,
-    padding: spacing.sm,
-    backgroundColor: '#031211',
+    marginTop: spacing.xs,
+    backgroundColor: colors.canvas.dark,
     borderRadius: radii.sm,
+    padding: spacing.sm,
   },
   outputHeading: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#00AEBB',
-    letterSpacing: 0.5,
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
+    color: colors.accent.primary,
     marginBottom: 4,
   },
   outputJson: {
-    fontSize: 10,
-    fontFamily: 'monospace',
-    color: '#E8E4D3',
-    lineHeight: 14,
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
+    color: '#FFFFFF',
   },
 });

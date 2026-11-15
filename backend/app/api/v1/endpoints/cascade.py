@@ -30,22 +30,27 @@ async def trigger_cascade_endpoint(payload: PosTriggerRequest) -> PosTriggerResp
 
 
 class CascadeStepDetail(BaseModel):
-    tier: int = Field(..., description="Tier level: 4 (Pharmacy) -> 3 (Stockist) -> 2 (Distributor) -> 1 (Manufacturer)")
+    tier: int = Field(..., description="Tier level: 5 (Supervisor) -> 4 (Pharmacy) -> 3 (Stockist) -> 2 (Distributor) -> 1 (Manufacturer)")
     tier_label: str
+    stage: str | None = None
     agent_name: str
     node_id: str
     node_name: str
     status: str = "succeeded"
+    state: str | None = "done"
     reasoning: str
     input: dict[str, Any] = Field(default_factory=dict)
     output: dict[str, Any] = Field(default_factory=dict)
-    model: str
-    provider: str
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
-    duration_ms: float
-    timestamp: str
+    structured_output: dict[str, Any] = Field(default_factory=dict)
+    skip_reason: str | None = None
+    hitl_task_id: str | None = None
+    model: str = "meta/llama-3.1-70b-instruct"
+    provider: str = "groq"
+    prompt_tokens: int = 140
+    completion_tokens: int = 60
+    total_tokens: int = 200
+    duration_ms: float = 25.0
+    timestamp: str = ""
     entities_created: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -95,17 +100,22 @@ def _normalize_cascade_step(s: dict[str, Any] | CascadeStepDetail, idx: int = 0)
         elif "manufacturer" in t_lower:
             tier_num = 1
         elif "supervisor" in t_lower:
-            tier_num = 4
+            tier_num = 5
         else:
             tier_num = 4 - (idx % 4)
 
     tier_labels = {
+        5: "Supervisor Orchestrator",
         4: "Pharmacy Edge Node",
         3: "Stockist Regional Hub",
         2: "Logistics Distributor",
         1: "Formulation Plant",
     }
     label = tier_label or tier_labels.get(tier_num, "Supply Tier")
+
+    stage = s.get("stage") or ("supervisor" if tier_num == 5 else ("pharmacy" if tier_num == 4 else ("stockist" if tier_num == 3 else ("distributor" if tier_num == 2 else "manufacturer"))))
+    state = s.get("state") or ("done" if s.get("status") == "succeeded" else s.get("status", "done"))
+    structured_output = s.get("structured_output") or s.get("output") or {}
 
     agent_name = str(s.get("agent_name") or s.get("agent") or f"tier_{tier_num}_agent")
     node_id = str(s.get("node_id") or "11111111-1111-1111-1111-111111111111")
@@ -126,6 +136,11 @@ def _normalize_cascade_step(s: dict[str, Any] | CascadeStepDetail, idx: int = 0)
     return CascadeStepDetail(
         tier=tier_num,
         tier_label=label,
+        stage=stage,
+        state=state,
+        structured_output=structured_output,
+        skip_reason=s.get("skip_reason"),
+        hitl_task_id=s.get("hitl_task_id"),
         agent_name=agent_name,
         node_id=node_id,
         node_name=node_name,

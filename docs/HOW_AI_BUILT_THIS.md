@@ -1793,3 +1793,31 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 - [x] `check_secrets.py` passes cleanly (zero leaked credentials).
 
 
+
+---
+
+## Phase 8: Cross-Platform React Native Mobile Client (`mobile/`)
+
+### Task M2: Mobile Authentication, Session Persistence, Role Guard & Node Badges
+- Implemented `/api/v1/me` with profile, node hierarchy, and approval permission resolution (`can_view_approvals`, `can_decide_approvals`).
+- Implemented `/api/v1/auth/refresh` with 30-day refresh tokens and expired token handling.
+- Built `AuthContext.tsx` with AsyncStorage session hydration and 401 single-refresh queue interceptor.
+- Created `roleMap.ts` defining `ROLE_TAB_MATRIX`, role header badge (`RoleNodeHeaderBadge.tsx`), and role-scoped tabs.
+- Verified with 11 automated pytest test cases (`backend/tests/test_task_m2_mobile_auth.py`).
+
+### Task M3: Live Event Stream, Fallback Polling, Mobile Summary & Live Home Dashboard
+- Implemented `GET /api/v1/stream` and `/api/v1/events/stream` with `Last-Event-ID` replay buffer and SSE keepalive.
+- Added `GET /api/v1/events/recent` with cursor pagination, `since` ISO timestamp filtering, and RLS node scoping.
+- Added `GET /api/v1/mobile/summary` returning role-specific 2x2 operational KPI cards.
+- Built `useEventStream.ts` with bounded buffer (100 items), deduplication, exponential backoff, AppState pause/resume, and polling fallback.
+- Verified with 8 automated pytest test cases (`backend/tests/test_task_m3_mobile_stream_and_home.py`).
+
+### Task M4: Pharmacy POS Lite, Barcode Scan, FEFO Sale & Live Cascade Timeline
+- Generated GS1 India standard EAN-13 barcodes for all 20 catalog products with `scripts/make_barcodes.py` (composite 300 DPI sheet, printable PDF, individual cards, and `barcodes_manifest.json`).
+- Added `GET /api/v1/products/by-barcode/{code}` returning product details and FEFO-sorted batches (`expiry_date ASC`) with near-expiry and quarantine indicators.
+- Implemented `POST /api/v1/events/sale` with client-side UUID idempotency guard (`_processed_mobile_sales`), Schedule H prescription validation, quarantine lockout (`409 BATCH_QUARANTINED`), and 5-stage cascade trace generation (`supervisor -> pharmacy -> stockist -> distributor -> manufacturer`).
+- Built `BarcodeScannerView.tsx` with `expo-camera`, Electric Teal reticle frame, 1-tap quick sample chips, 2500ms debouncing, haptic feedback, and autocomplete search fallback.
+- Built `BatchSelector.tsx` with FEFO auto-selection, near-expiry warning badges, and disabled quarantine locks.
+- Enhanced `CascadeTimeline.tsx` with 5-stage progression, approval review navigation, formatted output grid, and raw JSON toggle.
+- Created `mobile/app/(tabs)/sell.tsx` integrating full counter POS flow.
+- Verified with 9 automated pytest test cases (`backend/tests/test_task_m4_pos_lite_and_cascade.py`), total 28/28 mobile tests passing, `ruff check` passing, and `npm run typecheck` passing.

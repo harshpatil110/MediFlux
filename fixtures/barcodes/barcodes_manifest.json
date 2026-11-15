@@ -1,0 +1,222 @@
+[
+  {
+    "id": "p-001-med-amx-500",
+    "name": "Amoxicillin 500mg Capsules",
+    "sku": "MED-AMX-500",
+    "barcode": "8901000000025",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 7.5,
+    "image_path": "fixtures/barcodes/individual/med-amx-500_8901000000025.png"
+  },
+  {
+    "id": "p-002-med-azi-500",
+    "name": "Azithromycin 500mg Tablets",
+    "sku": "MED-AZI-500",
+    "barcode": "8901000000026",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 23.8,
+    "image_path": "fixtures/barcodes/individual/med-azi-500_8901000000026.png"
+  },
+  {
+    "id": "p-003-med-cip-500",
+    "name": "Ciprofloxacin 500mg Tablets",
+    "sku": "MED-CIP-500",
+    "barcode": "8901000000033",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 4.1,
+    "image_path": "fixtures/barcodes/individual/med-cip-500_8901000000033.png"
+  },
+  {
+    "id": "p-004-med-pcm-650",
+    "name": "Paracetamol 650mg Tablets",
+    "sku": "MED-PCM-650",
+    "barcode": "8901000000018",
+    "schedule_class": "OTC",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 2.05,
+    "image_path": "fixtures/barcodes/individual/med-pcm-650_8901000000018.png"
+  },
+  {
+    "id": "p-005-med-ibu-400",
+    "name": "Ibuprofen 400mg Tablets",
+    "sku": "MED-IBU-400",
+    "barcode": "8901000000057",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 1.45,
+    "image_path": "fixtures/barcodes/individual/med-ibu-400_8901000000057.png"
+  },
+  {
+    "id": "p-006-med-tra-050",
+    "name": "Tramadol 50mg Tablets",
+    "sku": "MED-TRA-050",
+    "barcode": "8901000000064",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 9.2,
+    "image_path": "fixtures/barcodes/individual/med-tra-050_8901000000064.png"
+  },
+  {
+    "id": "p-007-med-mor-010",
+    "name": "Morphine Sulphate 10mg Tablets",
+    "sku": "MED-MOR-010",
+    "barcode": "8901000000071",
+    "schedule_class": "OTC",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 18.5,
+    "image_path": "fixtures/barcodes/individual/med-mor-010_8901000000071.png"
+  },
+  {
+    "id": "p-008-med-vac-cov",
+    "name": "Covishield Vaccine 0.5ml",
+    "sku": "MED-VAC-COV",
+    "barcode": "8901000000088",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": true,
+    "is_lifesaving": true,
+    "neml_ceiling_price": 225.0,
+    "image_path": "fixtures/barcodes/individual/med-vac-cov_8901000000088.png"
+  },
+  {
+    "id": "p-009-med-vac-rot",
+    "name": "Rotavirus Vaccine Live Oral 2.5ml",
+    "sku": "MED-VAC-ROT",
+    "barcode": "8901000000095",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": true,
+    "is_lifesaving": true,
+    "neml_ceiling_price": 135.0,
+    "image_path": "fixtures/barcodes/individual/med-vac-rot_8901000000095.png"
+  },
+  {
+    "id": "p-010-med-ins-reg",
+    "name": "Human Regular Insulin 100IU/ml",
+    "sku": "MED-INS-REG",
+    "barcode": "8901000000056",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": true,
+    "is_lifesaving": true,
+    "neml_ceiling_price": 145.2,
+    "image_path": "fixtures/barcodes/individual/med-ins-reg_8901000000056.png"
+  },
+  {
+    "id": "p-011-med-met-500",
+    "name": "Metformin HCl 500mg Tablets",
+    "sku": "MED-MET-500",
+    "barcode": "8901000000118",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 1.8,
+    "image_path": "fixtures/barcodes/individual/med-met-500_8901000000118.png"
+  },
+  {
+    "id": "p-012-med-gli-002",
+    "name": "Glimepiride 2mg Tablets",
+    "sku": "MED-GLI-002",
+    "barcode": "8901000000125",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 4.6,
+    "image_path": "fixtures/barcodes/individual/med-gli-002_8901000000125.png"
+  },
+  {
+    "id": "p-013-med-atv-010",
+    "name": "Atorvastatin 10mg Tablets",
+    "sku": "MED-ATV-010",
+    "barcode": "8901000000132",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 6.8,
+    "image_path": "fixtures/barcodes/individual/med-atv-010_8901000000132.png"
+  },
+  {
+    "id": "p-014-med-aml-005",
+    "name": "Amlodipine 5mg Tablets",
+    "sku": "MED-AML-005",
+    "barcode": "8901000000149",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 2.15,
+    "image_path": "fixtures/barcodes/individual/med-aml-005_8901000000149.png"
+  },
+  {
+    "id": "p-015-med-tel-040",
+    "name": "Telmisartan 40mg Tablets",
+    "sku": "MED-TEL-040",
+    "barcode": "8901000000156",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 7.2,
+    "image_path": "fixtures/barcodes/individual/med-tel-040_8901000000156.png"
+  },
+  {
+    "id": "p-016-med-omp-020",
+    "name": "Omeprazole 20mg Capsules",
+    "sku": "MED-OMP-020",
+    "barcode": "8901000000163",
+    "schedule_class": "OTC",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 3.4,
+    "image_path": "fixtures/barcodes/individual/med-omp-020_8901000000163.png"
+  },
+  {
+    "id": "p-017-med-pan-040",
+    "name": "Pantoprazole 40mg Tablets",
+    "sku": "MED-PAN-040",
+    "barcode": "8901000000170",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 8.5,
+    "image_path": "fixtures/barcodes/individual/med-pan-040_8901000000170.png"
+  },
+  {
+    "id": "p-018-med-cet-010",
+    "name": "Cetirizine 10mg Tablets",
+    "sku": "MED-CET-010",
+    "barcode": "8901000000187",
+    "schedule_class": "OTC",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 1.95,
+    "image_path": "fixtures/barcodes/individual/med-cet-010_8901000000187.png"
+  },
+  {
+    "id": "p-019-med-ose-075",
+    "name": "Oseltamivir 75mg Capsules",
+    "sku": "MED-OSE-075",
+    "barcode": "8901000000194",
+    "schedule_class": "SCHEDULE_H",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 48.0,
+    "image_path": "fixtures/barcodes/individual/med-ose-075_8901000000194.png"
+  },
+  {
+    "id": "p-020-med-fen-050",
+    "name": "Fentanyl Citrate 50mcg/ml Injection",
+    "sku": "MED-FEN-050",
+    "barcode": "8901000000200",
+    "schedule_class": "OTC",
+    "is_cold_chain": false,
+    "is_lifesaving": false,
+    "neml_ceiling_price": 65.0,
+    "image_path": "fixtures/barcodes/individual/med-fen-050_8901000000200.png"
+  }
+]
