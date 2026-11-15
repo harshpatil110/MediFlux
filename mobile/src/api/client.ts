@@ -1,6 +1,6 @@
 import { getBackendUrl } from '../lib/config';
 import { storage } from '../lib/storage';
-import { ApiError } from '@mediflux/shared';
+import { ApiError } from './generated';
 
 export interface RequestOptions {
   headers?: Record<string, string>;

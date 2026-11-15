@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { getBackendUrl } from '../lib/config';
-import { SseEventEnvelope } from '@mediflux/shared';
+import { SseEventEnvelope } from '../api/generated';
 
 export interface UseEventStreamOptions {
   channel?: string;

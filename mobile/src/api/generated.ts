@@ -1,4 +1,336 @@
 /**
+ * AUTO-GENERATED MOBILE API & DOMAIN DEFINITIONS
+ * Generated from docs/openapi.json and packages/shared/src/ via scripts/gen_api.py.
+ * Contains all API operations and shared domain enums/types.
+ */
+
+// ============================================================================
+// Shared Domain Module: enums.ts
+// ============================================================================
+/**
+ * MediFlux / NexusChain Core Domain Enums.
+ */
+
+export type UserRole =
+  | 'pharmacy'
+  | 'stockist'
+  | 'distributor'
+  | 'manufacturer'
+  | 'regulator'
+  | 'developer'
+  | 'admin';
+
+export const USER_ROLES: readonly UserRole[] = [
+  'pharmacy',
+  'stockist',
+  'distributor',
+  'manufacturer',
+  'regulator',
+  'developer',
+  'admin',
+] as const;
+
+export type SupplyTier =
+  | 'manufacturer'
+  | 'distributor'
+  | 'stockist'
+  | 'pharmacy';
+
+export const SUPPLY_TIERS: readonly SupplyTier[] = [
+  'manufacturer',
+  'distributor',
+  'stockist',
+  'pharmacy',
+] as const;
+
+export type HitlStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+
+export const HITL_STATUSES: readonly HitlStatus[] = [
+  'pending',
+  'approved',
+  'rejected',
+  'expired',
+] as const;
+
+export type EventType =
+  | 'sale'
+  | 'order.created'
+  | 'shipment.dispatched'
+  | 'batch.quarantined'
+  | 'hitl.created'
+  | 'hitl.decided'
+  | 'module.activated'
+  | 'agent.activity'
+  | 'cascade.updates'
+  | 'sensor';
+
+export const EVENT_TYPES: readonly EventType[] = [
+  'sale',
+  'order.created',
+  'shipment.dispatched',
+  'batch.quarantined',
+  'hitl.created',
+  'hitl.decided',
+  'module.activated',
+  'agent.activity',
+  'cascade.updates',
+  'sensor',
+] as const;
+
+export type DrugSchedule =
+  | 'OTC'
+  | 'Schedule_H'
+  | 'Schedule_H1'
+  | 'Schedule_X'
+  | 'Narcotic';
+
+export type ColdChainStatus = 'active' | 'warning' | 'quarantined' | 'compromised';
+
+// ============================================================================
+// Shared Domain Module: errors.ts
+// ============================================================================
+/**
+ * MediFlux / NexusChain Standard Error Contracts.
+ */
+
+export interface StandardErrorDetail {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface StandardErrorPayload {
+  error: StandardErrorDetail;
+  detail?: string | Array<{ loc?: Array<string | number>; msg: string; type?: string }>;
+}
+
+export class ApiError extends Error {
+  readonly code: string;
+  readonly status: number;
+  readonly details?: Record<string, unknown>;
+
+  constructor(code: string, message: string, status: number = 400, details?: Record<string, unknown>) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+    this.details = details;
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+
+  static fromPayload(payload: unknown, status: number = 400): ApiError {
+    if (typeof payload === 'object' && payload !== null) {
+      const obj = payload as Record<string, any>;
+      if (obj.error && typeof obj.error === 'object') {
+        return new ApiError(
+          obj.error.code || 'API_ERROR',
+          obj.error.message || 'An API error occurred',
+          status,
+          obj.error.details
+        );
+      }
+      if (typeof obj.detail === 'string') {
+        return new ApiError('HTTP_ERROR', obj.detail, status);
+      }
+      if (Array.isArray(obj.detail) && obj.detail.length > 0) {
+        const first = obj.detail[0];
+        const msg = typeof first === 'object' && first?.msg ? first.msg : JSON.stringify(obj.detail);
+        return new ApiError('VALIDATION_ERROR', msg, status, { errors: obj.detail });
+      }
+      if (obj.message) {
+        return new ApiError('ERROR', String(obj.message), status);
+      }
+    }
+    return new ApiError('UNKNOWN_ERROR', 'An unexpected error occurred', status);
+  }
+}
+
+// ============================================================================
+// Shared Domain Module: events.ts
+// ============================================================================
+/**
+ * MediFlux / NexusChain SSE and Real-Time Event Types.
+ */
+
+
+export interface SseEventEnvelope<T = unknown> {
+  id?: string;
+  event: string;
+  topic: string;
+  data: T;
+  timestamp: string;
+  correlation_id?: string;
+}
+
+export interface CascadeStepEvent {
+  tier: number;
+  tier_label: string;
+  node_id: string;
+  node_name: string;
+  agent_name: string;
+  state: 'idle' | 'active' | 'completed' | 'failed';
+  quantity?: number;
+  product_id?: string;
+  timestamp: string;
+  correlation_id: string;
+  decision_snippet?: string;
+  token_count?: number;
+  model_name?: string;
+}
+
+export interface AgentActivityEvent {
+  agent_id: string;
+  agent_name: string;
+  graph: string;
+  status: 'started' | 'running' | 'completed' | 'failed' | 'paused';
+  latency_ms?: number;
+  tokens?: number;
+  correlation_id: string;
+  timestamp: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface ColdChainAlertEvent {
+  batch_id: string;
+  product_name: string;
+  temperature: number;
+  min_temp: number;
+  max_temp: number;
+  status: 'normal' | 'warning' | 'quarantined';
+  excursion_duration_min?: number;
+  shelf_life_impact_pct?: number;
+  timestamp: string;
+  node_id?: string;
+  location?: string;
+}
+
+export interface HitlTaskEvent {
+  task_id: string;
+  task_type: string;
+  title: string;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  status: HitlStatus;
+  node_id?: string;
+  node_name?: string;
+  timestamp: string;
+  correlation_id?: string;
+  summary?: string;
+  reasoning?: string;
+}
+
+// ============================================================================
+// Shared Domain Module: types.ts
+// ============================================================================
+/**
+ * MediFlux / NexusChain Core Domain Models and DTOs.
+ */
+
+
+export interface NodeEntity {
+  id: string;
+  name: string;
+  tier: SupplyTier | string;
+  type: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  license_number?: string;
+  latitude?: number;
+  longitude?: number;
+  is_active: boolean;
+  parent_node_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProductEntity {
+  id: string;
+  name: string;
+  sku: string;
+  generic_name: string;
+  dosage_form: string;
+  schedule_type: DrugSchedule | string;
+  unit_price: number;
+  storage_condition: string;
+  is_cold_chain: boolean;
+  min_temperature?: number | null;
+  max_temperature?: number | null;
+  manufacturer_node_id?: string;
+  created_at?: string;
+}
+
+export interface InventoryRecord {
+  id: string;
+  node_id: string;
+  product_id: string;
+  batch_id?: string | null;
+  available_quantity: number;
+  reserved_quantity: number;
+  reorder_point: number;
+  safe_stock_level: number;
+  product?: ProductEntity;
+  node?: NodeEntity;
+  updated_at?: string;
+}
+
+export interface ColdChainBatch {
+  batch_id: string;
+  product_id: string;
+  product_name: string;
+  current_temp: number;
+  min_temp: number;
+  max_temp: number;
+  status: 'active' | 'warning' | 'quarantined';
+  shelf_life_hours: number;
+  remaining_viability_pct: number;
+  carrier_name?: string;
+  sensor_id?: string;
+  last_reading_time?: string;
+}
+
+export interface HitlTask {
+  id: string;
+  task_id: string;
+  task_type: string;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  title: string;
+  summary: string;
+  reasoning?: string;
+  status: HitlStatus;
+  node_id?: string;
+  node_name?: string;
+  correlation_id?: string;
+  details?: Record<string, unknown>;
+  created_at: string;
+  expires_at?: string;
+  decided_at?: string | null;
+  decided_by?: string | null;
+  decision_note?: string | null;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  node_id?: string | null;
+  node_name?: string | null;
+  allowed_routes?: string[];
+  is_active: boolean;
+}
+
+export interface HealthCheckResponse {
+  status: string;
+  app: string;
+  version: string;
+  environment?: string;
+  timestamp?: string;
+  active_nodes?: number;
+  database?: string;
+}
+
+/**
  * AUTO-GENERATED FILE — DO NOT EDIT DIRECTLY.
  * Generated from docs/openapi.json via scripts/gen_api.py.
  * Run 'npm run gen:api' in mobile/ or 'python scripts/gen_api.py' to regenerate.
@@ -1175,3 +1507,4 @@ export interface ApiClientContract {
   delete<T = unknown>(path: string, params?: Record<string, unknown>): Promise<T>;
   uploadMultipart<T = unknown>(path: string, formData: any, onProgress?: (pct: number) => void): Promise<T>;
 }
+

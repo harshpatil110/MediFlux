@@ -284,20 +284,49 @@ export interface ApiClientContract {
     return "\n".join(lines)
 
 
+def get_shared_code() -> str:
+    """Read and concatenate packages/shared enums, errors, events, and types for standalone mobile bundling."""
+    shared_files = ["enums.ts", "errors.ts", "events.ts", "types.ts"]
+    blocks: list[str] = []
+    for sf in shared_files:
+        p = ROOT_DIR / "packages" / "shared" / "src" / sf
+        if p.exists():
+            content = p.read_text(encoding="utf-8")
+            # Strip relative imports like `from './enums'`
+            cleaned = re.sub(r"^import\s+.*?from\s+['\"].*?['\"];?\r?\n", "", content, flags=re.MULTILINE)
+            blocks.append(
+                f"// ============================================================================\n"
+                f"// Shared Domain Module: {sf}\n"
+                f"// ============================================================================\n"
+                + cleaned.strip()
+            )
+    return "\n\n".join(blocks)
+
+
 def main() -> None:
     print("[gen_api] Starting OpenAPI 3.1 TypeScript code generation...")
     spec = ensure_openapi_json()
     ts_code = generate_typescript_code(spec)
+    shared_code = get_shared_code()
 
     # 1. Output to packages/shared
     SHARED_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     SHARED_OUTPUT.write_text(ts_code, encoding="utf-8")
     print(f"  ✓ Synchronized: {SHARED_OUTPUT} ({len(ts_code)} bytes)")
 
-    # 2. Output to mobile/src/api
+    # 2. Output to mobile/src/api with all shared types and enums embedded for zero-symlink Metro compatibility
     MOBILE_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    MOBILE_OUTPUT.write_text(ts_code, encoding="utf-8")
-    print(f"  ✓ Synchronized: {MOBILE_OUTPUT} ({len(ts_code)} bytes)")
+    mobile_bundle = (
+        "/**\n"
+        " * AUTO-GENERATED MOBILE API & DOMAIN DEFINITIONS\n"
+        " * Generated from docs/openapi.json and packages/shared/src/ via scripts/gen_api.py.\n"
+        " * Contains all API operations and shared domain enums/types.\n"
+        " */\n\n"
+        f"{shared_code}\n\n"
+        f"{ts_code}\n"
+    )
+    MOBILE_OUTPUT.write_text(mobile_bundle, encoding="utf-8")
+    print(f"  ✓ Synchronized: {MOBILE_OUTPUT} ({len(mobile_bundle)} bytes with embedded domain schemas)")
 
     # 3. Output to frontend/src/types
     FRONTEND_OUTPUT.parent.mkdir(parents=True, exist_ok=True)

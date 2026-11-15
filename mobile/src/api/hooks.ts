@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from './client';
-import { ApiError } from '@mediflux/shared';
+import { ApiError } from './generated';
 
 export interface QueryState<T> {
   data: T | null;

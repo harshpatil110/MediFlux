@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { colors, spacing, radii, typography } from '../theme/tokens';
-import { ApiError } from '@mediflux/shared';
+import { ApiError } from '../api/generated';
 
 export interface ErrorStateProps {
   error: ApiError | Error | string | null;
