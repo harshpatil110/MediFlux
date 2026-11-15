@@ -78,11 +78,11 @@ export const SseDebugPanel: React.FC<SseDebugPanelProps> = ({ isOpen, onClose })
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-[var(--bg-surface)] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col transition-transform duration-200">
+    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col transition-transform duration-200">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-canvas)]">
+      <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[#F4F1E6] dark:bg-[#242420] bg-[var(--bg-canvas)]">
         <div className="flex items-center gap-3">
-          <div className="p-1.5 border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <div className="p-1.5 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)]">
             <Radio className="w-4 h-4 text-[var(--accent-teal)]" />
           </div>
           <div>
@@ -106,14 +106,14 @@ export const SseDebugPanel: React.FC<SseDebugPanelProps> = ({ isOpen, onClose })
             type="button"
             onClick={reconnect}
             title="Reconnect stream"
-            className="p-1.5 border border-[var(--border-subtle)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="p-1.5 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 border border-[var(--border-subtle)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="p-1.5 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -121,7 +121,7 @@ export const SseDebugPanel: React.FC<SseDebugPanelProps> = ({ isOpen, onClose })
       </div>
 
       {/* Control Bar: Topics & Actions */}
-      <div className="p-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-3">
+      <div className="p-4 border-b border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] space-y-3">
         {/* Topic Filter Chips */}
         <div>
           <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">
