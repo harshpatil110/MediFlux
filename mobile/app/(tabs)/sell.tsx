@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { apiClient } from '../../src/api/client';
+import { useAuth } from '../../src/features/auth/AuthContext';
+import { isTabVisibleForRole } from '../../src/features/auth/roleMap';
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
@@ -22,6 +25,15 @@ const DEMO_PRODUCTS = [
 ];
 
 export default function SellScreen() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && !isTabVisibleForRole(user.role, 'sell')) {
+      router.replace('/(tabs)');
+    }
+  }, [user, router]);
+
   const [selectedProduct, setSelectedProduct] = useState(DEMO_PRODUCTS[0]);
   const [quantity, setQuantity] = useState('1');
   const [selling, setSelling] = useState(false);

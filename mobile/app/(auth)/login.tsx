@@ -9,60 +9,112 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { apiClient } from '../../src/api/client';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../src/features/auth/AuthContext';
 import { useBackendHealth } from '../../src/lib/config';
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 import { Badge } from '../../src/components/Badge';
 import { Card } from '../../src/components/Card';
 
 const DEMO_ROLES = [
-  { role: 'pharmacy', title: 'Retail Pharmacist', email: 'pharmacist@mediflux.in', node: 'Apollo Pharmacy - CP' },
-  { role: 'stockist', title: 'Stockist Hub Manager', email: 'stockist@mediflux.in', node: 'North Delhi Stockist Hub' },
-  { role: 'distributor', title: 'Logistics Director', email: 'distributor@mediflux.in', node: 'Northern Depot' },
-  { role: 'manufacturer', title: 'Plant Ops Manager', email: 'plant@mediflux.in', node: 'Sun Pharma Plant - Baddi' },
-  { role: 'regulator', title: 'CDSCO Regulator', email: 'regulator@mediflux.in', node: 'CDSCO HQ' },
-  { role: 'admin', title: 'Network Admin', email: 'admin@mediflux.in', node: 'Control Tower' },
+  {
+    role: 'pharmacy',
+    title: 'Retail Pharmacist',
+    email: 'pharmacy@mediflux.in',
+    node: 'Apollo Pharmacy - CP',
+    tier: 'Tier 1 (Retail)',
+  },
+  {
+    role: 'stockist',
+    title: 'Stockist Hub Manager',
+    email: 'stockist@mediflux.in',
+    node: 'North Delhi Stockist Hub',
+    tier: 'Tier 2 (Stockist)',
+  },
+  {
+    role: 'distributor',
+    title: 'Logistics Director',
+    email: 'distributor@mediflux.in',
+    node: 'Northern India Regional Depot',
+    tier: 'Tier 3 (Distributor)',
+  },
+  {
+    role: 'manufacturer',
+    title: 'Plant Operations Manager',
+    email: 'manufacturer@mediflux.in',
+    node: 'Sun Pharma Plant - Baddi',
+    tier: 'Tier 4 (Manufacturer)',
+  },
+  {
+    role: 'admin',
+    title: 'Network Control Tower Admin',
+    email: 'admin@mediflux.in',
+    node: 'National Control Tower',
+    tier: 'All Tiers',
+  },
 ];
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login, loginAsDemoRole, error, clearError, isLoading } = useAuth();
   const { health } = useBackendHealth();
-  const [email, setEmail] = useState('pharmacist@mediflux.in');
-  const [password, setPassword] = useState('mediflux-demo-2026');
-  const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('pharmacy');
 
-  const handleDemoSelect = (roleItem: (typeof DEMO_ROLES)[0]) => {
-    setEmail(roleItem.email);
-    setSelectedRole(roleItem.role);
-  };
+  const [email, setEmail] = useState('pharmacy@mediflux.in');
+  const [password, setPassword] = useState('PharmPassword123!');
+  const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const isReachable = health.status === 'reachable';
+  const showDevChips = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
 
   const handleLogin = async () => {
-    setLoading(true);
-    try {
-      // Set auth context for operational calls
-      apiClient.setAuth({
-        token: `demo-token-${selectedRole}`,
-        role: selectedRole,
-        userId: `usr-${selectedRole}-001`,
-        nodeId: `node-${selectedRole}-001`,
-      });
+    clearError();
+    setLocalError(null);
+    if (!email.trim()) {
+      setLocalError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setLocalError('Please enter your password.');
+      return;
+    }
 
+    try {
+      await login(email.trim(), password);
       router.replace('/(tabs)');
     } catch {
-      // In Task M1, proceed directly to workspace
-      router.replace('/(tabs)');
-    } finally {
-      setLoading(false);
+      // Error handled via AuthContext
     }
   };
 
-  const isReachable = health.status === 'reachable';
+  const handleDemoQuickLogin = async (role: string, roleEmail: string) => {
+    clearError();
+    setLocalError(null);
+    setEmail(roleEmail);
+    try {
+      await loginAsDemoRole(role);
+      router.replace('/(tabs)');
+    } catch {
+      // Error handled via AuthContext
+    }
+  };
+
+  const displayedError = localError || error;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Brand Header */}
       <View style={styles.header}>
-        <Text style={styles.brandSubtitle}>SUPPLY CHAIN ACCESS PORTAL</Text>
+        <View style={styles.topRow}>
+          <Text style={styles.brandSubtitle}>SUPPLY CHAIN ACCESS PORTAL</Text>
+          <TouchableOpacity
+            style={styles.settingsHeaderBtn}
+            onPress={() => router.push('/(auth)/settings')}
+            accessibilityLabel="Backend Settings"
+          >
+            <Ionicons name="settings-outline" size={18} color={colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.brandTitle}>Sign In to MediFlux</Text>
         <Text style={styles.description}>
           Authenticate via Supabase Auth or select a seeded operational role to inspect node operations.
@@ -72,9 +124,11 @@ export default function LoginScreen() {
       {/* Backend Status Card */}
       <Card style={styles.statusCard}>
         <View style={styles.statusRow}>
-          <View>
-            <Text style={styles.statusLabel}>BACKEND ENDPOINT</Text>
-            <Text style={styles.statusUrl} numberOfLines={1}>{health.url}</Text>
+          <View style={styles.statusInfo}>
+            <Text style={styles.statusLabel}>TARGET FASTAPI BACKEND</Text>
+            <Text style={styles.statusUrl} numberOfLines={1}>
+              {health.url}
+            </Text>
           </View>
           <Badge
             label={isReachable ? `${health.latencyMs ?? 0}ms OK` : 'OFFLINE'}
@@ -89,71 +143,122 @@ export default function LoginScreen() {
         </TouchableOpacity>
       </Card>
 
+      {/* Error Banner */}
+      {displayedError ? (
+        <View style={styles.errorBanner}>
+          <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
+          <Text style={styles.errorBannerText}>{displayedError}</Text>
+        </View>
+      ) : null}
+
       {/* Credentials Form */}
       <View style={styles.form}>
         <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
         <TextInput
           style={styles.input}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(val) => {
+            setEmail(val);
+            if (localError) setLocalError(null);
+          }}
           placeholder="operator@mediflux.in"
           placeholderTextColor={colors.text.muted}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoCorrect={false}
         />
 
         <Text style={styles.inputLabel}>PASSWORD</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••••••"
-          placeholderTextColor={colors.text.muted}
-          secureTextEntry
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            value={password}
+            onChangeText={(val) => {
+              setPassword(val);
+              if (localError) setLocalError(null);
+            }}
+            placeholder="••••••••••••"
+            placeholderTextColor={colors.text.muted}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((prev) => !prev)}
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? (
+              <Ionicons name="eye-off-outline" size={18} color={colors.text.secondary} />
+            ) : (
+              <Ionicons name="eye-outline" size={18} color={colors.text.secondary} />
+            )}
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.loginButton, isLoading && styles.buttonDisabled]}
           onPress={handleLogin}
-          disabled={loading}
+          disabled={isLoading}
           activeOpacity={0.8}
         >
-          {loading ? (
-            <ActivityIndicator color={colors.text.onAccent} />
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitButtonText}>CONTINUE TO OPERATIONAL WORKSPACE →</Text>
+            <View style={styles.buttonInner}>
+              <Text style={styles.loginButtonText}>AUTHENTICATE & ENTER</Text>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+            </View>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Seeded Quick-Login Roles */}
-      <View style={styles.rolesSection}>
-        <Text style={styles.rolesTitle}>SEEDED DEMO ROLES (7 TIERS)</Text>
-        <Text style={styles.rolesSubtitle}>
-          Tap any seeded role for instant evaluation credentials:
-        </Text>
+      {/* Development Quick-Login Chips */}
+      {showDevChips && (
+        <View style={styles.demoSection}>
+          <View style={styles.demoHeader}>
+            <Text style={styles.demoSectionTitle}>QUICK DEMO ROLES (DEV MODE)</Text>
+            <Badge label="SEEDED" variant="teal" />
+          </View>
+          <Text style={styles.demoSubtitle}>
+            Tap any role to authenticate instantly with its pre-bound supply node and permissions:
+          </Text>
 
-        {DEMO_ROLES.map((item) => {
-          const isSelected = selectedRole === item.role;
-          return (
-            <TouchableOpacity
-              key={item.role}
-              style={[styles.roleCard, isSelected && styles.roleCardSelected]}
-              onPress={() => handleDemoSelect(item)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.roleCardHeader}>
-                <Text style={styles.roleTitle}>{item.title}</Text>
-                <Badge
-                  label={item.role}
-                  variant={isSelected ? 'teal' : 'neutral'}
-                />
-              </View>
-              <Text style={styles.roleEmail}>{item.email}</Text>
-              <Text style={styles.roleNode}>{item.node}</Text>
-            </TouchableOpacity>
-          );
-        })}
+          <View style={styles.demoChipsContainer}>
+            {DEMO_ROLES.map((d) => {
+              return (
+                <TouchableOpacity
+                  key={d.role}
+                  style={styles.demoCard}
+                  onPress={() => handleDemoQuickLogin(d.role, d.email)}
+                  disabled={isLoading}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.demoCardHeader}>
+                    <Text style={styles.demoCardTitle}>{d.title}</Text>
+                    <View style={styles.roleTag}>
+                      <Text style={styles.roleTagText}>{d.role.toUpperCase()}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.demoCardNode}>{d.node}</Text>
+                  <Text style={styles.demoCardTier}>{d.tier}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Footer Info */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.footerLink}
+          onPress={() => router.push('/(auth)/settings')}
+        >
+          <Text style={styles.footerLinkText}>⚙ Open Networking & Runtime Settings</Text>
+        </TouchableOpacity>
+        <Text style={styles.footerSecurityNote}>
+          MediFlux enforces strict Row-Level Security (RLS). Operations are cryptographically
+          anchored to your authenticated node ID.
+        </Text>
       </View>
     </ScrollView>
   );
@@ -169,15 +274,26 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl * 2,
   },
   header: {
-    marginTop: spacing.base,
     marginBottom: spacing.base,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
   },
   brandSubtitle: {
     fontSize: typography.fontSize.micro,
     fontWeight: typography.fontWeight.bold,
     color: colors.text.secondary,
     letterSpacing: typography.letterSpacing.widest,
-    marginBottom: spacing.xs,
+  },
+  settingsHeaderBtn: {
+    padding: 6,
+    borderRadius: radii.sm,
+    backgroundColor: colors.canvas.surface,
+    borderColor: colors.border.default,
+    borderWidth: 1,
   },
   brandTitle: {
     fontSize: typography.fontSize.h1,
@@ -200,34 +316,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  statusInfo: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
   statusLabel: {
     fontSize: typography.fontSize.micro,
     fontWeight: typography.fontWeight.bold,
     color: colors.text.secondary,
     letterSpacing: typography.letterSpacing.wide,
+    marginBottom: 2,
   },
   statusUrl: {
     fontSize: typography.fontSize.caption,
     color: colors.text.primary,
-    fontWeight: typography.fontWeight.medium,
-    marginTop: 2,
+    fontFamily: 'monospace',
   },
   settingsLink: {
-    paddingTop: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: colors.border.subtle,
+    borderTopColor: colors.border.default,
+    paddingTop: spacing.xs + 2,
   },
   settingsLinkText: {
     fontSize: typography.fontSize.micro,
-    fontWeight: typography.fontWeight.bold,
     color: colors.accent.primary,
+    fontWeight: typography.fontWeight.bold,
     letterSpacing: typography.letterSpacing.wide,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.base,
+    gap: spacing.xs,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: typography.fontSize.caption,
+    color: '#991B1B',
+    fontWeight: typography.fontWeight.medium,
   },
   form: {
     backgroundColor: colors.canvas.surface,
     borderWidth: 1,
     borderColor: colors.border.default,
-    borderRadius: radii.md,
+    borderRadius: radii.sm,
     padding: spacing.base,
     marginBottom: spacing.lg,
   },
@@ -242,73 +379,136 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.default,
     borderRadius: radii.sm,
-    backgroundColor: colors.canvas.surface,
+    backgroundColor: colors.canvas.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     fontSize: typography.fontSize.body,
     color: colors.text.primary,
     marginBottom: spacing.md,
   },
-  submitButton: {
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.sm,
+    backgroundColor: colors.canvas.primary,
+    marginBottom: spacing.lg,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    fontSize: typography.fontSize.body,
+    color: colors.text.primary,
+  },
+  eyeButton: {
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.sm,
+  },
+  loginButton: {
     backgroundColor: colors.accent.primary,
     paddingVertical: spacing.md,
-    borderRadius: radii.sm, // Editorial crisp 2px radius
+    borderRadius: radii.sm,
     alignItems: 'center',
-    marginTop: spacing.xs,
+    justifyContent: 'center',
   },
-  submitButtonText: {
-    color: colors.text.onAccent,
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
     fontSize: typography.fontSize.caption,
     fontWeight: typography.fontWeight.bold,
     letterSpacing: typography.letterSpacing.wide,
   },
-  rolesSection: {
-    marginTop: spacing.sm,
+  demoSection: {
+    marginBottom: spacing.xl,
   },
-  rolesTitle: {
+  demoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  demoSectionTitle: {
     fontSize: typography.fontSize.micro,
     fontWeight: typography.fontWeight.bold,
     color: colors.text.secondary,
     letterSpacing: typography.letterSpacing.widest,
-    marginBottom: 2,
   },
-  rolesSubtitle: {
-    fontSize: typography.fontSize.caption,
+  demoSubtitle: {
+    fontSize: typography.fontSize.micro,
     color: colors.text.secondary,
     marginBottom: spacing.sm,
   },
-  roleCard: {
+  demoChipsContainer: {
+    gap: spacing.sm,
+  },
+  demoCard: {
     backgroundColor: colors.canvas.surface,
     borderWidth: 1,
     borderColor: colors.border.default,
     borderRadius: radii.sm,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    padding: spacing.sm + 2,
   },
-  roleCardSelected: {
-    borderColor: colors.accent.primary,
-    borderWidth: 1.5,
-    backgroundColor: colors.canvas.elevated,
-  },
-  roleCardHeader: {
+  demoCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
-  roleTitle: {
-    fontSize: typography.fontSize.body,
+  demoCardTitle: {
+    fontSize: typography.fontSize.caption,
     fontWeight: typography.fontWeight.bold,
     color: colors.text.primary,
   },
-  roleEmail: {
+  roleTag: {
+    backgroundColor: colors.canvas.elevated,
+    borderColor: colors.border.default,
+    borderWidth: 0.5,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  roleTagText: {
+    fontSize: 9,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    color: colors.accent.primary,
+  },
+  demoCardNode: {
     fontSize: typography.fontSize.caption,
     color: colors.text.secondary,
+    marginBottom: 1,
   },
-  roleNode: {
+  demoCardTier: {
     fontSize: typography.fontSize.micro,
     color: colors.text.muted,
-    marginTop: 2,
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  footerLink: {
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  footerLinkText: {
+    fontSize: typography.fontSize.caption,
+    color: colors.accent.primary,
+    fontWeight: typography.fontWeight.bold,
+  },
+  footerSecurityNote: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.muted,
+    textAlign: 'center',
+    lineHeight: 14,
+    paddingHorizontal: spacing.lg,
   },
 });
-

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,24 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/features/auth/AuthContext';
+import { isTabVisibleForRole } from '../../src/features/auth/roleMap';
 import { useColdChainBatches } from '../../src/api/hooks';
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
 
 export default function ColdChainScreen() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && !isTabVisibleForRole(user.role, 'cold-chain')) {
+      router.replace('/(tabs)');
+    }
+  }, [user, router]);
+
   const { data: batches, loading, refetch } = useColdChainBatches();
 
   const batchList = batches || [

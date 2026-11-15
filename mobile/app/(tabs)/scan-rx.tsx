@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,23 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/features/auth/AuthContext';
+import { isTabVisibleForRole } from '../../src/features/auth/roleMap';
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
 
 export default function ScanRxScreen() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && !isTabVisibleForRole(user.role, 'scan-rx')) {
+      router.replace('/(tabs)');
+    }
+  }, [user, router]);
+
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<any | null>(null);
 

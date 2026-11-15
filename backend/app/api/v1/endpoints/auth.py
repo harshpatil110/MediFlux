@@ -220,6 +220,19 @@ class EnrichedUserProfile(BaseModel):
     tier: str | None = None
     region: str | None = None
     allowed_routes: list[str] = Field(default_factory=list)
+    permissions: dict[str, Any] = Field(default_factory=dict)
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = None
+    token: str | None = None
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 3600
+    refresh_token: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -367,6 +380,12 @@ async def get_my_profile(
         "/overview", "/cascade", "/copilot"
     ]
 
+    can_decide = current_user.role.lower() in ("admin", "stockist", "distributor", "manufacturer", "regulator")
+    permissions = {
+        "can_view_approvals": True,
+        "can_decide_approvals": can_decide,
+    }
+
     return EnrichedUserProfile(
         id=current_user.id or current_user.user_id,
         user_id=current_user.user_id,
@@ -379,4 +398,55 @@ async def get_my_profile(
         tier=tier,
         region=region,
         allowed_routes=allowed_routes,
+        permissions=permissions,
+    )
+
+
+@router.post(
+    "/auth/refresh",
+    response_model=RefreshResponse,
+    summary="Refresh Session Access Token",
+    description="Refresh an active or expired session token using a refresh token or demo credentials.",
+)
+@router.post(
+    "/refresh",
+    response_model=RefreshResponse,
+    summary="Refresh Token (Alias)",
+    include_in_schema=False,
+)
+async def refresh_session_token(
+    body: RefreshRequest,
+) -> RefreshResponse:
+    """Refresh session token and return new access token."""
+    raw_token = body.refresh_token or body.token
+    if not raw_token:
+        from app.core.exceptions import AppException
+        raise AppException(
+            message="Refresh token required.",
+            code="REFRESH_TOKEN_REQUIRED",
+            status_code=400,
+        )
+
+    # Check for simulated refresh failure / expired refresh token
+    if "invalid" in raw_token.lower() or "expired" in raw_token.lower():
+        from app.core.exceptions import AppException
+        raise AppException(
+            message="Refresh token is expired or invalid. Please sign in again.",
+            code="TOKEN_EXPIRED",
+            status_code=401,
+        )
+
+    # Check demo roles
+    for role, demo in DEMO_USERS_BY_ROLE.items():
+        if role in raw_token.lower():
+            return RefreshResponse(
+                access_token=demo["token"],
+                refresh_token=f"ref-{demo['token']}",
+                expires_in=3600,
+            )
+
+    return RefreshResponse(
+        access_token=raw_token.replace("ref-", ""),
+        refresh_token=f"ref-{raw_token}",
+        expires_in=3600,
     )

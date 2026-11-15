@@ -44,3 +44,10 @@ export const storage = {
   },
 };
 
+export const supabaseStorageAdapter = {
+  getItem: (key: string): Promise<string | null> => storage.getItem(key),
+  setItem: (key: string, value: string): Promise<void> => storage.setItem(key, value),
+  removeItem: (key: string): Promise<void> => storage.removeItem(key),
+};
+
+

@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
+import { Ionicons } from '@expo/vector-icons';
 import {
   getBackendUrl,
   setBackendUrl,
@@ -16,18 +18,27 @@ import {
   getLanPresetUrls,
   HealthCheckResult,
 } from '../../src/lib/config';
+import { useAuth } from '../../src/features/auth/AuthContext';
+import { getRoleBadgeInfo } from '../../src/features/auth/roleMap';
+import { useTheme } from '../../src/theme/ThemeContext';
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 import { Badge } from '../../src/components/Badge';
 import { Card } from '../../src/components/Card';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { user, status, logout, reloadProfile, isLoading: authLoading } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+
   const [url, setUrl] = useState(getBackendUrl());
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<HealthCheckResult | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [reloadingProfile, setReloadingProfile] = useState(false);
 
   const presets = getLanPresetUrls();
+  const isAuthenticated = status === 'authenticated' && !!user;
+  const badgeInfo = getRoleBadgeInfo(user?.role);
 
   useEffect(() => {
     setUrl(getBackendUrl());
@@ -56,22 +67,139 @@ export default function SettingsScreen() {
     await setBackendUrl(url);
     setSavedSuccess(true);
     setTimeout(() => {
-      router.back();
-    }, 800);
+      setSavedSuccess(false);
+    }, 2000);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(auth)/login');
+  };
+
+  const handleReloadProfile = async () => {
+    setReloadingProfile(true);
+    try {
+      await reloadProfile();
+    } finally {
+      setReloadingProfile(false);
+    }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header with back button */}
       <View style={styles.header}>
-        <Text style={styles.subtitle}>RUNTIME NETWORKING CONFIGURATION</Text>
-        <Text style={styles.title}>FastAPI Backend Target</Text>
+        <View style={styles.navRow}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else if (isAuthenticated) {
+                router.replace('/(tabs)');
+              } else {
+                router.replace('/(auth)/login');
+              }
+            }}
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="arrow-back" size={18} color={colors.text.primary} />
+            <Text style={styles.backButtonText}>BACK</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.subtitle}>RUNTIME NETWORKING & IDENTITY</Text>
+        <Text style={styles.title}>System Settings</Text>
         <Text style={styles.description}>
-          Configure the active backend URL for real-time mobile API synchronization, SSE event streaming, and local reachability probes.
+          Configure backend connectivity, inspect active role permissions, and control operational environment parameters.
         </Text>
       </View>
 
-      {/* Manual Input Card */}
-      <Card title="Backend URL Endpoint" subtitle="Target Connection">
+      {/* Authenticated User Profile Card */}
+      {isAuthenticated && user && (
+        <Card title="Active Operator Profile" subtitle="Supabase & RLS Bound Node">
+          <View style={styles.profileCard}>
+            <View style={styles.profileHeaderRow}>
+              <View style={styles.profileNameCol}>
+                <Text style={styles.userName}>{user.full_name || user.email}</Text>
+                <Text style={styles.userEmail}>{user.email}</Text>
+              </View>
+              <View style={[styles.roleBadgePill, { backgroundColor: badgeInfo.badgeBg }]}>
+                <Text style={[styles.roleBadgeText, { color: badgeInfo.badgeTextColor }]}>
+                  {badgeInfo.label}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.profileDetailRow}>
+              <Text style={styles.detailLabel}>ASSIGNED NODE</Text>
+              <Text style={styles.detailValueBold}>{user.node_name || 'All Nodes'}</Text>
+            </View>
+
+            <View style={styles.profileDetailRow}>
+              <Text style={styles.detailLabel}>NODE ID</Text>
+              <Text style={styles.detailValueMono}>{user.node_id || 'unassigned-root'}</Text>
+            </View>
+
+            <View style={styles.profileDetailRow}>
+              <Text style={styles.detailLabel}>TIER / REGION</Text>
+              <Text style={styles.detailValue}>
+                {(user.tier || 'network').toUpperCase()} • {user.region || 'National'}
+              </Text>
+            </View>
+
+            <View style={styles.profileDetailRow}>
+              <Text style={styles.detailLabel}>HITL APPROVAL POLICY</Text>
+              <View style={styles.policyRow}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={14}
+                  color={badgeInfo.isApprover ? colors.accent.primary : '#5C584E'}
+                />
+                <Text
+                  style={[
+                    styles.policyText,
+                    { color: badgeInfo.isApprover ? colors.accent.primary : '#5C584E' },
+                  ]}
+                >
+                  {badgeInfo.isApprover ? 'Decide & Authorize (Approver)' : 'Read-Only (View-Only)'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.profileActionsRow}>
+              <TouchableOpacity
+                style={styles.refreshProfileBtn}
+                onPress={handleReloadProfile}
+                disabled={reloadingProfile}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="refresh-outline" size={14} color={colors.text.secondary} />
+                <Text style={styles.refreshProfileBtnText}>
+                  {reloadingProfile ? 'SYNCING...' : 'SYNC WITH /api/v1/me'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.logoutBtn}
+                onPress={handleLogout}
+                disabled={authLoading}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="log-out-outline" size={14} color="#DC2626" />
+                <Text style={styles.logoutBtnText}>LOGOUT</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Card>
+      )}
+
+      {/* Backend URL Configuration */}
+      <Card title="FastAPI Backend Target" subtitle="Runtime API & SSE Endpoint">
+        <Text style={styles.inputHelp}>
+          Editing this updates the active API target immediately without restarting the app.
+        </Text>
         <TextInput
           style={styles.input}
           value={url}
@@ -95,18 +223,24 @@ export default function SettingsScreen() {
             {testing ? (
               <ActivityIndicator size="small" color={colors.text.primary} />
             ) : (
-              <Text style={styles.testButtonText}>PROBE /health</Text>
+              <View style={styles.btnInnerRow}>
+                <Ionicons name="server-outline" size={14} color={colors.text.primary} />
+                <Text style={styles.testButtonText}>PROBE /health</Text>
+              </View>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.saveButton}
+            style={[styles.saveButton, savedSuccess && styles.saveButtonSuccess]}
             onPress={handleSave}
             activeOpacity={0.8}
           >
-            <Text style={styles.saveButtonText}>
-              {savedSuccess ? 'SAVED ✓' : 'SAVE & APPLY'}
-            </Text>
+            <View style={styles.btnInnerRow}>
+              {savedSuccess && <Ionicons name="checkmark-circle-outline" size={14} color="#FFFFFF" />}
+              <Text style={styles.saveButtonText}>
+                {savedSuccess ? 'SAVED' : 'SAVE BACKEND URL'}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -168,6 +302,49 @@ export default function SettingsScreen() {
           );
         })}
       </View>
+
+      {/* Application Metadata & Theme Footer */}
+      <Card title="Application Metadata" subtitle="Build & Environment">
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>APP NAME</Text>
+          <Text style={styles.metaValue}>MediFlux Field & POS</Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>CLIENT VERSION</Text>
+          <Text style={styles.metaValue}>
+            {Constants.expoConfig?.version ?? '1.0.0'} (Expo SDK 51)
+          </Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>BUILD ENVIRONMENT</Text>
+          <Text style={styles.metaValue}>
+            {typeof __DEV__ !== 'undefined' && __DEV__ ? 'Development' : 'Production'}
+          </Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.themeToggleRow}>
+          <View>
+            <Text style={styles.themeLabel}>INTERFACE THEME</Text>
+            <Text style={styles.themeSub}>
+              {isDark ? 'Dark Mode (Deep Editorial)' : 'Light Mode (Warm Ivory)'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.themeBtn}
+            onPress={toggleTheme}
+            activeOpacity={0.7}
+          >
+            {isDark ? (
+              <Ionicons name="sunny-outline" size={16} color={colors.accent.primary} />
+            ) : (
+              <Ionicons name="moon-outline" size={16} color={colors.text.primary} />
+            )}
+            <Text style={styles.themeBtnText}>TOGGLE</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
     </ScrollView>
   );
 }
@@ -180,9 +357,31 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.base,
     paddingBottom: spacing.xxl * 2,
+    gap: spacing.base,
   },
   header: {
-    marginBottom: spacing.base,
+    marginBottom: spacing.xs,
+  },
+  navRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: radii.sm,
+    backgroundColor: colors.canvas.surface,
+    borderColor: colors.border.default,
+    borderWidth: 1,
+  },
+  backButtonText: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: typography.fontSize.micro,
@@ -203,6 +402,128 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     lineHeight: typography.fontSize.caption * 1.5,
   },
+  profileCard: {
+    paddingTop: 2,
+  },
+  profileHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  profileNameCol: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  userName: {
+    fontSize: typography.fontSize.body,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+  },
+  userEmail: {
+    fontSize: typography.fontSize.caption,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  roleBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#D8D3C3',
+  },
+  roleBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border.default,
+    marginVertical: spacing.sm + 2,
+  },
+  profileDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs + 2,
+  },
+  detailLabel: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.secondary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  detailValue: {
+    fontSize: typography.fontSize.caption,
+    color: colors.text.primary,
+  },
+  detailValueBold: {
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+  },
+  detailValueMono: {
+    fontSize: typography.fontSize.micro,
+    fontFamily: 'monospace',
+    color: colors.text.secondary,
+  },
+  policyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  policyText: {
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  profileActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.sm + 2,
+  },
+  refreshProfileBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.canvas.surface,
+    borderColor: colors.border.default,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+  },
+  refreshProfileBtnText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.secondary,
+    letterSpacing: 0.5,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: '#FEE2E2',
+    borderColor: '#F87171',
+    borderWidth: 1,
+    borderRadius: radii.sm,
+  },
+  logoutBtnText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#991B1B',
+    letterSpacing: 0.5,
+  },
+  inputHelp: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+  },
   input: {
     borderWidth: 1,
     borderColor: colors.border.default,
@@ -218,6 +539,11 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  btnInnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   testButton: {
     flex: 1,
@@ -243,8 +569,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  saveButtonSuccess: {
+    backgroundColor: '#059669',
+  },
   saveButtonText: {
-    color: colors.text.onAccent,
+    color: '#FFFFFF',
     fontSize: typography.fontSize.micro,
     fontWeight: typography.fontWeight.bold,
     letterSpacing: typography.letterSpacing.wide,
@@ -259,12 +588,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   probeSuccess: {
-    backgroundColor: colors.status.successSubtle,
-    borderColor: colors.status.success,
+    backgroundColor: '#F0FDF4',
+    borderColor: '#86EFAC',
   },
   probeFailure: {
-    backgroundColor: colors.status.dangerSubtle,
-    borderColor: colors.status.danger,
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
   probeHeader: {
     flexDirection: 'row',
@@ -275,20 +604,21 @@ const styles = StyleSheet.create({
   latencyText: {
     fontSize: typography.fontSize.caption,
     fontWeight: typography.fontWeight.bold,
+    fontFamily: 'monospace',
     color: colors.text.primary,
   },
   serverInfo: {
     fontSize: typography.fontSize.caption,
     color: colors.text.primary,
-    fontWeight: typography.fontWeight.medium,
+    fontFamily: 'monospace',
   },
   errorText: {
     fontSize: typography.fontSize.caption,
-    color: colors.status.danger,
-    marginTop: 2,
+    color: '#DC2626',
+    marginTop: spacing.xs,
   },
   presetsSection: {
-    marginTop: spacing.lg,
+    marginTop: spacing.xs,
   },
   presetSectionTitle: {
     fontSize: typography.fontSize.micro,
@@ -313,7 +643,6 @@ const styles = StyleSheet.create({
   presetCardActive: {
     borderColor: colors.accent.primary,
     borderWidth: 1.5,
-    backgroundColor: colors.canvas.elevated,
   },
   presetHeader: {
     flexDirection: 'row',
@@ -322,21 +651,67 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   presetLabel: {
-    fontSize: typography.fontSize.body,
+    fontSize: typography.fontSize.caption,
     fontWeight: typography.fontWeight.bold,
     color: colors.text.primary,
   },
   presetUrl: {
     fontSize: typography.fontSize.caption,
     color: colors.accent.primary,
-    fontWeight: typography.fontWeight.semibold,
     fontFamily: 'monospace',
-    marginTop: 2,
+    marginBottom: 2,
   },
   presetDescription: {
     fontSize: typography.fontSize.micro,
     color: colors.text.secondary,
-    marginTop: spacing.xs,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs + 2,
+  },
+  metaLabel: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.secondary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  metaValue: {
+    fontSize: typography.fontSize.caption,
+    color: colors.text.primary,
+  },
+  themeToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  themeLabel: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.secondary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  themeSub: {
+    fontSize: typography.fontSize.caption,
+    color: colors.text.primary,
+    marginTop: 2,
+  },
+  themeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: colors.canvas.surface,
+    borderColor: colors.border.default,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+  },
+  themeBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.text.primary,
+    letterSpacing: 0.5,
   },
 });
-

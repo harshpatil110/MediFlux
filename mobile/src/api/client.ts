@@ -6,6 +6,7 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   timeoutMs?: number;
   skipAuth?: boolean;
+  _retried401?: boolean;
 }
 
 export interface AuthContext {
@@ -15,12 +16,27 @@ export interface AuthContext {
   userId?: string | null;
 }
 
+export type RefreshHandler = () => Promise<string | null>;
+export type ForceLogoutHandler = (reason?: string) => Promise<void> | void;
+
 class ApiClient {
   private authContext: AuthContext = {};
   private defaultTimeoutMs: number = 15000;
+  private onRefresh: RefreshHandler | null = null;
+  private onForceLogout: ForceLogoutHandler | null = null;
+  private isRefreshing: boolean = false;
+  private refreshSubscribers: Array<(token: string | null) => void> = [];
 
   constructor() {
     this.restoreSession();
+  }
+
+  public setAuthHandlers(handlers: {
+    onRefresh?: RefreshHandler;
+    onForceLogout?: ForceLogoutHandler;
+  }): void {
+    if (handlers.onRefresh) this.onRefresh = handlers.onRefresh;
+    if (handlers.onForceLogout) this.onForceLogout = handlers.onForceLogout;
   }
 
   public async restoreSession(): Promise<AuthContext> {
@@ -113,6 +129,30 @@ class ApiClient {
     return url.toString();
   }
 
+  private async handleTokenRefresh(): Promise<string | null> {
+    if (this.isRefreshing) {
+      return new Promise<string | null>((resolve) => {
+        this.refreshSubscribers.push(resolve);
+      });
+    }
+
+    this.isRefreshing = true;
+    try {
+      if (!this.onRefresh) {
+        return null;
+      }
+      const newToken = await this.onRefresh();
+      this.refreshSubscribers.forEach((cb) => cb(newToken));
+      return newToken;
+    } catch {
+      this.refreshSubscribers.forEach((cb) => cb(null));
+      return null;
+    } finally {
+      this.isRefreshing = false;
+      this.refreshSubscribers = [];
+    }
+  }
+
   private async execute<T>(
     method: string,
     path: string,
@@ -140,6 +180,21 @@ class ApiClient {
       });
 
       clearTimeout(timer);
+
+      // Handle 401 Unauthorized with single retry
+      const isAuthRoute = path.includes('/auth/login') || path.includes('/auth/refresh');
+      if (response.status === 401 && !options?._retried401 && !isAuthRoute && this.onRefresh) {
+        const refreshedToken = await this.handleTokenRefresh();
+        if (refreshedToken) {
+          const retryOptions: RequestOptions = {
+            ...options,
+            _retried401: true,
+          };
+          return this.execute<T>(method, path, body, params, retryOptions);
+        } else if (this.onForceLogout) {
+          this.onForceLogout('Session expired. Please sign in again.');
+        }
+      }
 
       // Handle 204 No Content
       if (response.status === 204) {
@@ -175,7 +230,11 @@ class ApiClient {
     }
   }
 
-  public async get<T>(path: string, params?: Record<string, any>, options?: RequestOptions): Promise<T> {
+  public async get<T>(
+    path: string,
+    params?: Record<string, any>,
+    options?: RequestOptions
+  ): Promise<T> {
     return this.execute<T>('GET', path, undefined, params, options);
   }
 
@@ -187,7 +246,11 @@ class ApiClient {
     return this.execute<T>('PUT', path, body, undefined, options);
   }
 
-  public async delete<T>(path: string, params?: Record<string, any>, options?: RequestOptions): Promise<T> {
+  public async delete<T>(
+    path: string,
+    params?: Record<string, any>,
+    options?: RequestOptions
+  ): Promise<T> {
     return this.execute<T>('DELETE', path, undefined, params, options);
   }
 
@@ -205,4 +268,3 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
-

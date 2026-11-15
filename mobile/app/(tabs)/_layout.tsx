@@ -1,9 +1,15 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography } from '../../src/theme/tokens';
+import { colors } from '../../src/theme/tokens';
+import { useAuth } from '../../src/features/auth/AuthContext';
+import { isTabVisibleForRole } from '../../src/features/auth/roleMap';
+import { RoleNodeHeaderBadge } from '../../src/components/RoleNodeHeaderBadge';
 
 export default function TabsLayout() {
+  const { user } = useAuth();
+  const role = user?.role;
+
   return (
     <Tabs
       screenOptions={{
@@ -15,10 +21,11 @@ export default function TabsLayout() {
         headerTintColor: colors.text.primary,
         headerTitleStyle: {
           fontWeight: '700',
-          fontSize: 17,
+          fontSize: 16,
           letterSpacing: -0.2,
         },
         headerShadowVisible: false,
+        headerRight: () => <RoleNodeHeaderBadge />,
         tabBarStyle: {
           backgroundColor: colors.canvas.surface,
           borderTopWidth: 1,
@@ -42,6 +49,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           headerTitle: 'MediFlux Network Node',
+          href: isTabVisibleForRole(role, 'index') ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="grid-outline" size={size - 2} color={color} />
           ),
@@ -52,6 +60,7 @@ export default function TabsLayout() {
         options={{
           title: 'Sell',
           headerTitle: 'Pharmacy POS Counter',
+          href: isTabVisibleForRole(role, 'sell') ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cart-outline" size={size - 2} color={color} />
           ),
@@ -62,6 +71,7 @@ export default function TabsLayout() {
         options={{
           title: 'Approvals',
           headerTitle: 'HITL Decisions Queue',
+          href: isTabVisibleForRole(role, 'approvals') ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkbox-outline" size={size - 2} color={color} />
           ),
@@ -72,6 +82,7 @@ export default function TabsLayout() {
         options={{
           title: 'Scan Rx',
           headerTitle: 'Sovereign Rx Scanner',
+          href: isTabVisibleForRole(role, 'scan-rx') ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="scan-outline" size={size - 2} color={color} />
           ),
@@ -82,6 +93,7 @@ export default function TabsLayout() {
         options={{
           title: 'Cold Chain',
           headerTitle: 'Biologics IoT Telemetry',
+          href: isTabVisibleForRole(role, 'cold-chain') ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="thermometer-outline" size={size - 2} color={color} />
           ),
@@ -92,6 +104,7 @@ export default function TabsLayout() {
         options={{
           title: 'Copilot',
           headerTitle: 'Supply Chain Copilot',
+          href: isTabVisibleForRole(role, 'copilot') ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles-outline" size={size - 2} color={color} />
           ),
@@ -100,4 +113,3 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-
