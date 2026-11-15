@@ -53,3 +53,4 @@ Task M4 delivers the field-ready mobile Point-of-Sale (POS Lite) module for phar
 - **Code Quality**: `ruff check` passes with 0 warnings/errors.
 - **TypeScript**: `npm run typecheck` passes with 0 errors.
 - **Web Export**: `npx expo export --platform web` bundles cleanly.
+

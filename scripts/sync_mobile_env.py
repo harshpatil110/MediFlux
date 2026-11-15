@@ -48,3 +48,4 @@ example_path.write_text(
 )
 
 print(f"✓ Synchronized {local_path} and {example_path}")
+

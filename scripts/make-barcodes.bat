@@ -8,3 +8,4 @@ if exist "backend\venv\Scripts\python.exe" (
     python scripts\make_barcodes.py %*
 )
 endlocal
+

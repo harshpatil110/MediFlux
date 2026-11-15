@@ -90,3 +90,4 @@ export function getRoleBadgeInfo(role: UserRole | string | undefined): {
       return { label: 'PHARMACY', badgeBg: '#E8E4D3', badgeTextColor: '#00AEBB', isApprover: false };
   }
 }
+

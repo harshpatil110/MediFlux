@@ -37,3 +37,4 @@ export function handleAppStateChange(state: AppStateStatus): void {
 if (typeof AppState?.addEventListener === 'function') {
   AppState.addEventListener('change', handleAppStateChange);
 }
+

@@ -169,3 +169,4 @@ class TestMobileAuthTaskM2:
             body = res.json()
             error_code = body.get("error", {}).get("code") or body.get("detail", {}).get("code")
             assert error_code == "TOKEN_EXPIRED"
+

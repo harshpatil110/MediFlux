@@ -176,3 +176,4 @@ async def get_mobile_summary(
         ),
         generated_at=now_utc.isoformat(),
     )
+

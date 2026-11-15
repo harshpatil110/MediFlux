@@ -11,3 +11,4 @@ if (Test-Path $VenvPython) {
 } else {
     python "scripts\make_barcodes.py" $args
 }
+
