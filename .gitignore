@@ -63,3 +63,7 @@ checkpoints.db
 .seed_state.json
 
 tasks
+
+# Video Artifacts
+docs/videos/
+*.webm
