@@ -38,8 +38,8 @@ policies:
 
   schedule_h_override:
     enabled: true
-    allowed_roles: ["admin", "regulator", "stockist", "compliance_officer"]
-    required_roles: ["admin", "regulator", "stockist", "compliance_officer"]
+    allowed_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "pharmacist", "compliance_officer"]
+    required_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "pharmacist", "compliance_officer"]
     risk_level: "high"
     timeout_minutes: 360
     expiry_hours: 6

@@ -47,8 +47,8 @@ _DEFAULT_POLICIES: dict[str, dict[str, Any]] = {
     },
     "schedule_h_override": {
         "enabled": True,
-        "allowed_roles": ["admin", "regulator", "stockist"],
-        "required_roles": ["admin", "regulator", "stockist"],
+        "allowed_roles": ["admin", "regulator", "stockist", "pharmacist_in_charge", "pharmacist", "compliance_officer"],
+        "required_roles": ["admin", "regulator", "stockist", "pharmacist_in_charge", "pharmacist", "compliance_officer"],
         "risk_level": "high",
         "timeout_minutes": 360,
         "expiry_hours": 6,
