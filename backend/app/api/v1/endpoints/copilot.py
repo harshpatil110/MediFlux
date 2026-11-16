@@ -5,7 +5,7 @@ import uuid
 from typing import Annotated, Any
 
 import jwt
-from fastapi import APIRouter, Header, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
@@ -129,7 +129,6 @@ async def query_copilot(
     effective_node = x_node_id
 
     if x_api_key:
-        from fastapi import HTTPException
         actor = await get_actor(x_api_key=x_api_key)
         scopes = actor.scopes
         if "*" not in scopes and "all" not in scopes and "use:copilot" not in scopes:

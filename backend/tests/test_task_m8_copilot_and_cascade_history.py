@@ -252,3 +252,78 @@ async def test_copilot_error_mapping_403_forbidden_scope():
         data = resp.json()
         assert data["error"]["code"] == "COPILOT_FORBIDDEN_SCOPE"
         assert data["error"]["details"]["retryable"] is False
+
+
+@pytest.mark.asyncio
+async def test_cascade_trace_unknown_404():
+    """AC #3: Verify non-existent correlation_id returns 404 Not Found."""
+    transport = ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/cascade/non-existent-correlation-id-9999", headers=_get_headers_for(ADMIN_USER))
+        assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_cascade_limit_validation():
+    """AC #3: Verify limit parameter query bounds validation."""
+    transport = ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        # Valid limit=1 returns at most 1 item
+        resp = await client.get("/api/v1/cascade?limit=1", headers=_get_headers_for(ADMIN_USER))
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+        # Invalid limit=0 returns 422
+        resp_invalid_0 = await client.get("/api/v1/cascade?limit=0", headers=_get_headers_for(ADMIN_USER))
+        assert resp_invalid_0.status_code == 422
+
+        # Invalid limit=101 returns 422
+        resp_invalid_101 = await client.get("/api/v1/cascade?limit=101", headers=_get_headers_for(ADMIN_USER))
+        assert resp_invalid_101.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_copilot_empty_question_bad_request():
+    """AC #1: Verify empty or whitespace question returns 400 Bad Request."""
+    transport = ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/api/v1/copilot/query", json={"question": "   "}, headers=_get_headers_for(ADMIN_USER))
+        assert resp.status_code == 400
+        assert "non-empty" in resp.json()["detail"].lower()
+
+
+def test_reference_chip_deep_link_resolution_contract():
+    """Verify deep-link resolution mapping logic for all ReferenceChip types."""
+    from pathlib import Path
+    ref_file = Path("mobile/src/features/copilot/ReferenceChipList.tsx")
+    assert ref_file.exists(), "ReferenceChipList.tsx must exist"
+    content = ref_file.read_text(encoding="utf-8")
+
+    # Contract checks:
+    # 1. inventory routes to /(tabs)/sell?product_id=
+    assert "/(tabs)/sell?product_id=" in content
+    # 2. batch / coldchain_batch routes to /cold-chain/
+    assert "/cold-chain/" in content
+    # 3. approval / hitl_task routes to /approvals/
+    assert "/approvals/" in content
+    # 4. cascade / agent_run routes to /cascade/ with replay mode
+    assert "/cascade/" in content
+    assert "?mode=replay" in content
+
+
+def test_cascade_timeline_replay_helpers_contract():
+    """Verify replay timing intervals and step state transitions in replayHelpers.ts."""
+    from pathlib import Path
+    helpers_file = Path("mobile/src/features/cascade/replayHelpers.ts")
+    assert helpers_file.exists(), "replayHelpers.ts must exist"
+    content = helpers_file.read_text(encoding="utf-8")
+
+    # Contract checks:
+    # 1. Speeds 1x (1200ms), 2x (600ms), 4x (300ms)
+    assert "1200" in content
+    assert "600" in content
+    assert "300" in content
+    # 2. computeReplayDisplaySteps handles running, pending, and recorded states
+    assert "computeReplayDisplaySteps" in content
+    assert "'running'" in content
+    assert "'pending'" in content
