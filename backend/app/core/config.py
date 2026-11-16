@@ -107,5 +107,13 @@ class Settings(BaseSettings):
         default=True, description="Allow decide_approval tool calls via MCP if API key has required scope"
     )
 
+    # Push Notifications (Task M7)
+    PUSH_ENABLED: bool = Field(
+        default=True, description="Enable Expo remote push notifications"
+    )
+    EXPO_PUSH_URL: str = Field(
+        default="https://exp.host/--/api/v2/push/send", description="Expo push notification service URL"
+    )
+
 
 settings = Settings()

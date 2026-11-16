@@ -113,9 +113,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning("Supabase client running in offline/unconfigured local fallback mode")
 
     # Start background cascade & HITL expiry workers
+    from app.services.push_notifications import register_push_listeners
     from app.workers.cascade_worker import cascade_worker
     from app.workers.hitl_expiry_worker import hitl_expiry_worker
 
+    register_push_listeners()
     await cascade_worker.start()
     await hitl_expiry_worker.start()
 

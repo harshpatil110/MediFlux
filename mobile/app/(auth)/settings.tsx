@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
@@ -24,10 +25,16 @@ import { useTheme } from '../../src/theme/ThemeContext';
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 import { Badge } from '../../src/components/Badge';
 import { Card } from '../../src/components/Card';
+import {
+  loadNotificationPreferences,
+  saveNotificationPreferences,
+  NotificationPreferences,
+} from '../../src/features/notifications/preferences';
+import { scheduleLocalNotification } from '../../src/features/notifications/notificationService';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, status, logout, reloadProfile, isLoading: authLoading } = useAuth();
+  const { user, status, logout, reloadProfile, isLoading: authLoading, registeredPushToken } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
   const [url, setUrl] = useState(getBackendUrl());
@@ -36,13 +43,42 @@ export default function SettingsScreen() {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [reloadingProfile, setReloadingProfile] = useState(false);
 
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
+    coldchainAlerts: true,
+    approvalAlerts: true,
+    pushEnabled: true,
+  });
+  const [testNotifSent, setTestNotifSent] = useState<boolean>(false);
+
   const presets = getLanPresetUrls();
   const isAuthenticated = status === 'authenticated' && !!user;
   const badgeInfo = getRoleBadgeInfo(user?.role);
 
   useEffect(() => {
     setUrl(getBackendUrl());
+    void loadNotificationPreferences().then(setNotifPrefs);
   }, []);
+
+  const handleToggleColdChain = async (val: boolean) => {
+    const updated = await saveNotificationPreferences({ coldchainAlerts: val });
+    setNotifPrefs(updated);
+  };
+
+  const handleToggleApprovals = async (val: boolean) => {
+    const updated = await saveNotificationPreferences({ approvalAlerts: val });
+    setNotifPrefs(updated);
+  };
+
+  const handleSendTestNotification = async () => {
+    await scheduleLocalNotification(
+      'MediFlux Test Alert',
+      'Local push delivery operational. Tap to open Cold-Chain.',
+      { type: 'batch.quarantined', batchId: 'BIO-INS-01', deepLink: '/cold-chain/BIO-INS-01' },
+      'mediflux-coldchain'
+    );
+    setTestNotifSent(true);
+    setTimeout(() => setTestNotifSent(false), 3000);
+  };
 
   const handleTest = async () => {
     setTesting(true);
@@ -302,6 +338,61 @@ export default function SettingsScreen() {
           );
         })}
       </View>
+
+      {/* Notification Preferences Card */}
+      <Card title="Notification Preferences" subtitle="Push & Local Alert Triggers (Task M7)">
+        <View style={styles.notifToggleRow}>
+          <View style={styles.notifTextCol}>
+            <Text style={styles.notifLabel}>Cold-Chain Quarantine Alerts</Text>
+            <Text style={styles.notifSub}>
+              Immediate notifications for thermal excursions & auto-quarantine actions
+            </Text>
+          </View>
+          <Switch
+            value={notifPrefs.coldchainAlerts}
+            onValueChange={handleToggleColdChain}
+            trackColor={{ false: '#DFDBCA', true: '#00AEBB' }}
+            thumbColor={notifPrefs.coldchainAlerts ? '#F7F5F0' : '#8C887B'}
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.notifToggleRow}>
+          <View style={styles.notifTextCol}>
+            <Text style={styles.notifLabel}>HITL Approval Alerts</Text>
+            <Text style={styles.notifSub}>
+              Notifications when a new approval task matches your authorized role
+            </Text>
+          </View>
+          <Switch
+            value={notifPrefs.approvalAlerts}
+            onValueChange={handleToggleApprovals}
+            trackColor={{ false: '#DFDBCA', true: '#00AEBB' }}
+            thumbColor={notifPrefs.approvalAlerts ? '#F7F5F0' : '#8C887B'}
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>DEVICE PUSH TOKEN</Text>
+          <Text style={[styles.metaValueMono, !registeredPushToken && styles.metaValueMuted]} numberOfLines={1}>
+            {registeredPushToken || 'Not Registered'}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.testNotifBtn, testNotifSent && styles.testNotifBtnSuccess]}
+          onPress={handleSendTestNotification}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="notifications-outline" size={16} color="#FFFFFF" />
+          <Text style={styles.testNotifBtnText}>
+            {testNotifSent ? 'TEST NOTIFICATION FIRED ✓' : 'SEND TEST NOTIFICATION'}
+          </Text>
+        </TouchableOpacity>
+      </Card>
 
       {/* Application Metadata & Theme Footer */}
       <Card title="Application Metadata" subtitle="Build & Environment">
@@ -712,6 +803,55 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: colors.text.primary,
+    letterSpacing: 0.5,
+  },
+  notifToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  notifTextCol: {
+    flex: 1,
+    marginRight: 12,
+  },
+  notifLabel: {
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+  },
+  notifSub: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.secondary,
+    marginTop: 2,
+    lineHeight: 14,
+  },
+  metaValueMono: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.primary,
+    fontFamily: 'monospace',
+    maxWidth: 180,
+  },
+  metaValueMuted: {
+    color: colors.text.muted,
+  },
+  testNotifBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#031211',
+    borderRadius: radii.sm,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  testNotifBtnSuccess: {
+    backgroundColor: '#166534',
+  },
+  testNotifBtnText: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
 });

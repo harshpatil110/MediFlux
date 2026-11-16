@@ -1875,4 +1875,32 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   - Backend: 7/7 dedicated test cases in `backend/tests/test_task_m6_mobile_prescriptions.py` passing; 9/9 in `test_prescription_compliance.py` passing; combined mobile suite M1–M6 passing 52/52 tests (100%); `ruff check backend/app/ backend/tests/` passing with 0 warnings.
   - Mobile: TypeScript check `npm run typecheck` (`tsc --noEmit`) passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly (2,245 modules).
 
+### Task M7: Cold-Chain Monitor and Notifications (Local and Remote Push)
+- Created database migration `backend/supabase/migrations/20261116_create_device_tokens.sql` (and `supabase/migrations/20261116_create_device_tokens.sql`) for `public.device_tokens` with Row-Level Security (RLS) policies isolating user token operations with service-role bypass.
+- Built device token endpoints in `backend/app/api/v1/endpoints/devices.py` (`POST /api/v1/devices`, `DELETE /api/v1/devices/{token}`, `GET /api/v1/devices`) with RLS enforcement and cryptographic audit logging to `public.audit_ledger`.
+- Enhanced cold-chain endpoints in `backend/app/api/v1/endpoints/coldchain.py`:
+  - Added `GET /api/v1/coldchain/batches/{batch_id}` returning enriched telemetry, readings array, Arrhenius degradation breakdown, and Excursion Analyst quarantine records.
+  - Enhanced `GET /api/v1/coldchain/batches` with status normalization (`ok`, `warn`, `quarantined`), `node_id`, `node_name`, stock zeroing on quarantine, and attached quarantine metadata.
+  - Updated `backend/app/graphs/coldchain.py` to broadcast `batch.quarantined` across topics `coldchain`, `coldchain.quarantined`, and `batch.quarantined`.
+- Created non-blocking Expo push notification service in `backend/app/services/push_notifications.py` (`PUSH_ENABLED`, role & node recipient filtering, privacy-safe payloads without patient secrets, automatic invalid token purge on `DeviceNotRegistered`, and audit logging).
+- Re-exported `docs/openapi.json` (95 endpoints) and synchronized TypeScript clients across `packages/shared/src/generated-api.ts`, `mobile/src/api/generated.ts`, and `frontend/src/types/generated-api.ts`.
+- Installed Expo SDK 51 compatible packages in `mobile/`: `expo-notifications@~0.28.19`, `expo-device@~6.0.2`, `react-native-svg@15.2.0`.
+- Built native-compatible SVG Telemetry Chart (`mobile/src/features/coldchain/TelemetryChart.tsx`) using `react-native-svg` with 2.0°C and 8.0°C threshold lines, time-series plotting, and excursion markers.
+- Built notification service and preferences modules:
+  - `mobile/src/features/notifications/notificationService.ts`: Android notification channels (`mediflux-coldchain`, `mediflux-approvals`), deterministic push token generation for web/emulators, and pure `handleNotificationTapPayload` for deep-link routing.
+  - `mobile/src/features/notifications/preferences.ts`: Persistent AsyncStorage preferences (`coldchainAlerts`, `approvalAlerts`, `pushEnabled`).
+  - `mobile/src/features/notifications/NotificationBanner.tsx`: In-app interactive push alert banner with tap deep-linking.
+- Built Cold-Chain screens:
+  - `mobile/app/(tabs)/cold-chain.tsx`: Batches vs Quarantine History switcher, status filter chips (`All`, `OK`, `Warn`, `Quarantined`), 1-tap simulation buttons ("Normal Reading" & "Simulate Excursion"), and live SSE refresh.
+  - `mobile/app/cold-chain/[id].tsx`: Detailed telemetry view with SVG chart, Arrhenius degradation breakdown, Excursion Analyst quarantine rationale, zeroed stock, and rebalancing cascade deep-link.
+- Integrated lifecycle and settings:
+  - `mobile/src/features/auth/AuthContext.tsx`: Automatically registers device push token on login (`POST /api/v1/devices`) and removes token on logout (`DELETE /api/v1/devices/{token}`).
+  - `mobile/app/(auth)/settings.tsx`: Added Notification Preferences card with alert toggles, registered push token status, and "Send Test Notification" button.
+  - `mobile/app/_layout.tsx`: Mounted `NotificationBridge` subscribing to SSE events on `hitl` and `coldchain` to schedule local notifications and trigger in-app alert banners.
+- Created specification document `docs/specs/task-m7-spec.md`.
+- Verified with automated tests:
+  - Backend: 7/7 dedicated test cases in `backend/tests/test_task_m7_coldchain_and_notifications.py` passing (100%); combined mobile test suite M1–M7 passing 61/61 tests; `ruff check backend/app/ backend/tests/` passing with 0 warnings.
+  - Mobile: TypeScript check `npm run typecheck` (`tsc --noEmit`) passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly (2,376 modules).
+
+
 

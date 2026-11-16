@@ -712,6 +712,46 @@
         "title": "CreateWebhookRequest",
         "type": "object"
       },
+      "DeviceTokenRegisterRequest": {
+        "description": "Payload schema for registering or updating a client device push token.",
+        "properties": {
+          "platform": {
+            "default": "android",
+            "description": "Client device platform",
+            "enum": [
+              "android",
+              "ios",
+              "web",
+              "expo"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "preferences": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Notification preference overrides",
+            "title": "Preferences"
+          },
+          "token": {
+            "description": "Device push notification token (e.g. ExponentPushToken[...])",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "DeviceTokenRegisterRequest",
+        "type": "object"
+      },
       "EnrichedUserProfile": {
         "properties": {
           "allowed_routes": {
@@ -1703,6 +1743,18 @@
             "description": "True if flagged for Schedule H compliance review",
             "title": "Compliance Hold",
             "type": "boolean"
+          },
+          "compliance_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Compliance verification status ('VERIFIED_COMPLIANT', 'FLAGGED_FOR_REVIEW')",
+            "title": "Compliance Status"
           },
           "compliance_warning": {
             "anyOf": [
@@ -5076,6 +5128,47 @@
         ]
       }
     },
+    "/api/v1/coldchain/batches/{batch_id}": {
+      "get": {
+        "description": "Returns detailed telemetry, Arrhenius shelf-life estimates, recent readings, and quarantine records for a batch.",
+        "operationId": "get_coldchain_batch_api_v1_coldchain_batches__batch_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cold-Chain Batch Details & Telemetry",
+        "tags": [
+          "Cold Chain Telemetry"
+        ]
+      }
+    },
     "/api/v1/coldchain/quarantines": {
       "get": {
         "description": "Returns all quarantine action records enriched with clinical excursion reasons and rebalancing status.",
@@ -6112,6 +6205,229 @@
         "summary": "Test Webhook Delivery",
         "tags": [
           "Developer Platform & API Keys"
+        ]
+      }
+    },
+    "/api/v1/devices": {
+      "get": {
+        "description": "Returns registered device tokens for the authenticated user, or all devices if admin.",
+        "operationId": "list_device_tokens_api_v1_devices_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "All",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Registered Device Tokens",
+        "tags": [
+          "Device Notifications"
+        ]
+      },
+      "post": {
+        "description": "Register or update an Expo push token for the authenticated user.",
+        "operationId": "register_device_token_api_v1_devices_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceTokenRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Register Device Token Api V1 Devices Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Device Push Token",
+        "tags": [
+          "Device Notifications"
+        ]
+      }
+    },
+    "/api/v1/devices/{token}": {
+      "delete": {
+        "description": "Remove a registered push token. Enforces that users can only delete their own tokens.",
+        "operationId": "delete_device_token_api_v1_devices__token__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Device Push Token",
+        "tags": [
+          "Device Notifications"
         ]
       }
     },

@@ -704,20 +704,29 @@ async def quarantine_execution_node(state: ColdChainState) -> dict[str, Any]:
         from app.events.bus import in_process_event_bus
         from app.events.models import EventEnvelope
 
+        batch_no_val = cached_batch.get("batch_no", f"B26-{batch_id}")
+        node_name_val = cached_batch.get("node_name") or "Supply Chain Hub"
         envelope = EventEnvelope(
-            type="coldchain.quarantined",
+            type="batch.quarantined",
             node_id=str(node_id),
             correlation_id=corr_id,
             payload={
                 "batch_id": batch_id,
+                "batch_no": batch_no_val,
                 "product_id": product_id,
+                "product_name": product_name,
                 "node_id": node_id,
+                "node_name": node_name_val,
                 "reason": explanation,
                 "quarantine_action_id": quarantine_action_id,
                 "rebalance_result": rebalance_result,
+                "quarantined": True,
+                "status": "quarantined",
             },
         )
+        await in_process_event_bus.publish("coldchain", envelope)
         await in_process_event_bus.publish("coldchain.quarantined", envelope)
+        await in_process_event_bus.publish("batch.quarantined", envelope)
     except Exception as exc:
         logger.debug("Event bus broadcast failed: %s", exc)
 

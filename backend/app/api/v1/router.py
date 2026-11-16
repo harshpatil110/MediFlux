@@ -13,6 +13,7 @@ from app.api.v1.endpoints.copilot import router as copilot_router
 from app.api.v1.endpoints.demo import router as demo_router
 from app.api.v1.endpoints.developer import router as developer_router
 from app.api.v1.endpoints.developer import webhooks_alias_router
+from app.api.v1.endpoints.devices import router as devices_router
 from app.api.v1.endpoints.events import router as events_router
 from app.api.v1.endpoints.hitl import router as hitl_router
 from app.api.v1.endpoints.ingest import router as ingest_router
@@ -56,6 +57,7 @@ api_router.include_router(copilot_router)
 api_router.include_router(search_router)
 api_router.include_router(developer_router)
 api_router.include_router(webhooks_alias_router)
+api_router.include_router(devices_router)
 api_router.include_router(mcp_router)
 api_router.include_router(demo_router)
 

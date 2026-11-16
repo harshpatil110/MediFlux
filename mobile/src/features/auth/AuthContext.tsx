@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Platform } from 'react-native';
 import { storage } from '../../lib/storage';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/client';
 import { UserRole } from '../../api/generated';
 import { getBackendUrl } from '../../lib/config';
+import { getDevicePushToken } from '../notifications/notificationService';
+import { loadNotificationPreferences } from '../notifications/preferences';
 
 export const AUTH_STORAGE_KEY = 'mediflux_auth_session_v1';
 
@@ -43,6 +46,7 @@ export interface AuthContextValue {
   user: UserData | null;
   error: string | null;
   isLoading: boolean;
+  registeredPushToken: string | null;
   login: (email: string, password: string) => Promise<void>;
   loginAsDemoRole: (role: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -60,9 +64,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [registeredPushToken, setRegisteredPushToken] = useState<string | null>(null);
+  const pushTokenRef = useRef<string | null>(null);
+
+  const syncDeviceToken = useCallback(async (verifiedUser: UserData) => {
+    try {
+      const token = await getDevicePushToken(verifiedUser.user_id);
+      const prefs = await loadNotificationPreferences();
+      await apiClient.post('/devices', {
+        token,
+        platform: Platform.OS,
+        preferences: prefs,
+      });
+      setRegisteredPushToken(token);
+      pushTokenRef.current = token;
+    } catch {
+      // Non-blocking
+    }
+  }, []);
+
+  const unregisterDeviceToken = useCallback(async () => {
+    const tokenToDelete = pushTokenRef.current;
+    if (tokenToDelete) {
+      try {
+        await apiClient.delete(`/devices/${encodeURIComponent(tokenToDelete)}`);
+      } catch {
+        // Non-blocking
+      }
+      pushTokenRef.current = null;
+      setRegisteredPushToken(null);
+    }
+  }, []);
 
   const clearSessionStorage = useCallback(async () => {
     try {
+      await unregisterDeviceToken();
       await storage.removeItem(AUTH_STORAGE_KEY);
       apiClient.clearAuth();
       try {
@@ -73,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore
     }
-  }, []);
+  }, [unregisterDeviceToken]);
 
   const forceLogout = useCallback(
     async (reason?: string) => {
@@ -249,6 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(verifiedUser);
             setStatus('authenticated');
             await updateStoredSession(parsed.session, verifiedUser);
+            void syncDeviceToken(verifiedUser);
           }
         } catch (verErr: any) {
           // If token expired (401), try one refresh
@@ -324,6 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         await updateStoredSession(newSession, profile);
+        void syncDeviceToken(profile);
       } catch (err: any) {
         setError(err.message || 'Login failed. Please check your credentials and server status.');
         throw err;
@@ -369,6 +407,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         await updateStoredSession(newSession, profile);
+        void syncDeviceToken(profile);
       } catch (err: any) {
         setError(err.message || `Failed to sign in as ${role}`);
         throw err;
@@ -408,6 +447,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshSessionOnce,
       reloadProfile,
       clearError,
+      registeredPushToken,
     }),
     [
       status,
@@ -415,6 +455,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       error,
       isLoading,
+      registeredPushToken,
       login,
       loginAsDemoRole,
       logout,

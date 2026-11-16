@@ -163,6 +163,16 @@ export interface CreateWebhookRequest {
   url: string;
 }
 
+/** Payload schema for registering or updating a client device push token. */
+export interface DeviceTokenRegisterRequest {
+  /** Client device platform */
+  platform?: "android" | "ios" | "web" | "expo";
+  /** Notification preference overrides */
+  preferences?: Record<string, unknown> | null;
+  /** Device push notification token (e.g. ExponentPushToken[...]) */
+  token: string;
+}
+
 export interface EnrichedUserProfile {
   allowed_routes?: string[];
   email?: string | null;
@@ -360,6 +370,8 @@ export interface MobileSaleResponse {
   cascade_triggered?: boolean;
   /** True if flagged for Schedule H compliance review */
   compliance_hold?: boolean;
+  /** Compliance verification status ('VERIFIED_COMPLIANT', 'FLAGGED_FOR_REVIEW') */
+  compliance_status?: string | null;
   /** Alias for compliance warning */
   compliance_warning?: string | null;
   /** Demand cascade correlation ID */
@@ -867,6 +879,13 @@ export interface ApiOperations {
     requestBody: undefined;
     response: unknown;
   };
+  /** Get Cold-Chain Batch Details & Telemetry */
+  'GET /api/v1/coldchain/batches/{batch_id}': {
+    operationId: 'get__api_v1_coldchain_batches__batch_id_';
+    parameters: { batch_id: string };
+    requestBody: undefined;
+    response: unknown;
+  };
   /** List Cold-Chain Quarantine Actions */
   'GET /api/v1/coldchain/quarantines': {
     operationId: 'get__api_v1_coldchain_quarantines';
@@ -985,6 +1004,27 @@ export interface ApiOperations {
     parameters: { subscription_id: string };
     requestBody: TestWebhookRequest | null;
     response: Record<string, unknown>;
+  };
+  /** List Registered Device Tokens */
+  'GET /api/v1/devices': {
+    operationId: 'get__api_v1_devices';
+    parameters: { all?: boolean; authorization?: string | null; "X-API-Key"?: string | null };
+    requestBody: undefined;
+    response: unknown;
+  };
+  /** Register Device Push Token */
+  'POST /api/v1/devices': {
+    operationId: 'post__api_v1_devices';
+    parameters: { authorization?: string | null; "X-API-Key"?: string | null };
+    requestBody: DeviceTokenRegisterRequest;
+    response: Record<string, unknown>;
+  };
+  /** Delete Device Push Token */
+  'DELETE /api/v1/devices/{token}': {
+    operationId: 'delete__api_v1_devices__token_';
+    parameters: { token: string; authorization?: string | null; "X-API-Key"?: string | null };
+    requestBody: undefined;
+    response: unknown;
   };
   /** List Recent Domain Events */
   'GET /api/v1/events': {

@@ -5,7 +5,7 @@ import logging
 import uuid
 from typing import Any, Literal
 
-from fastapi import APIRouter, Header, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -67,6 +67,129 @@ def _get_or_seed_batch_readings(batch_id: str) -> list[dict[str, Any]]:
     return batch_readings
 
 
+NODE_NAMES: dict[str, str] = {
+    "11111111-1111-1111-1111-111111111111": "Apollo Pharmacy - Connaught Place",
+    "22222222-2222-2222-2222-222222222222": "North Delhi Stockist Hub",
+    "33333333-3333-3333-3333-333333333333": "Northern India Regional Depot",
+    "44444444-4444-4444-4444-444444444444": "Sun Pharma Formulation Plant - Baddi",
+}
+
+
+def _normalize_batch_status(raw_status: str | None, telemetry_status: str | None) -> str:
+    """Normalize batch and telemetry status to 'ok' | 'warn' | 'quarantined'."""
+    s = (raw_status or "").lower()
+    t = (telemetry_status or "").lower()
+    if s in ("quarantined", "quarantine") or t in ("quarantined", "quarantine"):
+        return "quarantined"
+    if s in ("warn", "warning") or t in ("warn", "warning"):
+        return "warn"
+    return "ok"
+
+
+def _find_quarantine_info(batch_id: str) -> dict[str, Any] | None:
+    """Find latest quarantine record for a batch from in-memory or Supabase."""
+    all_q = get_in_memory_quarantine_actions()
+    for q in reversed(all_q):
+        if q.get("batch_id") == batch_id:
+            reason_str = q.get("explanation") or q.get("reason") or "Thermal excursion beyond safe envelope"
+            return {
+                "id": q.get("id"),
+                "reason": q.get("reason") or reason_str,
+                "explanation": reason_str,
+                "correlation_id": q.get("correlation_id"),
+                "audit_entry_id": str(q.get("audit_seq") or q.get("audit_entry_id") or ""),
+                "rebalance_triggered": True,
+                "created_at": q.get("created_at") or q.get("triggered_at"),
+            }
+
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            client = get_service_db_client()
+            if client:
+                res = (
+                    client.table("quarantine_actions")
+                    .select("*")
+                    .eq("batch_id", batch_id)
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if res.data:
+                    q = res.data[0]
+                    reason_str = q.get("explanation") or q.get("reason") or "Thermal excursion beyond safe envelope"
+                    return {
+                        "id": q.get("id"),
+                        "reason": q.get("reason") or reason_str,
+                        "explanation": reason_str,
+                        "correlation_id": q.get("correlation_id"),
+                        "audit_entry_id": str(q.get("audit_seq") or q.get("audit_entry_id") or ""),
+                        "rebalance_triggered": True,
+                        "created_at": q.get("created_at") or q.get("triggered_at"),
+                    }
+        except Exception as exc:
+            logger.debug("Supabase lookup for quarantine failed: %s", exc)
+
+    return None
+
+
+def _build_enriched_batch(row: dict[str, Any]) -> dict[str, Any]:
+    """Enrich a batch record with complete sensor readings, shelf life, and quarantine details."""
+    b_id = row.get("batch_id") or row.get("id") or "BIO-INS-01"
+    raw_status = row.get("status")
+    telemetry_status = row.get("last_telemetry_status") or row.get("decision")
+    norm_status = _normalize_batch_status(raw_status, telemetry_status)
+
+    is_quarantined = (norm_status == "quarantined")
+    avail_qty = 0 if is_quarantined else int(row.get("available_quantity", 1000))
+
+    readings = _get_or_seed_batch_readings(b_id)
+    last_rd = readings[-1] if readings else None
+
+    nominal_days = float(row.get("nominal_days") or 180.0)
+    est_days = float(row.get("estimated_remaining_days") or (0.0 if is_quarantined else nominal_days))
+    shelf_pct = float(row.get("shelf_life_pct") or (0.0 if is_quarantined else 100.0))
+    thermal_penalty = max(0.0, nominal_days - est_days)
+
+    node_id = str(row.get("node_id") or "22222222-2222-2222-2222-222222222222")
+    node_name = row.get("node_name") or NODE_NAMES.get(node_id, "North Delhi Stockist Hub")
+
+    prod = row.get("products") or {} if isinstance(row.get("products"), dict) else {}
+    prod_name = row.get("product_name") or prod.get("name") or "Cold-Chain Biologic"
+    sku = row.get("sku") or prod.get("sku") or "MED-COLD"
+    storage_min = float(row.get("storage_min_c") or prod.get("storage_min_c") or 2.0)
+    storage_max = float(row.get("storage_max_c") or prod.get("storage_max_c") or 8.0)
+
+    quarantine_info = _find_quarantine_info(b_id) if is_quarantined else None
+
+    return {
+        "batch_id": b_id,
+        "id": b_id,
+        "batch_no": row.get("batch_no", f"B26-{b_id}"),
+        "product_id": row.get("product_id", "p-008-insulin"),
+        "product_name": prod_name,
+        "sku": sku,
+        "node_id": node_id,
+        "node_name": node_name,
+        "storage_min_c": storage_min,
+        "storage_max_c": storage_max,
+        "status": norm_status,
+        "available_quantity": avail_qty,
+        "readings": readings,
+        "last_reading": last_rd,
+        "shelf_life_estimate": {
+            "nominal_remaining_days": nominal_days,
+            "estimated_remaining_days": est_days,
+            "shelf_life_pct": shelf_pct,
+            "thermal_penalty_days": thermal_penalty,
+            "shock_penalty_days": 0.0,
+            "degradation_days": thermal_penalty,
+            "formula_model": "Simplified Arrhenius Degree-Hour & Mechanical Shock Model",
+            "decision": norm_status,
+        },
+        "quarantine": quarantine_info,
+    }
+
+
 # -----------------------------------------------------------------------------
 # GET /api/v1/coldchain/batches
 # -----------------------------------------------------------------------------
@@ -79,6 +202,7 @@ def _get_or_seed_batch_readings(batch_id: str) -> list[dict[str, Any]]:
 async def list_coldchain_batches() -> JSONResponse:
     """Retrieve cold-chain batches enriched with sensor readings and shelf-life estimates."""
     enriched_batches: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
 
     # 1. Fetch from database if configured
     if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
@@ -98,76 +222,28 @@ async def list_coldchain_batches() -> JSONResponse:
                             avail_qty = sum(i.get("quantity", 0) for i in (inv_res.data or []))
                             if row.get("status") == "quarantined":
                                 avail_qty = 0
-
-                            b_id = row["id"]
-                            readings = _get_or_seed_batch_readings(b_id)
-                            last_rd = readings[-1] if readings else None
-
-                            nominal_days = 180.0
-                            est_days = float(row.get("estimated_remaining_days") or 180.0)
-                            shelf_pct = float(row.get("shelf_life_pct") or 100.0)
-
-                            batch_entry = {
-                                "batch_id": b_id,
-                                "batch_no": row.get("batch_no", f"B26-{b_id}"),
-                                "product_id": row.get("product_id"),
-                                "product_name": prod.get("name", "Biologic"),
-                                "sku": prod.get("sku", "MED-COLD"),
-                                "storage_min_c": float(prod.get("storage_min_c", 2.0)),
-                                "storage_max_c": float(prod.get("storage_max_c", 8.0)),
-                                "status": row.get("status", "active"),
-                                "available_quantity": avail_qty,
-                                "readings": readings,
-                                "last_reading": last_rd,
-                                "shelf_life_estimate": {
-                                    "nominal_remaining_days": nominal_days,
-                                    "estimated_remaining_days": est_days,
-                                    "shelf_life_pct": shelf_pct,
-                                    "degradation_days": max(0.0, nominal_days - est_days),
-                                    "formula_model": "Simplified Arrhenius Degree-Hour & Mechanical Shock Model",
-                                    "decision": row.get("last_telemetry_status", "ok"),
-                                },
-                            }
-                            enriched_batches.append(batch_entry)
+                            row_copy = dict(row)
+                            row_copy["available_quantity"] = avail_qty
+                            enriched = _build_enriched_batch(row_copy)
+                            enriched_batches.append(enriched)
+                            seen_ids.add(enriched["batch_id"])
         except Exception as exc:
             logger.debug("DB batches query failed (%s); serving from in-memory cache", exc)
 
     # 2. Merge with in-memory batches cache
     cached = get_in_memory_coldchain_batches()
-    existing_ids = {b["batch_id"] for b in enriched_batches}
-
     for b in cached:
         b_id = b.get("batch_id") or b.get("id")
-        if b_id not in existing_ids:
-            nominal_days = float(b.get("estimated_remaining_days") or 180.0)
-            est_days = float(b.get("estimated_remaining_days") or 180.0)
-            shelf_pct = float(b.get("shelf_life_pct") or 100.0)
-            is_quarantined = b.get("status") == "quarantined"
+        if b_id and b_id not in seen_ids:
+            enriched = _build_enriched_batch(b)
+            enriched_batches.append(enriched)
+            seen_ids.add(b_id)
 
-            readings = _get_or_seed_batch_readings(b_id)
-            last_rd = readings[-1] if readings else None
-
-            enriched_batches.append({
-                "batch_id": b_id,
-                "batch_no": b.get("batch_no", f"B26-{b_id}"),
-                "product_id": b.get("product_id", "p-008-insulin"),
-                "product_name": b.get("product_name", "Cold-Chain Biologic"),
-                "sku": b.get("sku", "MED-COLD"),
-                "storage_min_c": float(b.get("storage_min_c", 2.0)),
-                "storage_max_c": float(b.get("storage_max_c", 8.0)),
-                "status": "quarantined" if is_quarantined else b.get("status", "active"),
-                "available_quantity": 0 if is_quarantined else int(b.get("available_quantity", 1000)),
-                "readings": readings,
-                "last_reading": last_rd,
-                "shelf_life_estimate": {
-                    "nominal_remaining_days": nominal_days,
-                    "estimated_remaining_days": est_days,
-                    "shelf_life_pct": shelf_pct,
-                    "degradation_days": max(0.0, nominal_days - est_days),
-                    "formula_model": "Simplified Arrhenius Degree-Hour & Mechanical Shock Model",
-                    "decision": b.get("last_telemetry_status", "ok"),
-                },
-            })
+    # 3. Fallback to default coldchain batches if empty
+    if not enriched_batches:
+        for _b_id, b_data in DEFAULT_COLDCHAIN_BATCHES.items():
+            enriched = _build_enriched_batch(b_data)
+            enriched_batches.append(enriched)
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -176,6 +252,63 @@ async def list_coldchain_batches() -> JSONResponse:
             "total": len(enriched_batches),
         },
     )
+
+
+# -----------------------------------------------------------------------------
+# GET /api/v1/coldchain/batches/{batch_id}
+# -----------------------------------------------------------------------------
+@router.get(
+    "/batches/{batch_id}",
+    summary="Get Cold-Chain Batch Details & Telemetry",
+    description="Returns detailed telemetry, Arrhenius shelf-life estimates, recent readings, and quarantine records for a batch.",
+    status_code=status.HTTP_200_OK,
+)
+async def get_coldchain_batch(batch_id: str) -> JSONResponse:
+    """Retrieve detailed cold-chain telemetry, readings, and quarantine records for a batch."""
+    batch_data: dict[str, Any] | None = None
+
+    # 1. Search in DB
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            client = get_service_db_client()
+            if client:
+                res = (
+                    client.table("batches")
+                    .select("*, products(name, sku, is_cold_chain, storage_min_c, storage_max_c)")
+                    .or_(f"id.eq.{batch_id},batch_no.eq.{batch_id}")
+                    .execute()
+                )
+                if res.data:
+                    batch_data = dict(res.data[0])
+                    inv_res = client.table("inventory").select("quantity").eq("batch_id", batch_data["id"]).execute()
+                    avail_qty = sum(i.get("quantity", 0) for i in (inv_res.data or []))
+                    if batch_data.get("status") == "quarantined":
+                        avail_qty = 0
+                    batch_data["available_quantity"] = avail_qty
+        except Exception as exc:
+            logger.debug("DB batch lookup failed: %s", exc)
+
+    # 2. Search in-memory cache
+    if not batch_data:
+        cached = get_in_memory_coldchain_batches()
+        for b in cached:
+            if b.get("batch_id") == batch_id or b.get("id") == batch_id or b.get("batch_no") == batch_id:
+                batch_data = dict(b)
+                break
+
+    # 3. Fallback to default batches
+    if not batch_data and batch_id in DEFAULT_COLDCHAIN_BATCHES:
+        batch_data = dict(DEFAULT_COLDCHAIN_BATCHES[batch_id])
+
+    if not batch_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Cold-chain batch '{batch_id}' not found.",
+        )
+
+    enriched = _build_enriched_batch(batch_data)
+    return JSONResponse(status_code=status.HTTP_200_OK, content=enriched)
+
 
 
 # -----------------------------------------------------------------------------
