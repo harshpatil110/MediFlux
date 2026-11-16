@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../src/api/client';
 import { useAuth } from '../../src/features/auth/AuthContext';
@@ -58,6 +58,12 @@ export default function SellScreen() {
     }
   }, [user, router]);
 
+  const params = useLocalSearchParams<{
+    prescription_id?: string;
+    product_sku?: string;
+    patient_initials?: string;
+  }>();
+
   // Product & Batch State
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
@@ -65,6 +71,16 @@ export default function SellScreen() {
   const [selectedBatch, setSelectedBatch] = useState<BatchItem | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [prescriptionId, setPrescriptionId] = useState('');
+
+  // Handle passed prescription parameters from M6 Prescription Scanner
+  useEffect(() => {
+    if (params.prescription_id) {
+      setPrescriptionId(params.prescription_id);
+    }
+    if (params.product_sku) {
+      void lookupBarcode(params.product_sku);
+    }
+  }, [params.prescription_id, params.product_sku]);
 
   // Sale & Cascade State
   const [dispensing, setDispensing] = useState(false);
@@ -275,30 +291,46 @@ export default function SellScreen() {
 
           {/* Schedule H / Prescription Warning Banner */}
           {product.requires_prescription && (
-            <View style={styles.rxWarningBanner}>
-              <View style={styles.rxWarningHeader}>
-                <Ionicons name="shield-checkmark" size={16} color={colors.status.warning} />
-                <Text style={styles.rxWarningTitle}>SCHEDULE H DRUG — PRESCRIPTION REQUIRED</Text>
+            prescriptionId ? (
+              <View style={styles.rxAttachedBanner}>
+                <View style={styles.rxAttachedHeader}>
+                  <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.rxAttachedTitle}>✓ APPROVED PRESCRIPTION ATTACHED</Text>
+                    <Text style={styles.rxAttachedSub}>
+                      {prescriptionId} • Doctor Verified in Registry
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setPrescriptionId('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#78716C" />
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={styles.rxWarningText}>
-                Indian CDSCO regulations require valid physician prescription. If missing, sale will be marked with a compliance hold.
-              </Text>
-              <View style={styles.rxInputRow}>
-                <TextInput
-                  style={styles.rxInput}
-                  placeholder="Enter Prescription ID (e.g. RX-2026-001)"
-                  placeholderTextColor={colors.text.muted}
-                  value={prescriptionId}
-                  onChangeText={setPrescriptionId}
-                  autoCapitalize="characters"
-                />
-                {prescriptionId ? (
-                  <Ionicons name="checkmark-circle" size={20} color={colors.status.success} />
-                ) : (
+            ) : (
+              <View style={styles.rxWarningBanner}>
+                <View style={styles.rxWarningHeader}>
+                  <Ionicons name="shield-checkmark" size={16} color={colors.status.warning} />
+                  <Text style={styles.rxWarningTitle}>SCHEDULE H DRUG — PRESCRIPTION REQUIRED</Text>
+                </View>
+                <Text style={styles.rxWarningText}>
+                  Indian CDSCO regulations require valid physician prescription. If missing, sale will be marked with a compliance hold.
+                </Text>
+                <View style={styles.rxInputRow}>
+                  <TextInput
+                    style={styles.rxInput}
+                    placeholder="Enter Prescription ID (e.g. RX-2026-001)"
+                    placeholderTextColor={colors.text.muted}
+                    value={prescriptionId}
+                    onChangeText={setPrescriptionId}
+                    autoCapitalize="characters"
+                  />
                   <Text style={styles.optionalTag}>(Optional for demo)</Text>
-                )}
+                </View>
               </View>
-            </View>
+            )
           )}
 
           {/* FEFO Batch Selector */}
@@ -505,6 +537,30 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  rxAttachedBanner: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  rxAttachedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rxAttachedTitle: {
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: '#065F46',
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  rxAttachedSub: {
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
+    color: '#047857',
+    marginTop: 2,
   },
   rxWarningHeader: {
     flexDirection: 'row',

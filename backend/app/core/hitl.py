@@ -290,12 +290,13 @@ async def request_human_approval(
     expires_at = datetime.now(UTC) + timedelta(hours=expiry_h)
 
     task_id = str(uuid.uuid4())
+    act_type = str(kwargs.get("action_type") or task_type_str)
     task_record = {
         "id": task_id,
         "task_id": task_id,
         "task_type": task_type_str,
-        "action_type": task_type_str,
-        "step_name": task_type_str,
+        "action_type": act_type,
+        "step_name": act_type,
         "workflow_name": state.get("current_agent", "cascade_workflow") if state else "cascade_workflow",
         "node_id": nid,
         "correlation_id": corr_id,

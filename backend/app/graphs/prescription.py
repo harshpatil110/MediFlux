@@ -24,6 +24,8 @@ from app.core.audit_ledger import write_audit_entry
 from app.core.config import settings
 from app.core.hitl import request_human_approval
 from app.core.security import get_service_db_client
+from app.events.bus import in_process_event_bus
+from app.events.models import EventEnvelope
 from app.llm import llm_router
 from app.llm.schemas import LLMBaseError, SensitiveDataRoutingError
 from app.tools.compliance_tools import lookup_schedule, verify_doctor
@@ -47,10 +49,12 @@ def _seed_default_prescriptions() -> None:
             "id": "rx-demo-001",
             "prescription_id": "rx-demo-001",
             "rx_number": "RX-2026-0891",
+            "node_id": "11111111-1111-1111-1111-111111111111",
             "patient_initials": "R.K.",
             "doctor_name": "Dr. A. K. Sharma",
             "doctor_registration_no": "MCI-2019-88412",
             "doctor_verified": True,
+            "doctor_verification_reason": "verified_in_registry",
             "drugs": [
                 {
                     "name": "Amoxicillin 500mg",
@@ -66,10 +70,19 @@ def _seed_default_prescriptions() -> None:
                 "has_schedule_x": False,
                 "requires_rx": True,
             },
+            "steps": [
+                {"stage": "parsing", "status": "done", "summary": "Extracted patient initials R.K. and 1 drug item"},
+                {"stage": "schedule_check", "status": "done", "summary": "Classified Amoxicillin 500mg as Schedule H"},
+                {"stage": "doctor_verification", "status": "done", "summary": "Verified Reg No MCI-2019-88412"},
+                {"stage": "decision", "status": "done", "summary": "Decision: approve_dispense"},
+            ],
             "decision": "approve_dispense",
             "status": "approved",
+            "compliance_log_id": "log-demo-001",
+            "compliance_log_ids": ["log-demo-001"],
             "hitl_task_id": None,
             "sensitivity": "sensitive",
+            "privacy_notice": "Processed locally via sovereign pipeline (sensitivity=sensitive). Only patient initials stored.",
             "provider": "local_sovereign",
             "correlation_id": "corr-seed-001",
             "created_at": "2026-11-13T10:15:00Z",
@@ -79,10 +92,12 @@ def _seed_default_prescriptions() -> None:
             "id": "rx-demo-002",
             "prescription_id": "rx-demo-002",
             "rx_number": "RX-2026-0892",
+            "node_id": "11111111-1111-1111-1111-111111111111",
             "patient_initials": "P.V.",
             "doctor_name": "Dr. Priya Nair",
             "doctor_registration_no": "DMC-55102",
             "doctor_verified": True,
+            "doctor_verification_reason": "verified_in_registry",
             "drugs": [
                 {
                     "name": "Paracetamol 650mg",
@@ -105,10 +120,19 @@ def _seed_default_prescriptions() -> None:
                 "has_schedule_x": False,
                 "requires_rx": False,
             },
+            "steps": [
+                {"stage": "parsing", "status": "done", "summary": "Extracted patient initials P.V. and 2 drug items"},
+                {"stage": "schedule_check", "status": "done", "summary": "Classified 2 OTC drug items"},
+                {"stage": "doctor_verification", "status": "done", "summary": "Verified Reg No DMC-55102"},
+                {"stage": "decision", "status": "done", "summary": "Decision: approve_dispense"},
+            ],
             "decision": "approve_dispense",
             "status": "approved",
+            "compliance_log_id": "log-demo-002",
+            "compliance_log_ids": ["log-demo-002"],
             "hitl_task_id": None,
             "sensitivity": "sensitive",
+            "privacy_notice": "Processed locally via sovereign pipeline (sensitivity=sensitive). Only patient initials stored.",
             "provider": "local_sovereign",
             "correlation_id": "corr-seed-002",
             "created_at": "2026-11-13T11:30:00Z",
@@ -118,10 +142,12 @@ def _seed_default_prescriptions() -> None:
             "id": "rx-demo-003",
             "prescription_id": "rx-demo-003",
             "rx_number": "RX-2026-0893",
+            "node_id": "11111111-1111-1111-1111-111111111111",
             "patient_initials": "S.M.",
             "doctor_name": "Dr. Dev Anand",
             "doctor_registration_no": "UNKNOWN-REG",
             "doctor_verified": False,
+            "doctor_verification_reason": "unknown_or_inactive_doctor",
             "drugs": [
                 {
                     "name": "Alprazolam 0.5mg",
@@ -137,10 +163,19 @@ def _seed_default_prescriptions() -> None:
                 "has_schedule_x": False,
                 "requires_rx": True,
             },
+            "steps": [
+                {"stage": "parsing", "status": "done", "summary": "Extracted patient initials S.M. and 1 drug item"},
+                {"stage": "schedule_check", "status": "done", "summary": "Classified Alprazolam 0.5mg as Schedule H1"},
+                {"stage": "doctor_verification", "status": "flagged", "summary": "Physician not found in registry"},
+                {"stage": "decision", "status": "done", "summary": "Decision: flag"},
+            ],
             "decision": "flag",
             "status": "flagged",
+            "compliance_log_id": "log-demo-003",
+            "compliance_log_ids": ["log-demo-003"],
             "hitl_task_id": "hitl-rx-003",
             "sensitivity": "sensitive",
+            "privacy_notice": "Processed locally via sovereign pipeline (sensitivity=sensitive). Only patient initials stored.",
             "provider": "local_sovereign",
             "correlation_id": "corr-seed-003",
             "created_at": "2026-11-13T12:45:00Z",
@@ -151,8 +186,12 @@ def _seed_default_prescriptions() -> None:
         _in_memory_prescriptions[item["id"]] = item
 
 
-def list_prescriptions(limit: int = 50) -> list[dict[str, Any]]:
-    """List recent prescriptions from memory or database, privacy-projected."""
+def list_prescriptions(
+    limit: int = 50,
+    node_id: str | None = None,
+    role: str | None = None,
+) -> list[dict[str, Any]]:
+    """List recent prescriptions from memory or database, privacy-projected and RLS-scoped."""
     _seed_default_prescriptions()
     items = list(_in_memory_prescriptions.values())
 
@@ -160,7 +199,10 @@ def list_prescriptions(limit: int = 50) -> list[dict[str, Any]]:
         try:
             client = get_service_db_client()
             if client:
-                res = client.table("prescriptions").select("*").order("created_at", desc=True).limit(limit).execute()
+                query = client.table("prescriptions").select("*").order("created_at", desc=True)
+                if node_id and (role in ("pharmacy", "pharmacist_in_charge", "pharmacy_staff") or not role):
+                    query = query.eq("node_id", node_id)
+                res = query.limit(limit).execute()
                 if res.data:
                     # Merge DB items
                     db_items_by_id = {row["id"]: row for row in res.data}
@@ -171,11 +213,18 @@ def list_prescriptions(limit: int = 50) -> list[dict[str, Any]]:
         except Exception as exc:
             logger.debug("Database prescriptions list failed: %s", exc)
 
+    # Apply node_id filtering for pharmacy role or explicit filter
+    is_pharmacy_scoped = bool(role and any(r in role.lower() for r in ("pharmacy", "pharmacist", "pic", "staff")))
+    if node_id and (is_pharmacy_scoped or role is None):
+        items = [rx for rx in items if str(rx.get("node_id", "")) == str(node_id)]
+    elif is_pharmacy_scoped and node_id:
+        items = [rx for rx in items if str(rx.get("node_id", "")) == str(node_id)]
+
     def _get_sort_key(rx: dict[str, Any]) -> str:
         return str(rx.get("created_at") or "")
 
     sorted_items = sorted(items, key=_get_sort_key, reverse=True)[:limit]
-    # Ensure patient privacy redaction (initials only)
+    # Ensure patient privacy redaction (initials only) and metadata consistency
     cleaned = []
     for rx in sorted_items:
         rx_copy = dict(rx)
@@ -185,6 +234,10 @@ def list_prescriptions(limit: int = 50) -> list[dict[str, Any]]:
         elif not rx_copy.get("patient_initials"):
             rx_copy["patient_initials"] = "ANON"
         rx_copy["sensitivity"] = "sensitive"
+        if not rx_copy.get("privacy_notice"):
+            rx_copy["privacy_notice"] = "Processed locally via sovereign pipeline (sensitivity=sensitive). Only patient initials stored."
+        if not rx_copy.get("compliance_log_id") and rx_copy.get("compliance_log_ids"):
+            rx_copy["compliance_log_id"] = rx_copy["compliance_log_ids"][0]
         cleaned.append(rx_copy)
     return cleaned
 
@@ -192,18 +245,31 @@ def list_prescriptions(limit: int = 50) -> list[dict[str, Any]]:
 def get_prescription(prescription_id: str) -> dict[str, Any] | None:
     """Retrieve prescription record by ID from memory or database."""
     pid = str(prescription_id)
-    if pid in _in_memory_prescriptions:
-        return _in_memory_prescriptions[pid]
+    rx = _in_memory_prescriptions.get(pid)
 
-    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+    if not rx and settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         try:
             client = get_service_db_client()
             if client:
                 res = client.table("prescriptions").select("*").eq("id", pid).execute()
                 if res.data:
-                    return res.data[0]
+                    rx = res.data[0]
         except Exception as exc:
             logger.debug("Database prescriptions lookup failed: %s", exc)
+
+    if rx:
+        rx_copy = dict(rx)
+        if "patient_name" in rx_copy:
+            rx_copy["patient_initials"] = _extract_initials(rx_copy.pop("patient_name"))
+        elif not rx_copy.get("patient_initials"):
+            rx_copy["patient_initials"] = "ANON"
+        rx_copy["sensitivity"] = "sensitive"
+        if not rx_copy.get("privacy_notice"):
+            rx_copy["privacy_notice"] = "Processed locally via sovereign pipeline (sensitivity=sensitive). Only patient initials stored."
+        if not rx_copy.get("compliance_log_id") and rx_copy.get("compliance_log_ids"):
+            rx_copy["compliance_log_id"] = rx_copy["compliance_log_ids"][0]
+        return rx_copy
+
     return None
 
 
@@ -337,6 +403,7 @@ class PrescriptionState(TypedDict, total=False):
     extracted_metadata: dict[str, Any]
     doctor_name: str | None
     doctor_registration_no: str | None
+    doctor_verification_reason: str | None
     patient_initials: str | None
     drugs: list[dict[str, Any]]
     doctor_verification: dict[str, Any]
@@ -345,7 +412,10 @@ class PrescriptionState(TypedDict, total=False):
     status: Literal["approved", "flagged", "rejected"]
     doctor_verified: bool
     hitl_task_id: str | None
+    compliance_log_id: str | None
     compliance_log_ids: list[str]
+    steps: list[dict[str, Any]]
+    privacy_notice: str
     correlation_id: str
     node_id: str
     sensitivity: Literal["sensitive"]
@@ -753,7 +823,7 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
         doc_verified = False
         reason_note = "Missing or blank physician registration number on prescription scan"
 
-    # Case B: Unknown or Inactive Doctor -> HITL Gate
+    # Case B: Unknown or Inactive Doctor -> HITL Gate (Task M5 canonical type: doctor_verification)
     elif doc_reason == "unknown_or_inactive_doctor" or not doc_verified:
         decision = "flag"
         status = "flagged"
@@ -761,7 +831,8 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
         reason_note = f"Physician registration '{state.get('doctor_registration_no')}' not verified in registry"
 
         hitl_res = await request_human_approval(
-            task_type="prescription_doctor_verification",
+            task_type="doctor_verification",
+            action_type="prescription_doctor_verification",
             node_id=node_id,
             correlation_id=corr_id,
             details={
@@ -776,7 +847,29 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
         )
         hitl_task_id = hitl_res.get("task_id") or hitl_res.get("id")
 
-    # Case C: Any Drug has schedule_class == 'unknown' (Unlisted Drug) -> HITL Gate
+        if hitl_task_id:
+            try:
+                ev_hitl_created = EventEnvelope(
+                    source="service:prescription_graph",
+                    type="hitl.created",
+                    data={
+                        "task_id": hitl_task_id,
+                        "task_type": "doctor_verification",
+                        "status": "pending",
+                        "node_id": node_id,
+                        "prescription_id": prescription_id,
+                        "correlation_id": corr_id,
+                        "reason": reason_note,
+                    },
+                    node_id=node_id,
+                    correlation_id=corr_id,
+                )
+                await in_process_event_bus.publish("hitl.created", ev_hitl_created)
+                await in_process_event_bus.publish("hitl", ev_hitl_created)
+            except Exception as exc:
+                logger.debug("hitl.created publish failed: %s", exc)
+
+    # Case C: Any Drug has schedule_class == 'unknown' (Unlisted Drug) -> HITL Gate (Task M5 canonical type: schedule_h_override)
     elif sch_summary.get("has_unknown"):
         decision = "flag"
         status = "flagged"
@@ -785,7 +878,8 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
         reason_note = f"Prescription contains unlisted/unclassified drug(s): {', '.join(unknown_drugs)}"
 
         hitl_res = await request_human_approval(
-            task_type="prescription_unknown_drug",
+            task_type="schedule_h_override",
+            action_type="prescription_unknown_drug",
             node_id=node_id,
             correlation_id=corr_id,
             details={
@@ -799,6 +893,28 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
             reason=f"Clinical review required for unlisted medication: {reason_note}",
         )
         hitl_task_id = hitl_res.get("task_id") or hitl_res.get("id")
+
+        if hitl_task_id:
+            try:
+                ev_hitl_created = EventEnvelope(
+                    source="service:prescription_graph",
+                    type="hitl.created",
+                    data={
+                        "task_id": hitl_task_id,
+                        "task_type": "schedule_h_override",
+                        "status": "pending",
+                        "node_id": node_id,
+                        "prescription_id": prescription_id,
+                        "correlation_id": corr_id,
+                        "reason": reason_note,
+                    },
+                    node_id=node_id,
+                    correlation_id=corr_id,
+                )
+                await in_process_event_bus.publish("hitl.created", ev_hitl_created)
+                await in_process_event_bus.publish("hitl", ev_hitl_created)
+            except Exception as exc:
+                logger.debug("hitl.created publish failed: %s", exc)
 
     # Case D: Valid Doctor + All Drugs Known
     else:
@@ -822,15 +938,46 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
         saved_log = save_compliance_log(log_entry)
         compliance_log_ids.append(saved_log["id"])
 
-    # 2. Persist Prescription record
+    # 2. Build 4-Stage Processing Workflow Steps
+    stage_doc_status = "done" if doc_verified else ("failed" if status == "rejected" else "flagged")
+    steps = [
+        {
+            "stage": "parsing",
+            "status": "done",
+            "summary": f"Extracted patient initials {state.get('patient_initials') or 'ANON'}, doctor credentials, and {len(state.get('drugs', []))} drug item(s) via local sovereign model",
+        },
+        {
+            "stage": "schedule_check",
+            "status": "done",
+            "summary": f"Classified {len(state.get('drugs', []))} drug(s) ({', '.join(sch_summary.get('classes', [])) or 'OTC'}). Unknown drugs: {1 if sch_summary.get('has_unknown') else 0}",
+        },
+        {
+            "stage": "doctor_verification",
+            "status": stage_doc_status,
+            "summary": f"Physician '{state.get('doctor_name') or 'N/A'}' ({state.get('doctor_registration_no') or 'MISSING'}): {doc_reason or ('Verified in Registry' if doc_verified else 'Not verified')}",
+        },
+        {
+            "stage": "decision",
+            "status": "done" if status == "approved" else ("flagged" if status == "flagged" else "failed"),
+            "summary": f"Decision: {decision} ({reason_note})",
+        },
+    ]
+
+    now_iso = datetime.now(UTC).isoformat()
+    primary_log_id = compliance_log_ids[0] if compliance_log_ids else f"log-{prescription_id[:8]}"
+    privacy_notice = "Processed locally via sovereign pipeline (sensitivity=sensitive). Only patient initials stored."
+
+    # 3. Persist Prescription record
     rx_record = {
         "id": prescription_id,
         "prescription_id": prescription_id,
         "rx_number": f"RX-{prescription_id[:8].upper()}",
+        "node_id": node_id,
         "doctor_name": state.get("doctor_name") or "UNKNOWN",
         "doctor_registration_no": state.get("doctor_registration_no"),
-        "patient_initials": state.get("patient_initials") or "ANON",
         "doctor_verified": doc_verified,
+        "doctor_verification_reason": doc_reason or ("verified_in_registry" if doc_verified else "unverified"),
+        "patient_initials": state.get("patient_initials") or "ANON",
         "drugs": state.get("drugs", []),
         "status": status,
         "decision": decision,
@@ -839,13 +986,16 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
         "sensitivity": "sensitive",
         "provider": state.get("provider", "local_sovereign"),
         "schedule_summary": sch_summary,
+        "steps": steps,
+        "compliance_log_id": primary_log_id,
         "compliance_log_ids": compliance_log_ids,
-        "created_at": datetime.now(UTC).isoformat(),
-        "updated_at": datetime.now(UTC).isoformat(),
+        "privacy_notice": privacy_notice,
+        "created_at": now_iso,
+        "updated_at": now_iso,
     }
     save_prescription(rx_record)
 
-    # 3. Write immutable audit ledger entry
+    # 4. Write immutable audit ledger entry
     try:
         await write_audit_entry(
             actor="system:prescription_graph",
@@ -872,17 +1022,22 @@ async def decision_node(state: PrescriptionState) -> dict[str, Any]:
         "decision": decision,
         "hitl_task_id": hitl_task_id,
         "reason": reason_note,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": now_iso,
     }
     events.append(event)
 
     return {
         "prescription_id": prescription_id,
+        "node_id": node_id,
         "decision": decision,
         "status": status,
         "doctor_verified": doc_verified,
+        "doctor_verification_reason": doc_reason or ("verified_in_registry" if doc_verified else "unverified"),
         "hitl_task_id": hitl_task_id,
         "compliance_log_ids": compliance_log_ids,
+        "compliance_log_id": primary_log_id,
+        "steps": steps,
+        "privacy_notice": privacy_notice,
         "events": events,
     }
 
@@ -939,17 +1094,27 @@ async def run_prescription_graph(
     return {
         "id": final_state.get("prescription_id"),
         "prescription_id": final_state.get("prescription_id"),
+        "node_id": nid,
         "status": final_state.get("status"),
         "decision": final_state.get("decision"),
         "patient_initials": final_state.get("patient_initials"),
         "doctor_name": final_state.get("doctor_name"),
         "doctor_registration_no": final_state.get("doctor_registration_no"),
         "doctor_verified": final_state.get("doctor_verified"),
+        "doctor_verification_reason": final_state.get("doctor_verification_reason") or (
+            final_state.get("doctor_verification", {}).get("reason")
+        ),
         "drugs": final_state.get("drugs"),
         "schedule_summary": final_state.get("schedule_summary"),
+        "steps": final_state.get("steps") or [],
         "hitl_task_id": final_state.get("hitl_task_id"),
-        "compliance_log_ids": final_state.get("compliance_log_ids"),
+        "compliance_log_id": final_state.get("compliance_log_id") or (
+            (final_state.get("compliance_log_ids") or [None])[0]
+        ),
+        "compliance_log_ids": final_state.get("compliance_log_ids") or [],
         "sensitivity": "sensitive",
+        "privacy_notice": "Processed locally via sovereign pipeline (sensitivity=sensitive). Only patient initials stored.",
         "provider": final_state.get("provider", "local_sovereign"),
         "events": final_state.get("events"),
+        "created_at": datetime.now(UTC).isoformat(),
     }

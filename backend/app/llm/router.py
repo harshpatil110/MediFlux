@@ -7,7 +7,7 @@ from typing import Any, Literal, TypeVar
 import yaml
 
 from app.core.config import settings
-from app.core.errors import SovereignLLMOfflineError
+from app.core.errors import SensitiveDataRoutingError, SovereignLLMOfflineError
 from app.llm.cache import llm_cache
 from app.llm.fault import check_and_raise_fault
 from app.llm.parser import execute_repair_loop, inject_schema
@@ -158,6 +158,10 @@ class LLMRouter:
           SensitiveDataRoutingError and NEVER fail over to hosted providers.
         - If sensitivity="normal": routes along fallback chain (nvidia -> openrouter -> ollama).
         """
+        # 0. Early check for sensitive data provider availability
+        if sensitivity == "sensitive" and not self.providers.get("ollama"):
+            raise SensitiveDataRoutingError("Ollama provider is not registered in router for sensitive data")
+
         # 1. Check persistent replay & SQLite cache
         cache_key = llm_cache.compute_cache_key(agent, messages, response_model)
         cached_response = llm_cache.get(cache_key, response_model, agent=agent, messages=messages)

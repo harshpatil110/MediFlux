@@ -447,6 +447,7 @@ class MobileSaleResponse(BaseModel):
     cascade: dict[str, Any] | None = Field(None, description="Full 5-stage demand cascade trace")
     cascade_trace: dict[str, Any] | None = Field(None, description="Alias for cascade trace")
     compliance_hold: bool = Field(default=False, description="True if flagged for Schedule H compliance review")
+    compliance_status: str | None = Field(default=None, description="Compliance verification status ('VERIFIED_COMPLIANT', 'FLAGGED_FOR_REVIEW')")
     warning: str | None = Field(None, description="Compliance or inventory warning message")
     compliance_warning: str | None = Field(None, description="Alias for compliance warning")
 
@@ -521,6 +522,7 @@ async def ingest_sale_event(
     # Check drug schedule rules
     is_sched_h = (
         "amx" in event.product_id.lower()
+        or "amox" in event.product_id.lower()
         or "azi" in event.product_id.lower()
         or "cip" in event.product_id.lower()
         or "ins" in event.product_id.lower()
@@ -732,6 +734,7 @@ async def ingest_sale_event(
         "cascade": full_trace,
         "cascade_trace": full_trace,
         "compliance_hold": compliance_hold,
+        "compliance_status": "FLAGGED_FOR_REVIEW" if compliance_hold else "VERIFIED_COMPLIANT",
         "warning": warning,
         "compliance_warning": warning,
     }

@@ -392,6 +392,8 @@ export interface ApiKeyCreatedResponse {
 export interface Body_upload_prescription_api_v1_prescriptions_post {
   correlation_id?: string | null;
   file?: string | null;
+  fixture_hint?: string | null;
+  fixture_name?: string | null;
   node_id?: string | null;
 }
 
@@ -1529,14 +1531,14 @@ export interface ApiOperations {
   /** List Prescriptions Endpoint */
   'GET /api/v1/prescriptions': {
     operationId: 'get__api_v1_prescriptions';
-    parameters: { limit?: number };
+    parameters: { node_id?: string | null; limit?: number; authorization?: string | null; "X-API-Key"?: string | null };
     requestBody: undefined;
     response: Record<string, unknown>;
   };
   /** Upload Prescription */
   'POST /api/v1/prescriptions': {
     operationId: 'post__api_v1_prescriptions';
-    parameters: undefined;
+    parameters: { authorization?: string | null; "X-API-Key"?: string | null };
     requestBody: undefined;
     response: Record<string, unknown>;
   };
@@ -1550,7 +1552,7 @@ export interface ApiOperations {
   /** Get Prescription By Id */
   'GET /api/v1/prescriptions/{prescription_id}': {
     operationId: 'get__api_v1_prescriptions__prescription_id_';
-    parameters: { prescription_id: string };
+    parameters: { prescription_id: string; authorization?: string | null; "X-API-Key"?: string | null };
     requestBody: undefined;
     response: Record<string, unknown>;
   };

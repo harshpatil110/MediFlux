@@ -2,11 +2,13 @@
 
 import base64
 import logging
+import uuid
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import (
     APIRouter,
+    Depends,
     File,
     Form,
     HTTPException,
@@ -17,6 +19,7 @@ from fastapi import (
     status,
 )
 
+from app.core.security import CurrentUser, get_current_user_optional
 from app.events.bus import in_process_event_bus
 from app.events.models import EventEnvelope
 from app.graphs.prescription import get_prescription, list_prescriptions, run_prescription_graph
@@ -100,10 +103,18 @@ def _resolve_fixture_path(filename: str) -> Path:
 
 @router.get("", status_code=status.HTTP_200_OK)
 async def list_prescriptions_endpoint(
+    request: Request,
+    current_user: Annotated[CurrentUser | None, Depends(get_current_user_optional)] = None,
+    node_id: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> dict[str, Any]:
-    """Retrieve scanned prescriptions list with privacy-preserving patient redaction."""
-    items = list_prescriptions(limit=limit)
+    """Retrieve scanned prescriptions list with privacy-preserving patient redaction and RLS scoping."""
+    user_role = current_user.role if current_user else None
+    user_node = current_user.node_id if current_user else None
+    header_node = request.headers.get("X-Node-Id")
+
+    effective_node = node_id or user_node or header_node
+    items = list_prescriptions(limit=limit, node_id=effective_node, role=user_role)
     return {
         "prescriptions": items,
         "total": len(items),
@@ -139,6 +150,9 @@ async def upload_prescription(
     file: UploadFile | None = File(None),  # noqa: B008
     node_id: str | None = Form(None),  # noqa: B008
     correlation_id: str | None = Form(None),  # noqa: B008
+    fixture_name: str | None = Form(None),  # noqa: B008
+    fixture_hint: str | None = Form(None),  # noqa: B008
+    current_user: Annotated[CurrentUser | None, Depends(get_current_user_optional)] = None,
 ) -> dict[str, Any]:
     """Ingest prescription scan via multipart form or JSON, verify compliance, and return structured result."""
     content_type = request.headers.get("content-type", "")
@@ -146,9 +160,14 @@ async def upload_prescription(
     img_bytes: bytes | None = None
     img_path: str | None = None
     img_b64: str | None = None
-    fixture_name: str | None = None
-    target_node = node_id
-    corr_id = correlation_id
+    resolved_fixture = fixture_name or fixture_hint
+    target_node = (
+        node_id
+        or (current_user.node_id if current_user else None)
+        or request.headers.get("X-Node-Id")
+        or "11111111-1111-1111-1111-111111111111"
+    )
+    corr_id = correlation_id or str(uuid.uuid4())
 
     # 1. Handle JSON request body
     if "application/json" in content_type:
@@ -157,9 +176,18 @@ async def upload_prescription(
             if isinstance(body, dict):
                 img_path = body.get("image_path")
                 img_b64 = body.get("image_base64")
-                fixture_name = body.get("fixture_name") or body.get("fixture_id")
-                target_node = target_node or body.get("node_id")
-                corr_id = corr_id or body.get("correlation_id")
+                resolved_fixture = (
+                    resolved_fixture
+                    or body.get("fixture_name")
+                    or body.get("fixture_id")
+                    or body.get("fixture_hint")
+                )
+                target_node = (
+                    body.get("node_id")
+                    or (current_user.node_id if current_user else None)
+                    or target_node
+                )
+                corr_id = body.get("correlation_id") or corr_id
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"Invalid JSON body: {exc}") from exc
 
@@ -171,8 +199,8 @@ async def upload_prescription(
             raise HTTPException(status_code=400, detail=f"Failed to read uploaded file: {exc}") from exc
 
     # 3. Resolve fixture if specified
-    if fixture_name and not img_bytes:
-        fname = fixture_name if fixture_name.endswith(".png") else f"{fixture_name}.png"
+    if resolved_fixture and not img_bytes:
+        fname = resolved_fixture if resolved_fixture.endswith(".png") else f"{resolved_fixture}.png"
         try:
             fpath = _resolve_fixture_path(fname)
             img_bytes = fpath.read_bytes()
@@ -186,7 +214,26 @@ async def upload_prescription(
             detail="Must provide an image file upload, fixture_name, image_path, or image_base64 payload.",
         )
 
-    # 4. Execute Sovereign Prescription Graph
+    # 4. Emit progress event for parsing
+    try:
+        await in_process_event_bus.publish(
+            "prescription.progress",
+            EventEnvelope(
+                source="service:prescription_scanner",
+                type="prescription.progress",
+                data={
+                    "stage": "parsing",
+                    "status": "in_progress",
+                    "correlation_id": corr_id,
+                },
+                node_id=target_node,
+                correlation_id=corr_id,
+            ),
+        )
+    except Exception as exc:
+        logger.debug("Failed to emit prescription.progress event: %s", exc)
+
+    # 5. Execute Sovereign Prescription Graph
     try:
         result = await run_prescription_graph(
             image_bytes=img_bytes,
@@ -199,12 +246,12 @@ async def upload_prescription(
         logger.error("Prescription graph execution failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Prescription verification failed: {exc}") from exc
 
-    # 5. Emit prescription.scanned event on event bus
+    # 6. Emit prescription.scanned and prescription.completed events on event bus
     try:
         rx_id = str(result.get("prescription_id") or result.get("id"))
         ev = EventEnvelope(
             source="service:prescription_scanner",
-            type="prescription.scanned",
+            type="prescription.completed",
             data={
                 "prescription_id": rx_id,
                 "decision": result.get("decision"),
@@ -213,22 +260,42 @@ async def upload_prescription(
                 "doctor_name": result.get("doctor_name"),
                 "patient_initials": result.get("patient_initials"),
                 "drugs": result.get("drugs", []),
+                "steps": result.get("steps", []),
+                "hitl_task_id": result.get("hitl_task_id"),
+                "compliance_log_id": result.get("compliance_log_id"),
                 "sensitivity": "sensitive",
             },
+            node_id=target_node,
             correlation_id=corr_id,
         )
+        await in_process_event_bus.publish("prescription.completed", ev)
         await in_process_event_bus.publish("prescription.scanned", ev)
     except Exception as exc:
-        logger.debug("Failed to emit prescription.scanned event: %s", exc)
+        logger.debug("Failed to emit prescription.completed event: %s", exc)
 
     response.status_code = status.HTTP_201_CREATED
     return result
 
 
 @router.get("/{prescription_id}", status_code=status.HTTP_200_OK)
-async def get_prescription_by_id(prescription_id: str) -> dict[str, Any]:
+async def get_prescription_by_id(
+    prescription_id: str,
+    request: Request,
+    current_user: Annotated[CurrentUser | None, Depends(get_current_user_optional)] = None,
+) -> dict[str, Any]:
     """Retrieve full prescription record and compliance evaluation by ID."""
     rx = get_prescription(prescription_id)
     if not rx:
         raise HTTPException(status_code=404, detail=f"Prescription '{prescription_id}' not found.")
+
+    # RLS enforcement for pharmacy role
+    if current_user and current_user.role and any(r in current_user.role.lower() for r in ("pharmacy", "pharmacist", "pic", "staff")):
+        caller_node = current_user.node_id or request.headers.get("X-Node-Id")
+        rx_node = rx.get("node_id")
+        if caller_node and rx_node and str(caller_node) != str(rx_node):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: Prescription belongs to a different pharmacy node.",
+            )
+
     return rx

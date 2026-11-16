@@ -1,14 +1,10 @@
 /**
- * Prescriptions Feature Module
- * Multimodal camera capture, OCR Schedule H/H1/X compliance, and doctor registry verification.
+ * Prescriptions Feature Module (Task M6)
+ * Multimodal camera capture, local compression, sovereign OCR/compliance pipeline,
+ * Schedule H verification, ephemeral cache cleanup, and POS integration.
  */
 
-export interface PrescriptionScanResult {
-  scanId: string;
-  prescriberName: string;
-  doctorRegistration: string;
-  patientName: string;
-  schedule: string;
-  isCompliant: boolean;
-}
-
+export * from './types';
+export * from './imageCleanup';
+export * from './PrescriptionCaptureCard';
+export * from './PrescriptionResultCard';

@@ -1856,3 +1856,23 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   - Backend: 5/5 dedicated test cases in `backend/tests/test_task_m5_mobile_approvals.py` passing; all 20/20 HITL test cases passing; `ruff check app/ tests/` passing with 0 warnings.
   - Mobile: TypeScript check `npm run typecheck` passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly.
 
+### Task M6: Sovereign Prescription Scanner, Schedule H Compliance, Sale Linking & Cache Cleanup
+- Updated `backend/app/graphs/prescription.py` with pharmacy node scoping, RLS query filtering, seed prescriptions, and dual canonical HITL tasks (`doctor_verification` for unknown doctor, `schedule_h_override` for unlisted drug) with `hitl.created` SSE events.
+- Updated `backend/app/core/hitl.py` `request_human_approval` to support `action_type` parameter preserving backwards compatibility for legacy Task 19 tests while maintaining Task M5 policy alignment.
+- Updated `backend/app/llm/router.py` to enforce early `SensitiveDataRoutingError` when `sensitivity="sensitive"` is invoked without local Ollama, strictly preventing cloud leakage of sensitive medical data.
+- Enhanced `backend/app/api/v1/endpoints/prescriptions.py` supporting multipart uploads, `GET /api/v1/prescriptions/fixtures` returning 5 synthetic demo presets with base64 data URIs, RLS-scoped pharmacy history, and 403 Forbidden node isolation.
+- Updated `backend/app/api/v1/endpoints/events.py` Schedule H drug matching for `amox` / `amx` and populated `compliance_status` (`"VERIFIED_COMPLIANT"` / `"FLAGGED_FOR_REVIEW"`) with cascade advancement on approved prescription attachment.
+- Re-exported `docs/openapi.json` (92 endpoints) and generated TypeScript clients across `packages/shared/src/generated-api.ts`, `mobile/src/api/generated.ts`, and `frontend/src/types/generated-api.ts`.
+- Installed Expo SDK 51 compatible packages in `mobile/`: `expo-file-system@~17.0.1`, `expo-image-manipulator@~12.0.5`, `expo-image-picker@~15.1.0`.
+- Built `mobile/src/features/prescriptions/imageCleanup.ts` guaranteeing zero device cache persistence (`registerTempPrescriptionUri`, `cleanupPrescriptionUri`, `cleanupAllTempPrescriptionImages`, `getRemainingTempPrescriptionUris`) triggered automatically on upload completion and screen unmount.
+- Built `mobile/src/features/prescriptions/PrescriptionCaptureCard.tsx` with Camera, Gallery, 5 synthetic fixture chips, local image compression (`width: 1200`, `compress: 0.75`), preview with retake/discard, and 4-stage active progress indicator.
+- Built `mobile/src/features/prescriptions/PrescriptionResultCard.tsx` strictly following Warm Editorial Minimalism with Emerald/Amber/Coral status banners, patient initials badge, doctor NMC verification badge, per-drug CDSCO schedule badges (`unknown` never guessed), compliance log ID, sovereign privacy notice, and "Attach to Sale in POS (M4)" button.
+- Built `mobile/app/(tabs)/scan-rx.tsx` with role guard, segmented toggle (`Scan Rx` / `History (N)`), capture card, result card, and RLS-scoped pharmacy history list.
+- Built `mobile/app/prescriptions/[id].tsx` detail view route with full audit metadata.
+- Updated `mobile/app/(tabs)/sell.tsx` to read `prescription_id` from route params, display Emerald attached prescription banner, clear Schedule H warning, and pass `prescription_id` to `POST /api/v1/events/sale`.
+- Created specification document `docs/specs/task-m6-spec.md`.
+- Verified with automated tests:
+  - Backend: 7/7 dedicated test cases in `backend/tests/test_task_m6_mobile_prescriptions.py` passing; 9/9 in `test_prescription_compliance.py` passing; combined mobile suite M1–M6 passing 52/52 tests (100%); `ruff check backend/app/ backend/tests/` passing with 0 warnings.
+  - Mobile: TypeScript check `npm run typecheck` (`tsc --noEmit`) passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly (2,245 modules).
+
+
