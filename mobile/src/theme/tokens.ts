@@ -101,6 +101,7 @@ export const spacing = {
 
 export const radii = {
   none: 0,
+  xs: 2,
   sm: 2,
   md: 4, // Preferred card & container radius
   lg: 8,

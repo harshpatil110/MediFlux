@@ -473,8 +473,27 @@
             "title": "Correlation Id",
             "type": "string"
           },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "outcome": {
+            "default": "complete",
+            "title": "Outcome",
+            "type": "string"
+          },
           "pharmacy_name": {
             "title": "Pharmacy Name",
+            "type": "string"
+          },
+          "pharmacy_node_id": {
+            "default": "11111111-1111-1111-1111-111111111111",
+            "title": "Pharmacy Node Id",
+            "type": "string"
+          },
+          "product_id": {
+            "default": "11111111-2222-3333-4444-555555555555",
+            "title": "Product Id",
             "type": "string"
           },
           "product_name": {
@@ -482,43 +501,70 @@
             "type": "string"
           },
           "quantity": {
+            "default": 1,
             "title": "Quantity",
             "type": "integer"
+          },
+          "sku": {
+            "default": "MED-PARA-500",
+            "title": "Sku",
+            "type": "string"
           },
           "status": {
             "default": "completed",
             "title": "Status",
             "type": "string"
           },
+          "steps_completed": {
+            "default": 5,
+            "title": "Steps Completed",
+            "type": "integer"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          },
           "tiers_completed": {
-            "default": "4/4",
+            "default": "5/5",
             "title": "Tiers Completed",
             "type": "string"
           },
           "timestamp": {
-            "title": "Timestamp",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
           },
           "total_duration_ms": {
             "title": "Total Duration Ms",
             "type": "number"
+          },
+          "total_steps": {
+            "default": 5,
+            "title": "Total Steps",
+            "type": "integer"
           },
           "total_tokens": {
             "title": "Total Tokens",
             "type": "integer"
           },
           "trigger_summary": {
+            "default": "",
             "title": "Trigger Summary",
             "type": "string"
           }
         },
         "required": [
           "correlation_id",
-          "timestamp",
-          "trigger_summary",
           "product_name",
           "pharmacy_name",
-          "quantity",
+          "created_at",
           "total_duration_ms",
           "total_tokens"
         ],
@@ -622,6 +668,68 @@
           }
         },
         "title": "CopilotQueryRequest",
+        "type": "object"
+      },
+      "CopilotQueryResponse": {
+        "description": "Response returned for standard Copilot query.",
+        "properties": {
+          "activity_steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Activity Steps",
+            "type": "array"
+          },
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "references": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "scope": {
+            "additionalProperties": true,
+            "title": "Scope",
+            "type": "object"
+          },
+          "tools_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Used",
+            "type": "array"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "answer",
+          "trace_id"
+        ],
+        "title": "CopilotQueryResponse",
         "type": "object"
       },
       "CreateApiKeyRequest": {
@@ -4919,11 +5027,29 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 20,
+              "default": 25,
               "maximum": 100,
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Optional outcome filter (complete, partial, waiting_approval)",
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional outcome filter (complete, partial, waiting_approval)",
+              "title": "Outcome"
             }
           },
           {
@@ -5538,7 +5664,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "Response Query Copilot Api V1 Copilot Query Post"
+                  "$ref": "#/components/schemas/CopilotQueryResponse"
                 }
               }
             },

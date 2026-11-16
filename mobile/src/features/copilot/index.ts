@@ -1,13 +1,12 @@
 /**
- * Copilot Feature Module
+ * Copilot Feature Module (Task M8).
  * Natural-language conversational supply assistant with grounded RLS citations.
  */
 
-export interface CopilotMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
-  citations?: Array<{ title: string; source: string; snippet: string }>;
-}
+export * from './types';
+export * from './copilotErrors';
+export * from './suggestedQuestions';
+export * from './ReferenceChipList';
 
+// Backwards compatibility
+export type { CopilotChatMessage as CopilotMessage } from './types';

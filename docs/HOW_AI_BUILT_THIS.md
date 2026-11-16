@@ -1902,5 +1902,33 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   - Backend: 7/7 dedicated test cases in `backend/tests/test_task_m7_coldchain_and_notifications.py` passing (100%); combined mobile test suite M1–M7 passing 61/61 tests; `ruff check backend/app/ backend/tests/` passing with 0 warnings.
   - Mobile: TypeScript check `npm run typecheck` (`tsc --noEmit`) passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly (2,376 modules).
 
+### Task M8: Network Copilot and Cascade History (Lite)
+- Enhanced cascade endpoints in `backend/app/api/v1/endpoints/cascade.py`:
+  - Added `GET /api/v1/cascade` with query parameters `limit: int = 25` and `outcome: str | None = None`.
+  - Implemented strict Row-Level Security (RLS) scoping: pharmacy users only see demand cascades originating from or involving their assigned `node_id`. Admins and regulators see all network cascades.
+  - Seeded 3 baseline 5-stage cascades (`casc-seed-01`, `casc-seed-02`, `casc-seed-03`) spanning outcomes `complete`, `waiting_approval`, and `partial` across Delhi and Mumbai nodes.
+  - Enhanced `GET /api/v1/cascade/{correlation_id}` to return complete ordered 5-stage execution traces (`supervisor`, `pharmacy`, `stockist`, `distributor`, `manufacturer`) for historical replay.
+- Verified and enhanced Network Copilot in `backend/app/graphs/copilot.py` and `backend/app/api/v1/endpoints/copilot.py`:
+  - Implemented strict Pharmacy RLS Isolation in `get_stockout_risk` and `get_inventory_summary`: candidate queries for pharmacy callers are strictly scoped to the caller's authorized `node_id`. Queries for other pharmacies return zero rows/references and include sovereign RLS isolation notices.
+  - Structured Multi-Entity Reference Chips Contract: responses include grounded `answer`, `trace_id`, `tools_used`, `activity_steps`, and structured `references` array (`id`, `type`, `label`, `node_id`, `node_name`, `product_id`, `barcode`, `deep_link`).
+  - Standard error code mapping: `429` maps to `LLM_PROVIDER_BUSY` (`retryable: true`), `503` to `SOVEREIGN_LOCAL_MODEL_OFFLINE` (`retryable: true`), `403` to `COPILOT_FORBIDDEN_SCOPE` (`retryable: false`).
+- Re-exported OpenAPI schema to `docs/openapi.json` (95 paths) and synchronized TypeScript clients across `packages/shared/src/generated-api.ts`, `mobile/src/api/generated.ts`, and `frontend/src/types/generated-api.ts`.
+- Built mobile Copilot features:
+  - `mobile/src/features/copilot/types.ts`: Defined `CopilotReference`, `CopilotChatMessage`, `SuggestedQuestion`, and API payloads.
+  - `mobile/src/features/copilot/suggestedQuestions.ts`: Implemented role-aware suggested prompts (`getSuggestedQuestionsForRole`).
+  - `mobile/src/features/copilot/copilotErrors.ts`: Implemented `formatCopilotError(error)` translating backend errors and network interruptions into friendly mobile messages with 1-tap retry capability.
+  - `mobile/src/features/copilot/ReferenceChipList.tsx`: Built tappable deep-linking reference chips with `resolveReferenceDeepLink` routing `inventory` to sell/pos, `batch` to cold-chain, `approval` to approvals, and `cascade` to cascade replay.
+  - `mobile/app/(tabs)/copilot.tsx`: Built full Copilot chat screen with in-memory session-only state (never persisted to `AsyncStorage`, cleared on logout), role-aware suggestion pills, live animated activity bubble, progressive answer display, and top header navigation to Cascade History.
+- Built mobile Cascade History & Replay features:
+  - `mobile/src/features/cascade/replayHelpers.ts`: Pure helpers `getReplayIntervalMs` (`1x` = 1200ms, `2x` = 600ms, `4x` = 300ms) and `computeReplayDisplaySteps` for deterministic step-by-step state animation.
+  - Enhanced `mobile/src/features/cascade/CascadeTimeline.tsx`: Mounted Interactive Replay Controller Bar with Play/Pause/Restart buttons, speed pills (`1x`, `2x`, `4x`), step scrubber, and animated step transitions with activity indicators and badges.
+  - `mobile/app/cascade/index.tsx`: Built Cascade History list screen with outcome filters (`All`, `Complete`, `Partial`, `Waiting Approval`), pull-to-refresh, correlation ID badges, telemetry summaries, and navigation to replay.
+  - Enhanced `mobile/app/cascade/[id].tsx`: Supported `?mode=replay` query parameter to auto-start animated replay.
+- Created specification document `docs/specs/task-m8-spec.md`.
+- Verified with automated tests:
+  - Backend: 9/9 dedicated test cases in `backend/tests/test_task_m8_copilot_and_cascade_history.py` passing (100%); full mobile suite M1–M8 passing 73/73 tests (100%); `ruff check backend/app/ backend/tests/` passing with 0 warnings.
+  - Mobile: TypeScript check `npm run typecheck` (`tsc --noEmit`) passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly (2,381 modules).
+
+
 
 

@@ -1,13 +1,7 @@
 /**
- * Cascade Feature Module
- * Single-unit retail demand propagation across 4 supply chain tiers.
+ * Cascade Feature Module (Task M8.2).
+ * Single-unit retail demand propagation across 5 supply chain tiers with animated replay.
  */
 
-export interface CascadeStep {
-  tier: 'pharmacy' | 'stockist' | 'distributor' | 'manufacturer';
-  nodeName: string;
-  action: string;
-  status: 'pending' | 'active' | 'completed' | 'failed';
-  timestamp: string;
-}
-
+export * from './CascadeTimeline';
+export * from './replayHelpers';

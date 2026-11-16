@@ -7,11 +7,13 @@ import { CascadeTimeline, CascadeTrace } from '../../src/features/cascade/Cascad
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 
 export default function CascadeDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
   const router = useRouter();
   const [trace, setTrace] = useState<CascadeTrace | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const isReplayRequested = mode === 'replay';
 
   const fetchTrace = useCallback(async () => {
     if (!id) return;
@@ -31,14 +33,28 @@ export default function CascadeDetailScreen() {
         total_tokens: 342,
         status: 'completed',
         trigger_event: {
-          product_name: 'Azithromycin 500mg',
-          pharmacy_name: 'Apollo Pharmacy - CP',
+          product_name: 'Paracetamol 500mg',
+          pharmacy_name: 'Apollo Pharmacy - Connaught Place',
           quantity: 1,
         },
         steps: [
           {
+            tier: 5,
+            tier_label: 'Supervisor Orchestrator',
+            stage: 'supervisor',
+            agent_name: 'Supervisor Router',
+            node_id: '00000000-0000-0000-0000-000000000000',
+            node_name: 'MediFlux Network Orchestrator',
+            status: 'succeeded',
+            reasoning: 'Demand trigger received from pharmacy POS. Dispatched cascade orchestration workflow.',
+            duration_ms: 22.4,
+            total_tokens: 45,
+            timestamp: new Date().toISOString(),
+          },
+          {
             tier: 4,
             tier_label: 'TIER 4 • PHARMACY',
+            stage: 'pharmacy',
             agent_name: 'Pharmacy POS Agent',
             node_id: '11111111-1111-1111-1111-111111111111',
             node_name: 'Apollo Pharmacy - Connaught Place',
@@ -52,6 +68,7 @@ export default function CascadeDetailScreen() {
           {
             tier: 3,
             tier_label: 'TIER 3 • STOCKIST',
+            stage: 'stockist',
             agent_name: 'Dynamic Balancing Agent',
             node_id: '22222222-2222-2222-2222-222222222222',
             node_name: 'North Delhi Stockist Hub',
@@ -65,6 +82,7 @@ export default function CascadeDetailScreen() {
           {
             tier: 2,
             tier_label: 'TIER 2 • DISTRIBUTOR',
+            stage: 'distributor',
             agent_name: 'Distributor Fleet Agent',
             node_id: '33333333-3333-3333-3333-333333333333',
             node_name: 'Northern India Regional Depot',
@@ -78,6 +96,7 @@ export default function CascadeDetailScreen() {
           {
             tier: 1,
             tier_label: 'TIER 1 • MANUFACTURER',
+            stage: 'manufacturer',
             agent_name: 'Production Planning Agent',
             node_id: '44444444-4444-4444-4444-444444444444',
             node_name: 'Sun Pharma Formulation Plant - Baddi',
@@ -106,10 +125,19 @@ export default function CascadeDetailScreen() {
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => router.back()}
-          accessibilityLabel="Back to Home"
+          accessibilityLabel="Back"
         >
           <Ionicons name="arrow-back" size={18} color={colors.text.primary} />
-          <Text style={styles.backBtnText}>BACK TO FEED</Text>
+          <Text style={styles.backBtnText}>BACK</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.historyBtn}
+          onPress={() => router.push('/cascade' as any)}
+          accessibilityLabel="Cascade History"
+        >
+          <Ionicons name="time-outline" size={16} color={colors.accent.primary} />
+          <Text style={styles.historyBtnText}>HISTORY</Text>
         </TouchableOpacity>
       </View>
 
@@ -118,6 +146,8 @@ export default function CascadeDetailScreen() {
         loading={loading}
         error={error}
         onRefresh={fetchTrace}
+        initialReplayMode={isReplayRequested}
+        autoPlayReplay={isReplayRequested}
       />
     </View>
   );
@@ -135,6 +165,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas.primary,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.default,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   backBtn: {
     flexDirection: 'row',
@@ -146,12 +179,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas.surface,
     borderColor: colors.border.default,
     borderWidth: 1,
-    alignSelf: 'flex-start',
   },
   backBtnText: {
     fontSize: typography.fontSize.micro,
     fontWeight: typography.fontWeight.bold,
     color: colors.text.primary,
+    letterSpacing: 0.5,
+  },
+  historyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: radii.sm,
+    backgroundColor: colors.canvas.surface,
+    borderColor: colors.accent.border,
+    borderWidth: 1,
+  },
+  historyBtnText: {
+    fontSize: typography.fontSize.micro,
+    fontFamily: typography.fontFamily.mono,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.accent.primary,
     letterSpacing: 0.5,
   },
 });

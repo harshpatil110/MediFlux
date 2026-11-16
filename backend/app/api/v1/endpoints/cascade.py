@@ -67,15 +67,23 @@ class CascadeFullTrace(BaseModel):
 
 class CascadeSummaryItem(BaseModel):
     correlation_id: str
-    timestamp: str
-    trigger_summary: str
+    product_id: str = "11111111-2222-3333-4444-555555555555"
     product_name: str
+    sku: str = "MED-PARA-500"
+    pharmacy_node_id: str = "11111111-1111-1111-1111-111111111111"
     pharmacy_name: str
-    quantity: int
-    tiers_completed: str = "4/4"
+    created_at: str
+    timestamp: str | None = None
+    outcome: str = "complete"  # complete | partial | waiting_approval
+    status: str = "completed"
+    steps_completed: int = 5
+    total_steps: int = 5
+    tiers_completed: str = "5/5"
+    quantity: int = 1
     total_duration_ms: float
     total_tokens: int
-    status: str = "completed"
+    summary: str = ""
+    trigger_summary: str = ""
 
 
 def _normalize_cascade_step(s: dict[str, Any] | CascadeStepDetail, idx: int = 0) -> CascadeStepDetail:
@@ -160,35 +168,57 @@ def _normalize_cascade_step(s: dict[str, Any] | CascadeStepDetail, idx: int = 0)
 
 
 def _seed_initial_cascades_if_empty() -> None:
-    """Ensure at least 2 historical cascade traces exist for immediate replay dropdown."""
-    if _in_memory_cascade_traces:
-        return
-
-    now_iso = datetime.now(UTC).isoformat()
-    cid1 = "casc-init-seed-01"
+    """Ensure baseline seeded historical cascade traces exist with 5 stages across tiers."""
+    # Seed 1: Complete 5-stage cascade for Apollo Pharmacy (Connaught Place)
+    cid1 = "casc-seed-01"
     steps1 = [
+        CascadeStepDetail(
+            tier=5,
+            tier_label="Supervisor Orchestrator",
+            stage="supervisor",
+            state="done",
+            agent_name="supervisor_orchestrator",
+            node_id="00000000-0000-0000-0000-000000000000",
+            node_name="MediFlux Network Orchestrator",
+            status="succeeded",
+            reasoning="Retail demand trigger received from Apollo Pharmacy POS. Verified cryptographic signature and dispatched cascade workflow across tiers.",
+            input={"trigger": "retail_pos_sale", "pharmacy_node_id": "11111111-1111-1111-1111-111111111111"},
+            output={"workflow_id": "wf-seed-01", "dispatched_agents": 4},
+            model="meta/llama-3.1-70b-instruct",
+            provider="groq",
+            prompt_tokens=90,
+            completion_tokens=42,
+            total_tokens=132,
+            duration_ms=45.0,
+            timestamp="2026-11-16T10:15:00Z",
+            entities_created={"workflow_run_id": "wf-seed-01"},
+        ),
         CascadeStepDetail(
             tier=4,
             tier_label="Pharmacy Edge Node",
+            stage="pharmacy",
+            state="done",
             agent_name="pharmacy_node_agent",
             node_id="11111111-1111-1111-1111-111111111111",
             node_name="Apollo Pharmacy - Connaught Place",
             status="succeeded",
-            reasoning="Retail POS dispense deducted 1 strip of Paracetamol 650mg. Stock dropped to 9 units (breaching safety buffer 10). Auto-replenishment trigger fired.",
-            input={"pharmacy_id": "11111111-1111-1111-1111-111111111111", "product": "Paracetamol 650mg", "qty": 1},
-            output={"dispensed": 1, "remaining_stock": 9, "reorder_needed": True, "target_stockist": "Fortis Central Stockist Hub"},
+            reasoning="Retail POS dispense deducted 1 strip of Paracetamol 500mg. Stock dropped to 8 units (safety buffer 25). Auto-replenishment trigger fired.",
+            input={"pharmacy_id": "11111111-1111-1111-1111-111111111111", "product": "Paracetamol 500mg", "qty": 1},
+            output={"dispensed": 1, "remaining_stock": 8, "reorder_needed": True, "target_stockist": "Fortis Central Stockist Hub"},
             model="meta/llama-3.1-70b-instruct",
             provider="groq",
             prompt_tokens=142,
             completion_tokens=68,
             total_tokens=210,
             duration_ms=115.4,
-            timestamp=now_iso,
-            entities_created={"pos_transaction_id": "pos-init-001", "product": "Paracetamol 650mg"},
+            timestamp="2026-11-16T10:15:01Z",
+            entities_created={"pos_transaction_id": "pos-init-001", "product": "Paracetamol 500mg"},
         ),
         CascadeStepDetail(
             tier=3,
             tier_label="Stockist Hub",
+            stage="stockist",
+            state="done",
             agent_name="dynamic_balancing_agent",
             node_id="22222222-2222-2222-2222-222222222222",
             node_name="Fortis Central Stockist Hub - Delhi",
@@ -202,12 +232,14 @@ def _seed_initial_cascades_if_empty() -> None:
             completion_tokens=92,
             total_tokens=307,
             duration_ms=164.2,
-            timestamp=now_iso,
+            timestamp="2026-11-16T10:15:02Z",
             entities_created={"order_id": "ord-init-101", "stockist_order": True},
         ),
         CascadeStepDetail(
             tier=2,
             tier_label="Distributor Layer",
+            stage="distributor",
+            state="done",
             agent_name="distributor_logistics_agent",
             node_id="33333333-3333-3333-3333-333333333333",
             node_name="MedPlus Regional Depot - West",
@@ -221,44 +253,273 @@ def _seed_initial_cascades_if_empty() -> None:
             completion_tokens=85,
             total_tokens=265,
             duration_ms=138.0,
-            timestamp=now_iso,
+            timestamp="2026-11-16T10:15:03Z",
             entities_created={"shipment_id": "shp-init-202", "vehicle": "MH-04-RF-8821"},
         ),
         CascadeStepDetail(
             tier=1,
             tier_label="Manufacturer Plant",
+            stage="manufacturer",
+            state="done",
             agent_name="manufacturer_production_agent",
             node_id="44444444-4444-4444-4444-444444444444",
             node_name="Sun Pharma Formulation Plant - Baddi",
             status="succeeded",
             reasoning="Active ingredient inventory (API Paracetamol) confirmed in store (450 kg available). Scheduled production line Line-A2 slot. Cryptographic block sealed in audit ledger.",
-            input={"plant_id": "44444444-4444-4444-4444-444444444444", "product": "Paracetamol 650mg"},
+            input={"plant_id": "44444444-4444-4444-4444-444444444444", "product": "Paracetamol 500mg"},
             output={"batch_id": "BAT-PAR-2026-09", "production_line": "Line-A2", "audit_sealed": True},
             model="meta/llama-3.1-70b-instruct",
             provider="groq",
             prompt_tokens=260,
             completion_tokens=110,
             total_tokens=370,
-            duration_ms=195.5,
-            timestamp=now_iso,
+            duration_ms=177.4,
+            timestamp="2026-11-16T10:15:04Z",
             entities_created={"production_batch_id": "BAT-PAR-2026-09", "audit_hash": "sha256-sealed-init"},
         ),
     ]
 
-    _in_memory_cascade_traces[cid1] = {
+    trace1 = {
         "correlation_id": cid1,
-        "started_at": now_iso,
-        "completed_at": now_iso,
-        "total_duration_ms": 613.1,
-        "total_tokens": 1152,
+        "product_id": "11111111-2222-3333-4444-555555555555",
+        "product_name": "Paracetamol 500mg Strip",
+        "sku": "MED-PARA-500",
+        "pharmacy_node_id": "11111111-1111-1111-1111-111111111111",
+        "pharmacy_name": "Apollo Pharmacy - Connaught Place",
+        "created_at": "2026-11-16T10:15:00Z",
+        "started_at": "2026-11-16T10:15:00Z",
+        "completed_at": "2026-11-16T10:15:04Z",
+        "outcome": "complete",
         "status": "completed",
+        "steps_completed": 5,
+        "total_steps": 5,
+        "total_duration_ms": 640.0,
+        "total_tokens": 1284,
+        "summary": "1 strip sold at Apollo Pharmacy -> Stockist order -> Distributor dispatch -> Manufacturer batch",
         "trigger_event": {
-            "product_name": "Paracetamol 650mg",
+            "product_id": "11111111-2222-3333-4444-555555555555",
+            "product_name": "Paracetamol 500mg Strip",
+            "sku": "MED-PARA-500",
+            "pharmacy_node_id": "11111111-1111-1111-1111-111111111111",
             "pharmacy_name": "Apollo Pharmacy - Connaught Place",
             "quantity": 1,
-            "timestamp": now_iso,
+            "timestamp": "2026-11-16T10:15:00Z",
         },
         "steps": [s.model_dump() for s in steps1],
+    }
+
+    _in_memory_cascade_traces[cid1] = trace1
+    # Backward compatibility alias
+    _in_memory_cascade_traces["casc-init-seed-01"] = dict(trace1, correlation_id="casc-init-seed-01")
+
+    # Seed 2: Waiting Approval (HITL) cascade for Apollo Pharmacy
+    cid2 = "casc-seed-02"
+    steps2 = [
+        CascadeStepDetail(
+            tier=5,
+            tier_label="Supervisor Orchestrator",
+            stage="supervisor",
+            state="done",
+            agent_name="supervisor_orchestrator",
+            node_id="00000000-0000-0000-0000-000000000000",
+            node_name="MediFlux Network Orchestrator",
+            status="succeeded",
+            reasoning="Antibiotic surge detection trigger received. Evaluated regional consumption velocity.",
+            duration_ms=40.0,
+            total_tokens=120,
+            timestamp="2026-11-16T09:40:00Z",
+        ),
+        CascadeStepDetail(
+            tier=4,
+            tier_label="Pharmacy Edge Node",
+            stage="pharmacy",
+            state="done",
+            agent_name="pharmacy_node_agent",
+            node_id="11111111-1111-1111-1111-111111111111",
+            node_name="Apollo Pharmacy - Connaught Place",
+            status="succeeded",
+            reasoning="Schedule H antibiotic prescription scanned. Stock depleted below critical safety threshold.",
+            duration_ms=95.0,
+            total_tokens=180,
+            timestamp="2026-11-16T09:40:01Z",
+        ),
+        CascadeStepDetail(
+            tier=3,
+            tier_label="Stockist Hub",
+            stage="stockist",
+            state="waiting_approval",
+            agent_name="dynamic_balancing_agent",
+            node_id="22222222-2222-2222-2222-222222222222",
+            node_name="Fortis Central Stockist Hub - Delhi",
+            status="waiting_approval",
+            hitl_task_id="hitl-seed-02",
+            reasoning="Schedule H antibiotic volume exceeds standard autonomous threshold. Pharmacist approval required.",
+            duration_ms=185.0,
+            total_tokens=280,
+            timestamp="2026-11-16T09:40:02Z",
+        ),
+        CascadeStepDetail(
+            tier=2,
+            tier_label="Distributor Layer",
+            stage="distributor",
+            state="pending",
+            agent_name="distributor_logistics_agent",
+            node_id="33333333-3333-3333-3333-333333333333",
+            node_name="MedPlus Regional Depot - West",
+            status="pending",
+            reasoning="Awaiting upstream stockist HITL approval before dispatch scheduling.",
+            duration_ms=0.0,
+            total_tokens=0,
+            timestamp="2026-11-16T09:40:02Z",
+        ),
+        CascadeStepDetail(
+            tier=1,
+            tier_label="Manufacturer Plant",
+            stage="manufacturer",
+            state="pending",
+            agent_name="manufacturer_production_agent",
+            node_id="44444444-4444-4444-4444-444444444444",
+            node_name="Sun Pharma Formulation Plant - Baddi",
+            status="pending",
+            reasoning="Awaiting upstream distributor fulfillment.",
+            duration_ms=0.0,
+            total_tokens=0,
+            timestamp="2026-11-16T09:40:02Z",
+        ),
+    ]
+
+    _in_memory_cascade_traces[cid2] = {
+        "correlation_id": cid2,
+        "product_id": "22222222-3333-4444-5555-666666666666",
+        "product_name": "Amoxicillin 500mg Capsule",
+        "sku": "MED-AMOX-500",
+        "pharmacy_node_id": "11111111-1111-1111-1111-111111111111",
+        "pharmacy_name": "Apollo Pharmacy - Connaught Place",
+        "created_at": "2026-11-16T09:40:00Z",
+        "started_at": "2026-11-16T09:40:00Z",
+        "completed_at": "2026-11-16T09:40:02Z",
+        "outcome": "waiting_approval",
+        "status": "waiting_approval",
+        "steps_completed": 2,
+        "total_steps": 5,
+        "total_duration_ms": 320.0,
+        "total_tokens": 580,
+        "summary": "Antibiotic surge detected -> Schedule H compliance approval pending review",
+        "trigger_event": {
+            "product_id": "22222222-3333-4444-5555-666666666666",
+            "product_name": "Amoxicillin 500mg Capsule",
+            "sku": "MED-AMOX-500",
+            "pharmacy_node_id": "11111111-1111-1111-1111-111111111111",
+            "pharmacy_name": "Apollo Pharmacy - Connaught Place",
+            "quantity": 2,
+            "timestamp": "2026-11-16T09:40:00Z",
+        },
+        "steps": [s.model_dump() for s in steps2],
+    }
+
+    # Seed 3: Partial / lateral rebalance cascade for Wellness Forever (Bandra West - Mumbai)
+    cid3 = "casc-seed-03"
+    steps3 = [
+        CascadeStepDetail(
+            tier=5,
+            tier_label="Supervisor Orchestrator",
+            stage="supervisor",
+            state="done",
+            agent_name="supervisor_orchestrator",
+            node_id="00000000-0000-0000-0000-000000000000",
+            node_name="MediFlux Network Orchestrator",
+            status="succeeded",
+            reasoning="Retail trigger received for Mumbai regional node. Route optimized for lateral stock rebalance.",
+            duration_ms=38.0,
+            total_tokens=110,
+            timestamp="2026-11-16T08:20:00Z",
+        ),
+        CascadeStepDetail(
+            tier=4,
+            tier_label="Pharmacy Edge Node",
+            stage="pharmacy",
+            state="done",
+            agent_name="pharmacy_node_agent",
+            node_id="11111111-1111-1111-1111-111111111121",
+            node_name="Wellness Forever - Bandra West",
+            status="succeeded",
+            reasoning="Retail POS sale completed. Reorder threshold breached; initiated replenishment request.",
+            duration_ms=102.0,
+            total_tokens=195,
+            timestamp="2026-11-16T08:20:01Z",
+        ),
+        CascadeStepDetail(
+            tier=3,
+            tier_label="Stockist Hub",
+            stage="stockist",
+            state="done",
+            agent_name="dynamic_balancing_agent",
+            node_id="22222222-2222-2222-2222-222222222231",
+            node_name="Mumbai Central Stockist Hub",
+            status="succeeded",
+            reasoning="Executed lateral rebalance from Andheri depot. No manufacturer order required.",
+            duration_ms=155.0,
+            total_tokens=290,
+            timestamp="2026-11-16T08:20:02Z",
+        ),
+        CascadeStepDetail(
+            tier=2,
+            tier_label="Distributor Layer",
+            stage="distributor",
+            state="done",
+            agent_name="distributor_logistics_agent",
+            node_id="33333333-3333-3333-3333-333333333341",
+            node_name="Western Corridor Logistics Hub",
+            status="succeeded",
+            reasoning="Dispatched regional transfer cargo van MH-02-AB-1234.",
+            duration_ms=145.0,
+            total_tokens=240,
+            timestamp="2026-11-16T08:20:03Z",
+        ),
+        CascadeStepDetail(
+            tier=1,
+            tier_label="Manufacturer Plant",
+            stage="manufacturer",
+            state="skipped",
+            agent_name="manufacturer_production_agent",
+            node_id="44444444-4444-4444-4444-444444444444",
+            node_name="Sun Pharma Formulation Plant - Baddi",
+            status="skipped",
+            skip_reason="Lateral stockist rebalance satisfied demand; production run skipped.",
+            reasoning="Demand satisfied via lateral transfer; production run scheduled buffer intact.",
+            duration_ms=70.0,
+            total_tokens=55,
+            timestamp="2026-11-16T08:20:04Z",
+        ),
+    ]
+
+    _in_memory_cascade_traces[cid3] = {
+        "correlation_id": cid3,
+        "product_id": "33333333-4444-5555-6666-777777777777",
+        "product_name": "Azithromycin 500mg Strip",
+        "sku": "MED-AZI-500",
+        "pharmacy_node_id": "11111111-1111-1111-1111-111111111121",
+        "pharmacy_name": "Wellness Forever - Bandra West",
+        "created_at": "2026-11-16T08:20:00Z",
+        "started_at": "2026-11-16T08:20:00Z",
+        "completed_at": "2026-11-16T08:20:04Z",
+        "outcome": "partial",
+        "status": "partial",
+        "steps_completed": 4,
+        "total_steps": 5,
+        "total_duration_ms": 510.0,
+        "total_tokens": 890,
+        "summary": "Lateral transfer rebalanced across West region stockists",
+        "trigger_event": {
+            "product_id": "33333333-4444-5555-6666-777777777777",
+            "product_name": "Azithromycin 500mg Strip",
+            "sku": "MED-AZI-500",
+            "pharmacy_node_id": "11111111-1111-1111-1111-111111111121",
+            "pharmacy_name": "Wellness Forever - Bandra West",
+            "quantity": 1,
+            "timestamp": "2026-11-16T08:20:00Z",
+        },
+        "steps": [s.model_dump() for s in steps3],
     }
 
 
@@ -274,7 +535,8 @@ _seed_initial_cascades_if_empty()
 )
 async def list_cascades(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(25, ge=1, le=100),
+    outcome: str | None = Query(default=None, description="Optional outcome filter (complete, partial, waiting_approval)"),
 ) -> list[CascadeSummaryItem]:
     """List recent demand cascades with summary details for replay selector."""
     _seed_initial_cascades_if_empty()
@@ -283,25 +545,71 @@ async def list_cascades(
     # Read from in-memory cascade traces
     for cid, record in reversed(list(_in_memory_cascade_traces.items())):
         trig = record.get("trigger_event") or {}
-        prod = trig.get("product_name") or trig.get("product") or "Paracetamol 650mg"
-        pharm = trig.get("pharmacy_name") or "Apollo Pharmacy"
-        qty = int(trig.get("quantity") or 1)
+        prod_id = str(record.get("product_id") or trig.get("product_id") or "11111111-2222-3333-4444-555555555555")
+        prod = str(record.get("product_name") or trig.get("product_name") or trig.get("product") or "Paracetamol 500mg Strip")
+        sku = str(record.get("sku") or trig.get("sku") or "MED-PARA-500")
+        pharm_id = str(record.get("pharmacy_node_id") or trig.get("pharmacy_node_id") or "11111111-1111-1111-1111-111111111111")
+        pharm = str(record.get("pharmacy_name") or trig.get("pharmacy_name") or "Apollo Pharmacy - Connaught Place")
+        qty = int(trig.get("quantity") or record.get("quantity") or 1)
         steps = record.get("steps") or []
         tot_tok = int(record.get("total_tokens") or sum(s.get("total_tokens", 0) for s in steps))
         tot_dur = float(record.get("total_duration_ms") or sum(s.get("duration_ms", 0.0) for s in steps))
 
+        # Outcome normalization
+        raw_outcome = str(record.get("outcome") or record.get("status") or "complete").lower()
+        if raw_outcome in ("completed", "succeeded", "complete"):
+            norm_outcome = "complete"
+        elif "approval" in raw_outcome or raw_outcome == "pending":
+            norm_outcome = "waiting_approval"
+        elif "partial" in raw_outcome:
+            norm_outcome = "partial"
+        else:
+            norm_outcome = raw_outcome
+
+        # Strict RLS scoping: pharmacy users only see cascades originating from or involving their node
+        if current_user.role == "pharmacy" and current_user.node_id:
+            user_node = str(current_user.node_id)
+            involved_node_ids = {pharm_id}
+            for s in steps:
+                if isinstance(s, dict) and s.get("node_id"):
+                    involved_node_ids.add(str(s["node_id"]))
+                elif hasattr(s, "node_id") and s.node_id:
+                    involved_node_ids.add(str(s.node_id))
+            if user_node not in involved_node_ids:
+                continue
+
+        # Filter by outcome if requested
+        if outcome:
+            o_clean = outcome.strip().lower()
+            if norm_outcome != o_clean and raw_outcome != o_clean:
+                continue
+
+        created_ts = str(record.get("created_at") or record.get("started_at") or record.get("completed_at") or datetime.now(UTC).isoformat())
+        summary_text = str(record.get("summary") or f"{qty} strip sold at {pharm} -> Multi-tier cascade")
+
+        steps_done = int(record.get("steps_completed") or len([s for s in steps if (s.get("state") if isinstance(s, dict) else getattr(s, "state", None)) in ("done", "completed", "succeeded")]) or len(steps))
+        total_steps_cnt = int(record.get("total_steps") or len(steps) or 5)
+
         summaries.append(
             CascadeSummaryItem(
                 correlation_id=cid,
-                timestamp=str(record.get("started_at") or record.get("completed_at") or datetime.now(UTC).isoformat()),
-                trigger_summary=f"1 Strip {prod} @ {pharm}",
+                product_id=prod_id,
                 product_name=prod,
+                sku=sku,
+                pharmacy_node_id=pharm_id,
                 pharmacy_name=pharm,
+                created_at=created_ts,
+                timestamp=created_ts,
+                outcome=norm_outcome,
+                status=str(record.get("status") or "completed"),
+                steps_completed=steps_done,
+                total_steps=total_steps_cnt,
+                tiers_completed=f"{steps_done}/{total_steps_cnt}",
                 quantity=qty,
-                tiers_completed=f"{len(steps)}/4" if steps else "4/4",
                 total_duration_ms=round(tot_dur, 1),
                 total_tokens=tot_tok,
-                status=str(record.get("status") or "completed"),
+                summary=summary_text,
+                trigger_summary=f"{qty} Strip {prod} @ {pharm}",
             )
         )
         if len(summaries) >= limit:

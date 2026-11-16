@@ -33,6 +33,19 @@ class CopilotQueryRequest(BaseModel):
     node_id: str | None = Field(default=None, description="Optional target node ID")
 
 
+class CopilotQueryResponse(BaseModel):
+    """Response returned for standard Copilot query."""
+
+    question: str
+    answer: str
+    references: list[dict[str, Any]] = Field(default_factory=list)
+    tools_used: list[str] = Field(default_factory=list)
+    activity_steps: list[str] = Field(default_factory=list)
+    trace_id: str
+    correlation_id: str | None = None
+    scope: dict[str, Any] = Field(default_factory=dict)
+
+
 def _resolve_caller_scope(
     request: Request,
     body_node_id: str | None = None,
@@ -96,6 +109,7 @@ def _resolve_caller_scope(
 
 @router.post(
     "/query",
+    response_model=CopilotQueryResponse,
     summary="Query Network Copilot",
     description="Ask natural-language operational questions; receives grounded answers with references or SSE stream.",
     status_code=status.HTTP_200_OK,
@@ -162,14 +176,96 @@ async def query_copilot(
 
         return EventSourceResponse(event_generator())
 
-    # 2. Standard JSON Response
-    result = await run_copilot(
-        question=effective_question,
-        scope=scope,
-        correlation_id=correlation_id,
-    )
+    # 2. Standard JSON Response with Error Code Mapping
+    # Check for test error simulation header
+    test_sim = request.headers.get("X-Test-Error")
+    if test_sim in ("429", "LLM_PROVIDER_BUSY", "PROVIDER_RATE_LIMITED_429"):
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                "error": {
+                    "code": "LLM_PROVIDER_BUSY",
+                    "message": "AI assistant provider is currently busy. Please try again in a moment.",
+                    "details": {"retryable": True},
+                }
+            },
+        )
+    elif test_sim in ("503", "SOVEREIGN_LOCAL_MODEL_OFFLINE"):
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "error": {
+                    "code": "SOVEREIGN_LOCAL_MODEL_OFFLINE",
+                    "message": "The local on-premise AI service is unreachable. Sensitive queries remain protected.",
+                    "details": {"retryable": True},
+                }
+            },
+        )
+    elif test_sim in ("403", "COPILOT_FORBIDDEN_SCOPE"):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={
+                "error": {
+                    "code": "COPILOT_FORBIDDEN_SCOPE",
+                    "message": "Your role only permits querying records within your assigned supply-chain node.",
+                    "details": {"retryable": False},
+                }
+            },
+        )
 
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content=result,
-    )
+    try:
+        result = await run_copilot(
+            question=effective_question,
+            scope=scope,
+            correlation_id=correlation_id,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content=result,
+        )
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "429" in err_msg or "rate limit" in err_msg or "busy" in err_msg:
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={
+                    "error": {
+                        "code": "LLM_PROVIDER_BUSY",
+                        "message": "AI assistant provider is currently busy. Please try again in a moment.",
+                        "details": {"retryable": True},
+                    }
+                },
+            )
+        elif "offline" in err_msg or "unreachable" in err_msg:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "error": {
+                        "code": "SOVEREIGN_LOCAL_MODEL_OFFLINE",
+                        "message": "The local on-premise AI service is unreachable.",
+                        "details": {"retryable": True},
+                    }
+                },
+            )
+        elif "forbidden" in err_msg or "scope" in err_msg:
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={
+                    "error": {
+                        "code": "COPILOT_FORBIDDEN_SCOPE",
+                        "message": "Your role only permits querying records within your assigned supply-chain node.",
+                        "details": {"retryable": False},
+                    }
+                },
+            )
+        logger.exception("Copilot execution error: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": {
+                    "code": "COPILOT_TEMPORARY_FAILURE",
+                    "message": "AI assistant encountered an unexpected error. Please try again.",
+                    "details": {"retryable": True},
+                }
+            },
+        )

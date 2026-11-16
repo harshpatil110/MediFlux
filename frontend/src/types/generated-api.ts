@@ -104,15 +104,23 @@ export interface CascadeStepDetail {
 
 export interface CascadeSummaryItem {
   correlation_id: string;
+  created_at: string;
+  outcome?: string;
   pharmacy_name: string;
+  pharmacy_node_id?: string;
+  product_id?: string;
   product_name: string;
-  quantity: number;
+  quantity?: number;
+  sku?: string;
   status?: string;
+  steps_completed?: number;
+  summary?: string;
   tiers_completed?: string;
-  timestamp: string;
+  timestamp?: string | null;
   total_duration_ms: number;
+  total_steps?: number;
   total_tokens: number;
-  trigger_summary: string;
+  trigger_summary?: string;
 }
 
 /** Schema for triggering synthetic IoT telemetry simulation. */
@@ -137,6 +145,18 @@ export interface CopilotQueryRequest {
   region?: string | null;
   /** Enable Server-Sent Events progressive streaming */
   stream?: boolean;
+}
+
+/** Response returned for standard Copilot query. */
+export interface CopilotQueryResponse {
+  activity_steps?: string[];
+  answer: string;
+  correlation_id?: string | null;
+  question: string;
+  references?: Record<string, unknown>[];
+  scope?: Record<string, unknown>;
+  tools_used?: string[];
+  trace_id: string;
 }
 
 /** Schema for provisioning a new scoped developer API key. */
@@ -854,7 +874,7 @@ export interface ApiOperations {
   /** List Recent Cascade Runs */
   'GET /api/v1/cascade': {
     operationId: 'get__api_v1_cascade';
-    parameters: { limit?: number; authorization?: string | null; "X-API-Key"?: string | null };
+    parameters: { limit?: number; outcome?: string | null; authorization?: string | null; "X-API-Key"?: string | null };
     requestBody: undefined;
     response: CascadeSummaryItem[];
   };
@@ -919,7 +939,7 @@ export interface ApiOperations {
     operationId: 'post__api_v1_copilot_query';
     parameters: { "X-User-Role"?: string | null; "X-Node-Id"?: string | null; "X-User-Region"?: string | null; "X-User-Id"?: string | null; "X-Correlation-ID"?: string | null; "X-API-Key"?: string | null };
     requestBody: CopilotQueryRequest;
-    response: unknown;
+    response: CopilotQueryResponse;
   };
   /** Reset Demo State to Clean Baseline */
   'POST /api/v1/demo/reset': {

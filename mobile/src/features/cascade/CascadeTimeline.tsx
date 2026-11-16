@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, radii } from '../../theme/tokens';
 import { Badge } from '../../components/Badge';
 import { Card } from '../../components/Card';
+import {
+  ReplaySpeed,
+  getReplayIntervalMs,
+  computeReplayDisplaySteps,
+} from './replayHelpers';
+
+export type { ReplaySpeed };
+export { getReplayIntervalMs, computeReplayDisplaySteps };
 
 export type CascadeStageName = 'supervisor' | 'pharmacy' | 'stockist' | 'distributor' | 'manufacturer';
 export type CascadeStepState = 'completed' | 'waiting_approval' | 'running' | 'skipped' | 'failed' | 'succeeded' | 'pending';
@@ -55,6 +63,8 @@ export interface CascadeTimelineProps {
   loading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
+  initialReplayMode?: boolean;
+  autoPlayReplay?: boolean;
 }
 
 const STAGE_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; tierBadge: string }> = {
@@ -65,9 +75,52 @@ const STAGE_CONFIG: Record<string, { label: string; icon: keyof typeof Ionicons.
   manufacturer: { label: 'Manufacturer Plant (T4)', icon: 'flask-outline', tierBadge: 'T4' },
 };
 
-export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTimelineProps) {
+export function CascadeTimeline({
+  trace,
+  loading,
+  error,
+  onRefresh,
+  initialReplayMode = false,
+  autoPlayReplay = false,
+}: CascadeTimelineProps) {
   const router = useRouter();
   const [expandedStepIndex, setExpandedStepIndex] = useState<number | null>(null);
+
+  const [isReplaying, setIsReplaying] = useState<boolean>(initialReplayMode);
+  const [isPlaying, setIsPlaying] = useState<boolean>(autoPlayReplay || initialReplayMode);
+  const [activeReplayIndex, setActiveReplayIndex] = useState<number>(0);
+  const [replaySpeed, setReplaySpeed] = useState<ReplaySpeed>('1x');
+
+  useEffect(() => {
+    if (initialReplayMode) {
+      setIsReplaying(true);
+      setIsPlaying(true);
+      setActiveReplayIndex(0);
+    }
+  }, [initialReplayMode]);
+
+  useEffect(() => {
+    if (!isReplaying || !isPlaying || !trace || !trace.steps.length) return;
+
+    const intervalMs = getReplayIntervalMs(replaySpeed);
+    const timer = setInterval(() => {
+      setActiveReplayIndex((prev) => {
+        if (prev + 1 >= trace.steps.length) {
+          setIsPlaying(false);
+          return trace.steps.length;
+        }
+        return prev + 1;
+      });
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [isReplaying, isPlaying, replaySpeed, trace]);
+
+  useEffect(() => {
+    if (isReplaying && activeReplayIndex < (trace?.steps.length || 0)) {
+      setExpandedStepIndex(activeReplayIndex);
+    }
+  }, [isReplaying, activeReplayIndex, trace]);
 
   if (loading) {
     return (
@@ -97,6 +150,11 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
 
   const trigger = trace.trigger_event || {};
   const isCompleted = trace.status.toLowerCase() === 'completed';
+  const displaySteps = computeReplayDisplaySteps(
+    trace.steps,
+    activeReplayIndex,
+    isReplaying && activeReplayIndex < trace.steps.length
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -144,6 +202,111 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
         )}
       </Card>
 
+      {/* Interactive Replay Controller Bar */}
+      <View style={styles.replayBar}>
+        <View style={styles.replayHeaderRow}>
+          <View style={styles.replayTitleGroup}>
+            <Ionicons name="film-outline" size={16} color={colors.accent.primary} />
+            <Text style={styles.replayTitle}>ANIMATED CASCADE REPLAY</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.replayToggleBtn, isReplaying && styles.replayToggleBtnActive]}
+            onPress={() => {
+              if (isReplaying) {
+                setIsReplaying(false);
+                setIsPlaying(false);
+              } else {
+                setIsReplaying(true);
+                setActiveReplayIndex(0);
+                setIsPlaying(true);
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.replayToggleText, isReplaying && styles.replayToggleTextActive]}>
+              {isReplaying ? 'EXIT REPLAY' : 'START REPLAY'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {isReplaying && (
+          <View style={styles.replayControlsContent}>
+            {/* Scrubber / Counter row */}
+            <View style={styles.replayScrubberRow}>
+              <Text style={styles.replayProgressText}>
+                Replaying Step {Math.min(activeReplayIndex + 1, trace.steps.length)} of {trace.steps.length} • Speed: {replaySpeed}
+              </Text>
+              <View style={styles.stepDotsRow}>
+                {trace.steps.map((_, i) => (
+                  <View
+                    key={`dot-${i}`}
+                    style={[
+                      styles.stepDot,
+                      i < activeReplayIndex && styles.stepDotDone,
+                      i === activeReplayIndex && styles.stepDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Play/Pause & Speed Buttons Row */}
+            <View style={styles.replayActionsRow}>
+              <TouchableOpacity
+                style={styles.playPauseBtn}
+                onPress={() => {
+                  if (activeReplayIndex >= trace.steps.length) {
+                    setActiveReplayIndex(0);
+                    setIsPlaying(true);
+                  } else {
+                    setIsPlaying(!isPlaying);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={
+                    activeReplayIndex >= trace.steps.length
+                      ? 'refresh'
+                      : isPlaying
+                      ? 'pause'
+                      : 'play'
+                  }
+                  size={16}
+                  color={colors.text.inverse}
+                />
+                <Text style={styles.playPauseBtnText}>
+                  {activeReplayIndex >= trace.steps.length
+                    ? 'RESTART REPLAY'
+                    : isPlaying
+                    ? 'PAUSE'
+                    : 'PLAY REPLAY'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Speed Pills: 1x, 2x, 4x */}
+              <View style={styles.speedPillsRow}>
+                {(['1x', '2x', '4x'] as ReplaySpeed[]).map((spd) => {
+                  const isActive = replaySpeed === spd;
+                  return (
+                    <TouchableOpacity
+                      key={spd}
+                      style={[styles.speedPill, isActive && styles.speedPillActive]}
+                      onPress={() => setReplaySpeed(spd)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.speedPillText, isActive && styles.speedPillTextActive]}>
+                        {spd}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+
       {/* Vertical Steps Progression */}
       <View style={styles.timelineSection}>
         <Text style={styles.sectionTitle}>5-STAGE DEMAND PROPAGATION PIPELINE</Text>
@@ -152,8 +315,8 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
         </Text>
 
         <View style={styles.stepsContainer}>
-          {trace.steps.map((step, idx) => {
-            const isLast = idx === trace.steps.length - 1;
+          {displaySteps.map((step, idx) => {
+            const isLast = idx === displaySteps.length - 1;
             const isExpanded = expandedStepIndex === idx;
 
             const stageKey = (step.stage || `tier-${step.tier}`).toLowerCase();
@@ -164,7 +327,9 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
             };
 
             const rawState = (step.state || step.status || 'completed').toLowerCase();
-            const isSuccess = rawState === 'completed' || rawState === 'succeeded';
+            const isRunning = rawState === 'running';
+            const isPending = rawState === 'pending' || rawState === 'waiting';
+            const isSuccess = rawState === 'completed' || rawState === 'succeeded' || rawState === 'done';
             const isWaitingApproval = rawState === 'waiting_approval';
             const isSkipped = rawState === 'skipped';
             const isFailed = rawState === 'failed';
@@ -178,13 +343,19 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
                   <View
                     style={[
                       styles.stepCircle,
+                      isRunning && styles.circleRunning,
+                      isPending && styles.circlePending,
                       isSuccess && styles.circleSuccess,
                       isWaitingApproval && styles.circleWaiting,
                       isSkipped && styles.circleSkipped,
                       isFailed && styles.circleFailed,
                     ]}
                   >
-                    <Text style={styles.stepTierNum}>{config.tierBadge}</Text>
+                    {isRunning ? (
+                      <ActivityIndicator size="small" color={colors.accent.primary} />
+                    ) : (
+                      <Text style={styles.stepTierNum}>{config.tierBadge}</Text>
+                    )}
                   </View>
                   {!isLast && (
                     <View
@@ -201,6 +372,8 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
                   <View
                     style={[
                       styles.stepCard,
+                      isRunning && styles.stepCardRunning,
+                      isPending && styles.stepCardPending,
                       isWaitingApproval && styles.stepCardWaiting,
                       isSkipped && styles.stepCardSkipped,
                     ]}
@@ -211,6 +384,8 @@ export function CascadeTimeline({ trace, loading, error, onRefresh }: CascadeTim
                         <Text style={styles.tierPillText}>{config.label}</Text>
                       </View>
 
+                      {isRunning && <Badge label="REPLAYING..." variant="teal" />}
+                      {isPending && <Badge label="AWAITING TIER" variant="neutral" />}
                       {isSuccess && <Badge label="COMPLETED" variant="emerald" />}
                       {isWaitingApproval && <Badge label="APPROVAL PENDING" variant="amber" />}
                       {isSkipped && <Badge label="SKIPPED" variant="neutral" />}
@@ -668,5 +843,150 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.micro,
     fontFamily: typography.fontFamily.mono,
     color: '#FFFFFF',
+  },
+  // Replay Bar Styles
+  replayBar: {
+    backgroundColor: colors.canvas.surface,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  replayHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  replayTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  replayTitle: {
+    fontFamily: typography.fontFamily.mono,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  replayToggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.xs,
+    backgroundColor: colors.canvas.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  replayToggleBtnActive: {
+    backgroundColor: colors.accent.primary,
+    borderColor: colors.accent.primary,
+  },
+  replayToggleText: {
+    fontFamily: typography.fontFamily.mono,
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+  },
+  replayToggleTextActive: {
+    color: colors.text.inverse,
+  },
+  replayControlsContent: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+  },
+  replayScrubberRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  replayProgressText: {
+    fontFamily: typography.fontFamily.mono,
+    fontSize: typography.fontSize.micro,
+    color: colors.text.secondary,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  stepDotsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.border.default,
+  },
+  stepDotDone: {
+    backgroundColor: colors.status.success,
+  },
+  stepDotActive: {
+    backgroundColor: colors.accent.primary,
+    transform: [{ scale: 1.25 }],
+  },
+  replayActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  playPauseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.text.primary,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radii.sm,
+  },
+  playPauseBtnText: {
+    fontFamily: typography.fontFamily.mono,
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.inverse,
+  },
+  speedPillsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  speedPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.xs,
+    backgroundColor: colors.canvas.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  speedPillActive: {
+    backgroundColor: colors.accent.primary,
+    borderColor: colors.accent.primary,
+  },
+  speedPillText: {
+    fontFamily: typography.fontFamily.mono,
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.secondary,
+  },
+  speedPillTextActive: {
+    color: colors.text.inverse,
+  },
+  circleRunning: {
+    borderColor: colors.accent.primary,
+    backgroundColor: colors.canvas.surface,
+  },
+  circlePending: {
+    borderColor: colors.border.default,
+    backgroundColor: colors.canvas.elevated,
+  },
+  stepCardRunning: {
+    borderColor: colors.accent.primary,
+    borderWidth: 1.5,
+  },
+  stepCardPending: {
+    opacity: 0.65,
+    borderColor: colors.border.subtle,
   },
 });

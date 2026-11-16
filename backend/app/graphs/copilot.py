@@ -47,9 +47,13 @@ class CopilotReference(BaseModel):
     """Structured citation referencing an entity returned by Copilot tools."""
 
     id: str
-    type: str  # "node" | "inventory" | "product" | "regulatory_notice" | "demand_signal" | "hitl_task" | "coldchain_batch" | "agent_run"
+    type: str  # "inventory" | "batch" | "approval" | "cascade" | "node" | ...
     label: str
     node_id: str | None = None
+    node_name: str | None = None
+    product_id: str | None = None
+    barcode: str | None = None
+    deep_link: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -66,6 +70,7 @@ class CopilotGraphState(TypedDict, total=False):
     tool_results: list[dict[str, Any]]
     references: list[dict[str, Any]]
     tools_used: list[str]
+    activity_steps: list[str]
     answer: str
     trace_id: str
 
@@ -163,7 +168,12 @@ async def get_stockout_risk(
         # Check in-memory mock inventory
         inv_list = _mock_inventory.get(str(node_id), [])
         matched_item = next(
-            (i for i in inv_list if target_product.lower() in str(i.get("product_id", "")).lower()),
+            (
+                i for i in inv_list
+                if target_product.lower() in str(i.get("product_id", "")).lower()
+                or target_product.lower() in str(i.get("product_name", "")).lower()
+                or target_product.lower() in str(i.get("name", "")).lower()
+            ),
             None,
         )
 
@@ -171,19 +181,23 @@ async def get_stockout_risk(
             avail_qty = int(matched_item.get("available", matched_item.get("quantity", 0)))
             safety = int(matched_item.get("safety_stock", 20))
             inv_id = str(matched_item.get("id") or f"inv-{node_id[:8]}")
+            prod_id = str(matched_item.get("product_id") or "11111111-2222-3333-4444-555555555555")
+            barcode = str(matched_item.get("barcode") or "8901000000018")
         else:
             # Deterministic seeded levels: intentionally vary stock to highlight at-risk nodes
-            if idx == 0 and not is_pharmacy_caller:
-                # Top flagged at-risk pharmacy for network queries
+            if idx == 0 or (caller_node and node_id == caller_node and caller_node == "11111111-1111-1111-1111-111111111111"):
+                # Top flagged at-risk pharmacy for network queries and primary pharmacy node
                 avail_qty = 8
                 safety = 25
-            elif idx == 1 and not is_pharmacy_caller:
+            elif idx == 1:
                 avail_qty = 14
                 safety = 20
             else:
                 avail_qty = 45 + (idx * 5)
                 safety = 20
             inv_id = f"inv-{p.get('code', 'node')}-01"
+            prod_id = "11111111-2222-3333-4444-555555555555"
+            barcode = "8901000000018"
 
         # Check stockout threshold: available <= safety_stock * 1.5
         threshold = safety * 1.5
@@ -206,10 +220,14 @@ async def get_stockout_risk(
             }
             at_risk_nodes.append(record)
             references.append({
-                "id": node_id,
-                "type": "node",
-                "label": f"{node_name} (Stock: {avail_qty} / Safety: {safety})",
+                "id": inv_id,
+                "type": "inventory",
+                "label": f"{target_product} @ {node_name} (Avail: {avail_qty} / Safety: {safety})",
                 "node_id": node_id,
+                "node_name": node_name,
+                "product_id": prod_id,
+                "barcode": barcode,
+                "deep_link": f"/(tabs)/sell?product_id={prod_id}",
                 "metadata": record,
             })
 
@@ -277,11 +295,16 @@ async def get_inventory_summary(
                 "safety_stock": int(item.get("safety_stock", 20)),
             }
             items.append(rec)
+            pharm_name = next((p["name"] for p in SEEDED_PHARMACIES if p["id"] == nid), f"Node {nid[:8]}")
             references.append({
                 "id": f"{nid}:{p_id}",
                 "type": "inventory",
-                "label": f"Inventory: {p_id} at {nid[:8]} ({avail} available)",
+                "label": f"Inventory: {p_id} at {pharm_name} ({avail} available)",
                 "node_id": nid,
+                "node_name": pharm_name,
+                "product_id": p_id,
+                "barcode": "8901000000018",
+                "deep_link": f"/(tabs)/sell?product_id={p_id}",
                 "metadata": rec,
             })
 
@@ -324,9 +347,11 @@ async def get_open_hitl_tasks(
         filtered.append(t)
         references.append({
             "id": tid,
-            "type": "hitl_task",
-            "label": f"HITL Task: {t.get('action_type', 'review')} ({t.get('status')})",
+            "type": "approval",
+            "label": f"HITL Task: {t.get('action_type', 'Review')} ({t.get('status')})",
             "node_id": t.get("node_id"),
+            "node_name": t.get("node_name"),
+            "deep_link": f"/approvals/{tid}",
             "metadata": t,
         })
 
@@ -364,12 +389,15 @@ async def get_recent_agent_activity(
             continue
 
         rid = str(run.get("id"))
+        cid = str(run.get("correlation_id") or rid)
         filtered.append(run)
         references.append({
-            "id": rid,
-            "type": "agent_run",
-            "label": f"{run.get('agent_name', 'agent')} in {run.get('graph_name', 'workflow')}",
+            "id": cid,
+            "type": "cascade",
+            "label": f"Cascade {cid[:12]} ({run.get('agent_name', 'agent')} - {run.get('status', 'succeeded').upper()})",
             "node_id": run.get("node_id"),
+            "node_name": run.get("node_name"),
+            "deep_link": f"/cascade/{cid}?mode=replay",
             "metadata": run,
         })
         if len(filtered) >= limit:
@@ -458,10 +486,12 @@ async def get_cold_chain_status(
 
         filtered_batches.append(b)
         references.append({
-            "id": b_id,
-            "type": "coldchain_batch",
-            "label": f"Batch {b_id} ({b.get('product_name', 'Biologic')} - {b_status})",
-            "node_id": b.get("node_id"),
+            "id": str(b_id),
+            "type": "batch",
+            "label": f"Cold-Chain Batch {b.get('batch_number', b_id)} ({b.get('product_name', 'Biologic')} - {b_status.upper()})",
+            "node_id": b.get("node_id") or b.get("current_node_id"),
+            "node_name": b.get("node_name") or b.get("current_node_name"),
+            "deep_link": f"/cold-chain/{b_id}",
             "metadata": b,
         })
 
@@ -610,10 +640,30 @@ async def tool_executor_node(state: CopilotGraphState) -> dict[str, Any]:
             seen.add(key)
             deduped_refs.append(ref)
 
+    activity_steps: list[str] = []
+    for item in tools_to_run:
+        t_name = item.get("tool")
+        if t_name == "get_stockout_risk":
+            activity_steps.append("Searching inventory & stockout risk...")
+        elif t_name == "get_open_hitl_tasks":
+            activity_steps.append("Checking pending approvals & compliance...")
+        elif t_name == "get_cold_chain_status":
+            activity_steps.append("Inspecting cold-chain telemetry & batches...")
+        elif t_name == "get_recent_agent_activity":
+            activity_steps.append("Reviewing recent multi-tier cascades...")
+        elif t_name == "get_demand_signals":
+            activity_steps.append("Analyzing regional demand signals...")
+        elif t_name == "get_inventory_summary":
+            activity_steps.append("Evaluating warehouse and retail stock balances...")
+        else:
+            activity_steps.append("Executing semantic vector search...")
+    activity_steps.append("Synthesizing grounded answer...")
+
     return {
         "tool_results": tool_results,
         "references": deduped_refs,
         "tools_used": tools_used,
+        "activity_steps": activity_steps,
     }
 
 
@@ -797,7 +847,9 @@ async def run_copilot(
         "answer": result.get("answer", ""),
         "references": result.get("references", []),
         "tools_used": result.get("tools_used", []),
+        "activity_steps": result.get("activity_steps", []),
         "trace_id": corr_id,
+        "correlation_id": corr_id,
         "scope": effective_scope,
     }
 
@@ -836,6 +888,7 @@ async def stream_copilot_events(
         "event": "tool_result",
         "data": json.dumps({
             "tools_used": initial_state.get("tools_used", []),
+            "activity_steps": initial_state.get("activity_steps", []),
             "references": initial_state.get("references", []),
             "trace_id": corr_id,
         }),
@@ -861,7 +914,9 @@ async def stream_copilot_events(
             "answer": initial_state.get("answer", ""),
             "references": initial_state.get("references", []),
             "tools_used": initial_state.get("tools_used", []),
+            "activity_steps": initial_state.get("activity_steps", []),
             "trace_id": corr_id,
+            "correlation_id": corr_id,
             "scope": effective_scope,
         }),
     }
