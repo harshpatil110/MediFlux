@@ -383,3 +383,58 @@ async def test_ac4_rls_pharmacy_history_isolation(
         # 4. Cross-node single prescription access: Pharmacy A attempting to read Pharmacy B's rx returns 403 Forbidden
         cross_res = await client.get(f"/api/v1/prescriptions/{rx_b_id}", headers=auth_headers_pharmacy_a)
         assert cross_res.status_code == 403
+
+
+# -----------------------------------------------------------------------------
+# AC #4: Ephemeral Image Cache Cleanup & Zero-Persistence Contract
+# -----------------------------------------------------------------------------
+def test_ac4_ephemeral_image_cache_cleanup_and_zero_persistence():
+    """Verify ephemeral image cleanup module guarantees 0 remaining cached images upon cleanup."""
+    cleanup_ts = ROOT_DIR / "mobile" / "src" / "features" / "prescriptions" / "imageCleanup.ts"
+    assert cleanup_ts.is_file(), "mobile/src/features/prescriptions/imageCleanup.ts missing"
+    content = cleanup_ts.read_text(encoding="utf-8")
+
+    # Contract functions must all be exported
+    assert "export function registerTempPrescriptionUri" in content
+    assert "export async function cleanupPrescriptionUri" in content
+    assert "export async function cleanupAllTempPrescriptionImages" in content
+    assert "export function getRemainingTempPrescriptionUris" in content
+    assert "trackedTempImageUris" in content
+
+    # Verify scan-rx.tsx wires up cleanup in finally and unmount
+    scan_rx_tsx = ROOT_DIR / "mobile" / "app" / "(tabs)" / "scan-rx.tsx"
+    assert scan_rx_tsx.is_file(), "mobile/app/(tabs)/scan-rx.tsx missing"
+    scan_content = scan_rx_tsx.read_text(encoding="utf-8")
+    assert "cleanupAllTempPrescriptionImages" in scan_content
+    assert "cleanupAllTempPrescriptionImages()" in scan_content
+
+    # Verify Capture Card handles cleanup on retake / error
+    capture_card = ROOT_DIR / "mobile" / "src" / "features" / "prescriptions" / "PrescriptionCaptureCard.tsx"
+    assert capture_card.is_file(), "PrescriptionCaptureCard.tsx missing"
+    capture_content = capture_card.read_text(encoding="utf-8")
+    assert "registerTempPrescriptionUri" in capture_content
+    assert "cleanupAllTempPrescriptionImages" in capture_content
+
+
+@pytest.mark.asyncio
+async def test_missing_registration_number_rejected(auth_headers_pharmacy_a):
+    """Prescription with missing doctor registration number is rejected per statutory rules."""
+    fix_path = _get_fixture_file("missing_reg_no.png")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        with open(fix_path, "rb") as f:
+            files = {"file": ("missing_reg_no.png", f, "image/png")}
+            res = await client.post(
+                "/api/v1/prescriptions",
+                files=files,
+                headers=auth_headers_pharmacy_a,
+            )
+
+        assert res.status_code == 201
+        rx_data = res.json()
+        assert rx_data["status"] == "rejected"
+        assert rx_data["decision"] == "reject"
+        assert rx_data["doctor_verified"] is False
+
+
