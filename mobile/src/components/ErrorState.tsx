@@ -18,14 +18,25 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry, style })
   const details = error instanceof ApiError && error.details ? JSON.stringify(error.details) : null;
 
   return (
-    <View style={[styles.container, style]}>
+    <View
+      style={[styles.container, style]}
+      accessibilityRole="alert"
+      accessibilityLabel={`Error ${code}: ${message}`}
+    >
       <View style={styles.header}>
         <Text style={styles.code}>{code}</Text>
       </View>
       <Text style={styles.message}>{message}</Text>
       {details && <Text style={styles.details}>{details}</Text>}
       {onRetry && (
-        <TouchableOpacity style={styles.button} onPress={onRetry} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={onRetry}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Retry failed request"
+          accessibilityHint="Attempts to re-execute the failed operation"
+        >
           <Text style={styles.buttonText}>RETRY</Text>
         </TouchableOpacity>
       )}
@@ -65,6 +76,10 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: colors.status.danger,
+    minHeight: 44, // Touch target >= 44pt
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
     borderRadius: radii.sm,
@@ -77,4 +92,3 @@ const styles = StyleSheet.create({
     letterSpacing: typography.letterSpacing.wide,
   },
 });
-

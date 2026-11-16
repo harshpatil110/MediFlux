@@ -10,11 +10,14 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
+    "test": "node node_modules/jest/bin/jest.js --watchAll=false",
+    "check": "npm run typecheck && npm run lint && npm run test",
     "gen:api": "python ../scripts/gen_api.py"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-community/netinfo": "^12.0.1",
     "@supabase/supabase-js": "^2.119.0",
     "expo": "~51.0.0",
     "expo-camera": "~15.0.0",
@@ -42,8 +45,11 @@
     "react-native-web": "~0.19.10"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "~18.2.45",
     "@types/react-native": "~0.73.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
     "typescript": "~5.3.3"
   }
 }

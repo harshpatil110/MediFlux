@@ -260,9 +260,15 @@ async def test_cascade_5_stage_progression(auth_headers):
 
 def test_printable_barcode_sheet_and_manifest_exist():
     """Verify barcode manifest, PNG sheet, and PDF sheet were generated."""
+    repo_root = Path(__file__).resolve().parents[2]
     manifest_path = Path("fixtures/barcodes/barcodes_manifest.json")
-    sheet_png = Path("fixtures/barcodes/printable_barcode_sheet.png")
-    sheet_pdf = Path("fixtures/barcodes/printable_barcode_sheet.pdf")
+    if not manifest_path.is_file():
+        manifest_path = repo_root / "fixtures" / "barcodes" / "barcodes_manifest.json"
+        sheet_png = repo_root / "fixtures" / "barcodes" / "printable_barcode_sheet.png"
+        sheet_pdf = repo_root / "fixtures" / "barcodes" / "printable_barcode_sheet.pdf"
+    else:
+        sheet_png = Path("fixtures/barcodes/printable_barcode_sheet.png")
+        sheet_pdf = Path("fixtures/barcodes/printable_barcode_sheet.pdf")
 
     assert manifest_path.is_file(), "barcodes_manifest.json missing"
     assert sheet_png.is_file(), "printable_barcode_sheet.png missing"
@@ -279,4 +285,6 @@ def test_printable_barcode_sheet_and_manifest_exist():
         assert "sku" in item
         assert "name" in item
         ind_png = Path(item["image_path"])
+        if not ind_png.is_file():
+            ind_png = repo_root / item["image_path"]
         assert ind_png.is_file(), f"Individual barcode card missing: {ind_png}"

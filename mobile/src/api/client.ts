@@ -142,6 +142,10 @@ class ApiClient {
         return null;
       }
       const newToken = await this.onRefresh();
+      if (newToken) {
+        this.authContext.token = newToken;
+        storage.setItem('mediflux_auth_token', newToken);
+      }
       this.refreshSubscribers.forEach((cb) => cb(newToken));
       return newToken;
     } catch {

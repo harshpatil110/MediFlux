@@ -10,12 +10,12 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
-from supabase import Client
 
 from app.core.exceptions import AppException
 from app.core.security import CurrentUser, get_current_user_optional, get_service_db_client
 from app.schemas.base import ProductResponse
 from app.schemas.common import PaginatedResponse
+from supabase import Client
 
 logger = logging.getLogger("mediflux.api.products")
 
@@ -24,10 +24,12 @@ router = APIRouter(prefix="/products", tags=["Product Catalog"])
 
 def _load_all_catalog_products() -> list[dict[str, Any]]:
     """Load all 20 curated products with barcodes from fixtures."""
+    root_fixture = Path(__file__).resolve().parents[5] / "fixtures" / "drug_schedules.json"
     candidates = [
+        root_fixture,
         Path("fixtures/drug_schedules.json"),
         Path("backend/fixtures/drug_schedules.json"),
-        Path(__file__).parent.parent.parent.parent.parent / "fixtures" / "drug_schedules.json",
+        Path(__file__).resolve().parents[4] / "fixtures" / "drug_schedules.json",
     ]
     for p in candidates:
         if p.is_file():
@@ -49,7 +51,10 @@ def _load_all_catalog_products() -> list[dict[str, Any]]:
                         "sku": sku,
                         "barcode": barcode,
                         "schedule_class": sched_class,
-                        "requires_prescription": item.get("requires_prescription", False),
+                        "requires_prescription": bool(
+                            item.get("requires_prescription")
+                            or sched_class in ("SCHEDULE_H", "SCHEDULE_H1", "SCHEDULE_X")
+                        ),
                         "is_cold_chain": bool(item.get("is_cold_chain", False)),
                         "storage_min_c": item.get("min_temp_celsius", 15.0),
                         "storage_max_c": item.get("max_temp_celsius", 25.0),
@@ -305,7 +310,10 @@ async def get_product_by_barcode(
         sku=matched_prod.get("sku", "SKU-001"),
         barcode=matched_prod.get("barcode", clean_code),
         schedule_class=sched_class,
-        requires_prescription=matched_prod.get("requires_prescription", sched_class in ("H", "H1", "X")),
+        requires_prescription=bool(
+            matched_prod.get("requires_prescription")
+            or sched_class in ("SCHEDULE_H", "SCHEDULE_H1", "SCHEDULE_X", "H", "H1", "X")
+        ),
         is_lifesaving=bool(matched_prod.get("is_lifesaving", False)),
         is_cold_chain=bool(matched_prod.get("is_cold_chain", False)),
         storage_min_c=matched_prod.get("storage_min_c"),

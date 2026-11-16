@@ -1924,10 +1924,47 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   - Enhanced `mobile/src/features/cascade/CascadeTimeline.tsx`: Mounted Interactive Replay Controller Bar with Play/Pause/Restart buttons, speed pills (`1x`, `2x`, `4x`), step scrubber, and animated step transitions with activity indicators and badges.
   - `mobile/app/cascade/index.tsx`: Built Cascade History list screen with outcome filters (`All`, `Complete`, `Partial`, `Waiting Approval`), pull-to-refresh, correlation ID badges, telemetry summaries, and navigation to replay.
   - Enhanced `mobile/app/cascade/[id].tsx`: Supported `?mode=replay` query parameter to auto-start animated replay.
-- Created specification document `docs/specs/task-m8-spec.md`.
+### Task M9: Mobile Polish, Resilience, Branding & Test Suite
+- Installed `@react-native-community/netinfo`, `jest`, `ts-jest`, `@types/jest` in `mobile/`.
+- Upgraded `mobile/src/hooks/useNetworkStatus.ts` with NetInfo native event listeners, browser window online/offline listeners on web, and `setSimulatedOffline(boolean)` / `resetSimulatedNetwork()` for programmatic zero-hardware resilience testing.
+- Created `mobile/src/components/GlobalOfflineBanner.tsx` mounted above `ConnectionBanner` in `mobile/app/_layout.tsx` featuring high-contrast Warm Editorial styling, 2px warning border, and accessible >=44pt retry touch target.
+- Built reusable state and accessibility components:
+  - `LoadingState.tsx`: Accessible progressbar with custom title and subtitle.
+  - `EmptyState.tsx`: High-contrast icon, empty message, and >=44pt action button.
+  - `ErrorState.tsx`: 1px structural border card with Crimson accent and >=44pt Retry button.
+  - `OfflineState.tsx`: Dedicated screen placeholder for offline state recovery.
+- Hardened list performance via `React.memo` and `useCallback` on feed and approval card items.
+- Built `mobile/src/theme/ThemeContext.tsx` supporting `'light' | 'dark' | 'system'` preferences with `AsyncStorage` persistence and dynamic token switching.
+- Added Theme segment pills (`LIGHT`, `DARK`, `SYSTEM`) and dev failure-injection controls card (`🧪 Resilience & Failure Injection (Dev / Demo)`) in `mobile/app/(auth)/settings.tsx` with 5 interactive simulation triggers (401 Unauthorized, 429 Rate Limit, 503 LLM Fallback, Network Offline Toggle, Reset Demo State).
+- Generated high-resolution branding assets via Pillow strictly following Warm Editorial Minimalism:
+  - `mobile/assets/icon.png` (1024x1024)
+  - `mobile/assets/adaptive-icon.png` (1024x1024)
+  - `mobile/assets/splash.png` (1284x2778)
+  - `mobile/assets/favicon.png` (48x48)
+- Updated `mobile/app.config.ts` with app name `"NexusChain India (MediFlux)"` and `#031211` background color.
+- Configured Jest test suite in `mobile/src/__tests__/`:
+  - `saleIdempotency.test.ts`: Idempotent UUID retry handling and offline queue deduplication.
+  - `apiClient.test.ts`: Auth headers, baseURL resolution, and error envelope parsing.
+  - `useEventStream.test.ts`: SSE reconnection backoff and dispatching.
+  - `roleMap.test.ts`: Role-based route guard and capability mapping.
+  - `cascadeTimeline.test.ts`: Replay speed math and state transitions.
+  - Configured `"check": "npm run typecheck && npm run lint && npm run test"` in `mobile/package.json`.
+- Enhanced `scripts/reset_demo.py` for mobile telemetry reset: clears device tokens, resets cold-chain temperatures (2–8°C safe), verifies 20 barcodes, re-seeds baseline HITL approval tasks, and re-seeds initial 5-stage cascade traces.
+- Created `scripts/run_mobile_demo.py` exercising 8 end-to-end mobile user journeys with consecutive repeatability.
+- Created `scripts/capture_mobile_screenshots.py` generating 6 high-DPI screenshots (780x1688) in `docs/screenshots/mobile/`:
+  - `01_home_dashboard.png`
+  - `02_pos_barcode_and_cascade.png`
+  - `03_hitl_approvals.png`
+  - `04_prescription_scanner.png`
+  - `05_coldchain_monitor.png`
+  - `06_copilot_and_replay.png`
+- Updated `docs/MOBILE.md` with complete screenshot gallery, Device Test Matrix, and Failure Injection documentation.
+- Updated `README.md` with Mobile Application section and documentation index links.
+- Created specification document `docs/specs/task-m9-spec.md`.
 - Verified with automated tests:
-  - Backend: 9/9 dedicated test cases in `backend/tests/test_task_m8_copilot_and_cascade_history.py` passing (100%); full mobile suite M1–M8 passing 73/73 tests (100%); `ruff check backend/app/ backend/tests/` passing with 0 warnings.
-  - Mobile: TypeScript check `npm run typecheck` (`tsc --noEmit`) passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly (2,381 modules).
+  - Backend: 7/7 dedicated test cases in `backend/tests/test_task_m9_mobile_polish_and_resilience.py` passing (100%); full mobile test suite M1–M9 passing 85/85 tests (100%); `ruff check backend/app/ backend/tests/` passing with 0 warnings.
+  - Mobile: `npm run check` (typecheck + lint + test) passing cleanly with 23/23 Jest tests passing (100%); `npx expo export --platform web` bundling cleanly (2,390 modules).
+
 
 
 

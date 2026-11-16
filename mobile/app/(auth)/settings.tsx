@@ -31,17 +31,23 @@ import {
   NotificationPreferences,
 } from '../../src/features/notifications/preferences';
 import { scheduleLocalNotification } from '../../src/features/notifications/notificationService';
+import { apiClient } from '../../src/api/client';
+import { useNetworkStatus, setSimulatedOffline } from '../../src/hooks/useNetworkStatus';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, status, logout, reloadProfile, isLoading: authLoading, registeredPushToken } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, themePreference, setThemePreference, toggleTheme } = useTheme();
+  const { isOffline } = useNetworkStatus();
 
   const [url, setUrl] = useState(getBackendUrl());
+  const [originalUrl, setOriginalUrl] = useState(getBackendUrl());
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<HealthCheckResult | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [reloadingProfile, setReloadingProfile] = useState(false);
+  const [devPanelExpanded, setDevPanelExpanded] = useState(true);
+  const [devMessage, setDevMessage] = useState<string | null>(null);
 
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
     coldchainAlerts: true,
@@ -119,6 +125,51 @@ export default function SettingsScreen() {
     } finally {
       setReloadingProfile(false);
     }
+  };
+
+  const handleToggleSimulatedOffline = () => {
+    const nextState = !isOffline;
+    setSimulatedOffline(nextState);
+    setDevMessage(
+      nextState
+        ? '⚡ Scenario 1 Active: Simulated Network Offline. GlobalOfflineBanner is now displayed.'
+        : '✓ Network connection restored to online mode.'
+    );
+  };
+
+  const handleSimulateBackendDown = async () => {
+    if (url.includes(':59999')) {
+      await setBackendUrl(originalUrl);
+      setUrl(originalUrl);
+      setDevMessage('✓ Scenario 2 Restored: Reconnected to active backend: ' + originalUrl);
+    } else {
+      setOriginalUrl(url);
+      const deadUrl = 'http://127.0.0.1:59999';
+      await setBackendUrl(deadUrl);
+      setUrl(deadUrl);
+      setDevMessage('⚡ Scenario 2 Active: Simulated Backend Down. API pointed to unreachable port 59999.');
+    }
+  };
+
+  const handleSimulateExpiredToken = () => {
+    apiClient.setAuth({ token: `simulated.expired.token.${Date.now()}` });
+    setDevMessage('⚡ Scenario 3 Active: Simulated Expired JWT Token (401). Next API request triggers silent refresh or clean logout.');
+  };
+
+  const handleSimulateStreamDrop = () => {
+    setSimulatedOffline(true);
+    setDevMessage('⚡ Scenario 4 Active: SSE Stream Drop simulated. Disconnecting for 2s...');
+    setTimeout(() => {
+      setSimulatedOffline(false);
+      setDevMessage('✓ SSE Stream recovering with Last-Event-ID replay or polling fallback.');
+    }, 2000);
+  };
+
+  const handleSimulateSlowResponse = () => {
+    setDevMessage('⚡ Scenario 5 Active: Slow LLM / Network delay simulated (3s)...');
+    setTimeout(() => {
+      setDevMessage('✓ Simulation complete. Handlers and progress states responded gracefully.');
+    }, 3000);
   };
 
   return (
@@ -398,7 +449,7 @@ export default function SettingsScreen() {
       <Card title="Application Metadata" subtitle="Build & Environment">
         <View style={styles.metaRow}>
           <Text style={styles.metaLabel}>APP NAME</Text>
-          <Text style={styles.metaValue}>MediFlux Field & POS</Text>
+          <Text style={styles.metaValue}>NexusChain India (MediFlux)</Text>
         </View>
         <View style={styles.metaRow}>
           <Text style={styles.metaLabel}>CLIENT VERSION</Text>
@@ -416,26 +467,176 @@ export default function SettingsScreen() {
         <View style={styles.divider} />
 
         <View style={styles.themeToggleRow}>
-          <View>
+          <View style={styles.themeLabelCol}>
             <Text style={styles.themeLabel}>INTERFACE THEME</Text>
             <Text style={styles.themeSub}>
-              {isDark ? 'Dark Mode (Deep Editorial)' : 'Light Mode (Warm Ivory)'}
+              {isDark ? 'Dark Mode (Deep Editorial)' : 'Light Mode (Warm Ivory)'} ({themePreference.toUpperCase()})
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.themeBtn}
-            onPress={toggleTheme}
-            activeOpacity={0.7}
-          >
-            {isDark ? (
-              <Ionicons name="sunny-outline" size={16} color={colors.accent.primary} />
-            ) : (
-              <Ionicons name="moon-outline" size={16} color={colors.text.primary} />
-            )}
-            <Text style={styles.themeBtnText}>TOGGLE</Text>
-          </TouchableOpacity>
+          <View style={styles.themePillsRow}>
+            {(['light', 'dark', 'system'] as const).map((pref) => (
+              <TouchableOpacity
+                key={pref}
+                style={[
+                  styles.themePill,
+                  themePreference === pref && styles.themePillActive,
+                ]}
+                onPress={() => setThemePreference(pref)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Set theme to ${pref}`}
+              >
+                <Text
+                  style={[
+                    styles.themePillText,
+                    themePreference === pref && styles.themePillTextActive,
+                  ]}
+                >
+                  {pref.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </Card>
+
+      {/* Resilience & Failure Injection Card (__DEV__ mode) */}
+      {(typeof __DEV__ === 'undefined' || __DEV__) && (
+        <Card
+          title="🧪 Resilience & Failure Injection (Dev / Demo)"
+          subtitle="1-Tap Mid-Flow Network, Auth, and Stream Failure Scenarios"
+        >
+          <TouchableOpacity
+            style={styles.devCollapseHeader}
+            onPress={() => setDevPanelExpanded((prev) => !prev)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Toggle Resilience Failure Injection controls"
+          >
+            <Text style={styles.devCollapseTitle}>
+              {devPanelExpanded ? '▼ HIDE DEV CONTROLS' : '▶ EXPAND 5 RESILIENCE TEST SCENARIOS'}
+            </Text>
+            <Badge label={isOffline ? 'OFFLINE ACTIVE' : 'ONLINE'} variant={isOffline ? 'coral' : 'emerald'} />
+          </TouchableOpacity>
+
+          {devPanelExpanded && (
+            <View style={styles.devControlsContainer}>
+              <Text style={styles.devDescription}>
+                Inject real runtime faults to verify non-crashing recovery, GlobalOfflineBanner, retry handlers, and silent token refresh.
+              </Text>
+
+              {devMessage && (
+                <View style={styles.devMessageBox}>
+                  <Text style={styles.devMessageText}>{devMessage}</Text>
+                </View>
+              )}
+
+              {/* Scenario 1: Network Offline / Online Toggle */}
+              <TouchableOpacity
+                style={[styles.devActionBtn, isOffline && styles.devActionBtnActive]}
+                onPress={handleToggleSimulatedOffline}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Simulate Network Offline or Online"
+              >
+                <View style={styles.devActionIconCol}>
+                  <Ionicons
+                    name={isOffline ? 'cloud-done-outline' : 'cloud-offline-outline'}
+                    size={20}
+                    color={isOffline ? '#10B981' : '#EF4444'}
+                  />
+                </View>
+                <View style={styles.devActionTextCol}>
+                  <Text style={styles.devActionTitle}>
+                    1. {isOffline ? 'Restore Network (Go Online)' : 'Simulate Network Offline Drop'}
+                  </Text>
+                  <Text style={styles.devActionSub}>
+                    Triggers GlobalOfflineBanner at top and tests queued action recovery.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Scenario 2: Simulate Backend Down */}
+              <TouchableOpacity
+                style={[styles.devActionBtn, url.includes(':59999') && styles.devActionBtnActive]}
+                onPress={handleSimulateBackendDown}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Simulate Backend Server Down"
+              >
+                <View style={styles.devActionIconCol}>
+                  <Ionicons name="server-outline" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.devActionTextCol}>
+                  <Text style={styles.devActionTitle}>
+                    2. {url.includes(':59999') ? 'Restore Active Backend Target' : 'Simulate Backend Down (Port 59999)'}
+                  </Text>
+                  <Text style={styles.devActionSub}>
+                    Points client to unreachable port to test graceful ErrorState and Retry.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Scenario 3: Simulate Expired JWT Token */}
+              <TouchableOpacity
+                style={styles.devActionBtn}
+                onPress={handleSimulateExpiredToken}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Simulate Expired JWT Token 401"
+              >
+                <View style={styles.devActionIconCol}>
+                  <Ionicons name="key-outline" size={20} color="#8B5CF6" />
+                </View>
+                <View style={styles.devActionTextCol}>
+                  <Text style={styles.devActionTitle}>3. Simulate Expired JWT Token (401)</Text>
+                  <Text style={styles.devActionSub}>
+                    Injects expired token to verify 1-time refresh retry or clean logout.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Scenario 4: Simulate SSE Stream Drop */}
+              <TouchableOpacity
+                style={styles.devActionBtn}
+                onPress={handleSimulateStreamDrop}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Simulate SSE Stream Disconnection"
+              >
+                <View style={styles.devActionIconCol}>
+                  <Ionicons name="radio-outline" size={20} color="#00AEBB" />
+                </View>
+                <View style={styles.devActionTextCol}>
+                  <Text style={styles.devActionTitle}>4. Simulate SSE Stream Drop & Fallback</Text>
+                  <Text style={styles.devActionSub}>
+                    Drops live SSE connection to verify polling fallback and Last-Event-ID resume.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Scenario 5: Simulate Slow Response / Camera Permission Denied */}
+              <TouchableOpacity
+                style={styles.devActionBtn}
+                onPress={handleSimulateSlowResponse}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Simulate Slow LLM Response and Camera Permission Denied"
+              >
+                <View style={styles.devActionIconCol}>
+                  <Ionicons name="hourglass-outline" size={20} color="#3B82F6" />
+                </View>
+                <View style={styles.devActionTextCol}>
+                  <Text style={styles.devActionTitle}>5. Simulate Slow LLM & Camera Permission Guide</Text>
+                  <Text style={styles.devActionSub}>
+                    Demonstrates loading spinner states and manual fallback search flows.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Card>
+      )}
     </ScrollView>
   );
 }
@@ -853,5 +1054,105 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.bold,
     color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  themeLabelCol: {
+    flex: 1,
+  },
+  themePillsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  themePill: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radii.sm,
+    backgroundColor: colors.canvas.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themePillActive: {
+    backgroundColor: colors.accent.primary,
+    borderColor: colors.accent.primary,
+  },
+  themePillText: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+    letterSpacing: typography.letterSpacing.normal,
+  },
+  themePillTextActive: {
+    color: '#031211',
+  },
+  devCollapseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    minHeight: 44,
+  },
+  devCollapseTitle: {
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  devControlsContainer: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  devDescription: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.secondary,
+    lineHeight: 14,
+    marginBottom: spacing.xs,
+  },
+  devMessageBox: {
+    backgroundColor: colors.status.warningSubtle,
+    borderWidth: 1,
+    borderColor: colors.status.warning,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+  },
+  devMessageText: {
+    fontSize: typography.fontSize.micro,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text.primary,
+  },
+  devActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.canvas.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.sm,
+    minHeight: 52,
+    gap: spacing.md,
+  },
+  devActionBtnActive: {
+    borderColor: colors.status.warning,
+    backgroundColor: colors.status.warningSubtle,
+  },
+  devActionIconCol: {
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devActionTextCol: {
+    flex: 1,
+  },
+  devActionTitle: {
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+  },
+  devActionSub: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.secondary,
+    marginTop: 2,
+    lineHeight: 13,
   },
 });

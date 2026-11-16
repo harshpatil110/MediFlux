@@ -8,7 +8,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 7.50
+    "neml_ceiling_price": 7.5,
+    "barcode": "8901000000025"
   },
   {
     "product_name": "Azithromycin 500mg Tablets",
@@ -19,7 +20,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 23.80
+    "neml_ceiling_price": 23.8,
+    "barcode": "8901000000026"
   },
   {
     "product_name": "Ciprofloxacin 500mg Tablets",
@@ -30,7 +32,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 30.0,
-    "neml_ceiling_price": 4.10
+    "neml_ceiling_price": 4.1,
+    "barcode": "8901000000033"
   },
   {
     "product_name": "Paracetamol 650mg Tablets",
@@ -41,7 +44,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 30.0,
-    "neml_ceiling_price": 2.05
+    "neml_ceiling_price": 2.05,
+    "barcode": "8901000000018"
   },
   {
     "product_name": "Ibuprofen 400mg Tablets",
@@ -52,7 +56,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 1.45
+    "neml_ceiling_price": 1.45,
+    "barcode": "8901000000057"
   },
   {
     "product_name": "Tramadol 50mg Tablets",
@@ -63,7 +68,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 9.20
+    "neml_ceiling_price": 9.2,
+    "barcode": "8901000000064"
   },
   {
     "product_name": "Morphine Sulphate 10mg Tablets",
@@ -74,7 +80,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 18.50
+    "neml_ceiling_price": 18.5,
+    "barcode": "8901000000071"
   },
   {
     "product_name": "Covishield Vaccine 0.5ml",
@@ -85,7 +92,8 @@
     "is_cold_chain": true,
     "min_temp_celsius": 2.0,
     "max_temp_celsius": 8.0,
-    "neml_ceiling_price": 225.00
+    "neml_ceiling_price": 225.0,
+    "barcode": "8901000000088"
   },
   {
     "product_name": "Rotavirus Vaccine Live Oral 2.5ml",
@@ -96,7 +104,8 @@
     "is_cold_chain": true,
     "min_temp_celsius": 2.0,
     "max_temp_celsius": 8.0,
-    "neml_ceiling_price": 135.00
+    "neml_ceiling_price": 135.0,
+    "barcode": "8901000000095"
   },
   {
     "product_name": "Human Regular Insulin 100IU/ml",
@@ -107,7 +116,8 @@
     "is_cold_chain": true,
     "min_temp_celsius": 2.0,
     "max_temp_celsius": 8.0,
-    "neml_ceiling_price": 145.20
+    "neml_ceiling_price": 145.2,
+    "barcode": "8901000000056"
   },
   {
     "product_name": "Metformin HCl 500mg Tablets",
@@ -118,7 +128,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 30.0,
-    "neml_ceiling_price": 1.80
+    "neml_ceiling_price": 1.8,
+    "barcode": "8901000000118"
   },
   {
     "product_name": "Glimepiride 2mg Tablets",
@@ -129,7 +140,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 4.60
+    "neml_ceiling_price": 4.6,
+    "barcode": "8901000000125"
   },
   {
     "product_name": "Atorvastatin 10mg Tablets",
@@ -140,7 +152,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 6.80
+    "neml_ceiling_price": 6.8,
+    "barcode": "8901000000132"
   },
   {
     "product_name": "Amlodipine 5mg Tablets",
@@ -151,7 +164,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 30.0,
-    "neml_ceiling_price": 2.15
+    "neml_ceiling_price": 2.15,
+    "barcode": "8901000000149"
   },
   {
     "product_name": "Telmisartan 40mg Tablets",
@@ -162,7 +176,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 30.0,
-    "neml_ceiling_price": 7.20
+    "neml_ceiling_price": 7.2,
+    "barcode": "8901000000156"
   },
   {
     "product_name": "Omeprazole 20mg Capsules",
@@ -173,7 +188,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 3.40
+    "neml_ceiling_price": 3.4,
+    "barcode": "8901000000163"
   },
   {
     "product_name": "Pantoprazole 40mg Tablets",
@@ -184,7 +200,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 8.50
+    "neml_ceiling_price": 8.5,
+    "barcode": "8901000000170"
   },
   {
     "product_name": "Cetirizine 10mg Tablets",
@@ -195,7 +212,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 30.0,
-    "neml_ceiling_price": 1.95
+    "neml_ceiling_price": 1.95,
+    "barcode": "8901000000187"
   },
   {
     "product_name": "Oseltamivir 75mg Capsules",
@@ -206,7 +224,8 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 48.00
+    "neml_ceiling_price": 48.0,
+    "barcode": "8901000000194"
   },
   {
     "product_name": "Fentanyl Citrate 50mcg/ml Injection",
@@ -217,7 +236,7 @@
     "is_cold_chain": false,
     "min_temp_celsius": 15.0,
     "max_temp_celsius": 25.0,
-    "neml_ceiling_price": 65.00
+    "neml_ceiling_price": 65.0,
+    "barcode": "8901000000200"
   }
 ]
-

@@ -1,11 +1,11 @@
 /**
  * Warm Editorial Minimalism — Mobile Design Tokens
- * Conforming strictly to design.md
+ * Conforming strictly to Design.md
  */
 
 import { Platform } from 'react-native';
 
-export const colors = {
+export const lightColors = {
   // Canvas & Surfaces
   canvas: {
     primary: '#E8E4D3', // Warm Ivory canvas
@@ -53,6 +53,57 @@ export const colors = {
     focus: '#00AEBB',
   },
 };
+
+export const darkColors = {
+  // Canvas & Surfaces
+  canvas: {
+    primary: '#031211', // Ink Black canvas
+    alternate: '#071917', // Slightly deeper tone
+    surface: '#0A1F1D', // Warm Surface cards
+    elevated: '#132B29', // Elevated surface
+    input: '#0A1F1D',
+    dark: '#031211',
+  },
+
+  // Typography
+  text: {
+    primary: '#E8E4D3', // Warm Ivory text
+    secondary: '#A8A394', // Muted charcoal
+    muted: '#6E695D', // Hint
+    onAccent: '#031211',
+    inverse: '#031211',
+  },
+
+  // Accents (Electric Teal)
+  accent: {
+    primary: '#00AEBB', // Electric Teal
+    hover: '#00D1E0',
+    subtle: 'rgba(0, 174, 187, 0.22)',
+    border: '#00AEBB',
+  },
+
+  // Semantic Status
+  status: {
+    success: '#10B981',
+    successSubtle: 'rgba(16, 185, 129, 0.20)',
+    warning: '#F59E0B',
+    warningSubtle: 'rgba(245, 158, 11, 0.20)',
+    danger: '#EF4444',
+    dangerSubtle: 'rgba(239, 68, 68, 0.20)',
+    info: '#0284C7',
+    infoSubtle: 'rgba(2, 132, 199, 0.20)',
+  },
+
+  // Structural 1px Borders
+  border: {
+    default: '#1E3A38', // Crisp #1E3A38 1px borders
+    subtle: '#142725',
+    emphasis: 'rgba(232, 228, 211, 0.25)',
+    focus: '#00AEBB',
+  },
+};
+
+export const colors = lightColors;
 
 export const typography = {
   fontFamily: {
@@ -125,6 +176,5 @@ export const shadows = {
   },
 };
 
-export type ThemeColors = typeof colors;
+export type ThemeColors = typeof lightColors;
 export type ThemeTypography = typeof typography;
-

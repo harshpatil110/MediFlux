@@ -526,8 +526,38 @@ async def ingest_sale_event(
         or "azi" in event.product_id.lower()
         or "cip" in event.product_id.lower()
         or "ins" in event.product_id.lower()
+        or "amx" in batch_val.lower()
+        or "amox" in batch_val.lower()
+        or "azi" in batch_val.lower()
+        or "cip" in batch_val.lower()
+        or "ins" in batch_val.lower()
         or (event.barcode and ("000025" in event.barcode or "000056" in event.barcode))
     )
+
+    if not is_sched_h:
+        try:
+            db_client = get_service_db_client()
+            if db_client:
+                prod_row = db_client.table("products").select("name, sku, requires_prescription, schedule_class").eq("id", event.product_id).execute()
+                if prod_row.data and len(prod_row.data) > 0:
+                    row = prod_row.data[0]
+                    sched = str(row.get("schedule_class", "")).upper()
+                    if row.get("requires_prescription") or sched in ("H", "SCHEDULE_H", "SCHEDULE_H1", "SCHEDULE_X", "H1", "X") or any(k in str(row.get("name", "")).lower() or k in str(row.get("sku", "")).lower() for k in ("amox", "amx", "azi", "cip", "ins")):
+                        is_sched_h = True
+        except Exception as exc:
+            logger.debug("Database schedule lookup fallback: %s", exc)
+
+    if not is_sched_h:
+        try:
+            from app.api.v1.endpoints.products import _load_all_catalog_products
+            for p in _load_all_catalog_products():
+                if p.get("id") == event.product_id or p.get("sku") == event.product_id or (event.barcode and p.get("barcode") == event.barcode):
+                    sched = str(p.get("schedule_class", "")).upper()
+                    if p.get("requires_prescription") or sched in ("H", "SCHEDULE_H", "SCHEDULE_H1", "SCHEDULE_X", "H1", "X"):
+                        is_sched_h = True
+                        break
+        except Exception:
+            pass
 
     if is_sched_h:
         if not event.prescription_id or event.prescription_id.lower() in ("none", "null", ""):

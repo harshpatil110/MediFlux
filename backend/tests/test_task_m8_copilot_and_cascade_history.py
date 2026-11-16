@@ -295,7 +295,10 @@ async def test_copilot_empty_question_bad_request():
 def test_reference_chip_deep_link_resolution_contract():
     """Verify deep-link resolution mapping logic for all ReferenceChip types."""
     from pathlib import Path
+    repo_root = Path(__file__).resolve().parents[2]
     ref_file = Path("mobile/src/features/copilot/ReferenceChipList.tsx")
+    if not ref_file.exists():
+        ref_file = repo_root / "mobile" / "src" / "features" / "copilot" / "ReferenceChipList.tsx"
     assert ref_file.exists(), "ReferenceChipList.tsx must exist"
     content = ref_file.read_text(encoding="utf-8")
 
@@ -314,7 +317,10 @@ def test_reference_chip_deep_link_resolution_contract():
 def test_cascade_timeline_replay_helpers_contract():
     """Verify replay timing intervals and step state transitions in replayHelpers.ts."""
     from pathlib import Path
+    repo_root = Path(__file__).resolve().parents[2]
     helpers_file = Path("mobile/src/features/cascade/replayHelpers.ts")
+    if not helpers_file.exists():
+        helpers_file = repo_root / "mobile" / "src" / "features" / "cascade" / "replayHelpers.ts"
     assert helpers_file.exists(), "replayHelpers.ts must exist"
     content = helpers_file.read_text(encoding="utf-8")
 

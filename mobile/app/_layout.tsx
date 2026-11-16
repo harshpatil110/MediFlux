@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { ThemeProvider } from '../src/theme/ThemeContext';
 import { AuthProvider, useAuth } from '../src/features/auth/AuthContext';
 import { ConnectionBanner } from '../src/components/ConnectionBanner';
+import { GlobalOfflineBanner } from '../src/components/GlobalOfflineBanner';
 import { colors } from '../src/theme/tokens';
 import {
   setupNotificationChannels,
@@ -159,6 +160,7 @@ export default function RootLayout() {
             <NavigationGuard>
               <SafeAreaView style={styles.container} edges={['top']}>
                 <StatusBar style="dark" backgroundColor={colors.canvas.primary} />
+                <GlobalOfflineBanner />
                 <ConnectionBanner />
                 <View style={styles.stackWrapper}>
                   <Stack

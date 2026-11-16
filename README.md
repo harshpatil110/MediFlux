@@ -35,6 +35,7 @@
 | **Real-Time Streaming** | Server-Sent Events (SSE) with Node Scoping | `backend/app/events/sse.py`, `backend/app/api/v1/endpoints/stream.py` |
 | **Multi-Provider LLM Resilience** | NVIDIA NIM + OpenRouter + Ollama Fallback | `backend/app/llm/router.py`, `backend/app/llm/fault.py`, `backend/app/llm/cache.py` |
 | **Native Desktop Packaging** | Cross-Platform Desktop Bundle | `desktop/src-tauri/`, `docs/DESKTOP_BUILD.md` |
+| **Autonomous Mobile & Edge Field POS** | Expo 51 + TypeScript + Offline Resilience | `mobile/`, `docs/MOBILE.md` |
 
 ---
 
@@ -175,6 +176,7 @@ All technical documentation is organized under the [`docs/`](./docs) directory:
 | [`docs/API_GUIDE.md`](./docs/API_GUIDE.md) | **REST API Developer Guide**: Endpoint reference, authentication headers, error codes, and curl examples. |
 | [`docs/MCP_SERVER.md`](./docs/MCP_SERVER.md) | **Model Context Protocol (MCP) Server**: Tools and resources exposed to AI IDE agents. |
 | [`docs/DESKTOP_BUILD.md`](./docs/DESKTOP_BUILD.md) | **Desktop Application Build Guide**: Tauri 2.0 native packaging for Windows, macOS, and Linux. |
+| [`docs/MOBILE.md`](./docs/MOBILE.md) | **Autonomous Mobile Application Guide**: Complete guide to React Native (Expo 51) app, offline resilience, test matrix, failure-injection controls, and UI screenshots. |
 | [`docs/HOW_AI_BUILT_THIS.md`](./docs/HOW_AI_BUILT_THIS.md) | **AI Engineering Build Log**: Complete chronological audit log of Tasks 1 through 30 across Phases 1 through 8. |
 | [`docs/specs/`](./docs/specs/) | **Engineering Specifications**: Individual formal specifications for Tasks 2 through 30. |
 
