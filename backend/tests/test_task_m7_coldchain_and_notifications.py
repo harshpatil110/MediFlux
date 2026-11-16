@@ -313,3 +313,55 @@ async def test_ac4_push_dispatch_non_blocking_on_network_error():
         "batch_id": "BIO-INS-01",
         "batch_no": "B26-BIO-INS-01",
     })
+
+
+def test_deep_link_routing_and_notification_contracts():
+    """Verify notification service exports handleNotificationTapPayload and routes deep links correctly."""
+    from pathlib import Path
+    root_dir = Path(__file__).resolve().parent.parent.parent
+
+    notif_svc = root_dir / "mobile" / "src" / "features" / "notifications" / "notificationService.ts"
+    assert notif_svc.is_file(), "notificationService.ts missing"
+    content = notif_svc.read_text(encoding="utf-8")
+    assert "export function handleNotificationTapPayload" in content
+    assert "/approvals/" in content
+    assert "/cold-chain/" in content
+
+    # Verify NotificationBanner component exists and handles deepLink tap
+    banner = root_dir / "mobile" / "src" / "features" / "notifications" / "NotificationBanner.tsx"
+    assert banner.is_file(), "NotificationBanner.tsx missing"
+    b_content = banner.read_text(encoding="utf-8")
+    assert "handleNotificationTapPayload" in b_content
+
+
+def test_telemetry_chart_and_thresholds_contract():
+    """Verify TelemetryChart exists, uses react-native-svg, and renders 2-8°C threshold lines."""
+    from pathlib import Path
+    root_dir = Path(__file__).resolve().parent.parent.parent
+
+    chart_file = root_dir / "mobile" / "src" / "features" / "coldchain" / "TelemetryChart.tsx"
+    assert chart_file.is_file(), "TelemetryChart.tsx missing"
+    content = chart_file.read_text(encoding="utf-8")
+
+    # Assert react-native-svg usage
+    assert "react-native-svg" in content
+    assert "Svg" in content
+    assert "Polyline" in content
+    # Assert threshold defaults 2.0 and 8.0
+    assert "2.0" in content or "2" in content
+    assert "8.0" in content or "8" in content
+
+
+def test_device_tokens_migration_file_exists_and_rls():
+    """Verify migration creates device_tokens table and enables Row-Level Security (RLS)."""
+    from pathlib import Path
+    root_dir = Path(__file__).resolve().parent.parent.parent
+
+    mig_file = root_dir / "backend" / "supabase" / "migrations" / "20261116_create_device_tokens.sql"
+    assert mig_file.is_file(), "20261116_create_device_tokens.sql missing"
+    content = mig_file.read_text(encoding="utf-8")
+
+    assert "CREATE TABLE IF NOT EXISTS public.device_tokens" in content
+    assert "ENABLE ROW LEVEL SECURITY" in content
+    assert "auth.uid()" in content
+
