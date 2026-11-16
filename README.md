@@ -160,7 +160,56 @@ npm run build
 
 ---
 
-## 6. Comprehensive Documentation Index
+## 6. MediFlux Mobile Field Application (`mobile/`)
+
+MediFlux includes a production-grade, native **React Native (Expo 51 + TypeScript)** mobile application designed for pharmacists, stockists, and field logistics operators on the ground.
+
+> [!IMPORTANT]
+> **Decoupled Architecture & Public API Showcase**:
+> *"The mobile app is a thin client built strictly over our public OpenAPI REST endpoints (`/api/v1`) and Server-Sent Events stream (`/api/v1/stream`). This proves that the MediFlux multi-agent core is completely decoupled—enabling hospitals, third-party logistics partners, or independent developers to build their own custom field applications over our public API."*
+
+### Key Mobile Capabilities
+- **Pharmacy POS Lite (`sell.tsx`)**: EAN-13 barcode scanning (`fixtures/barcodes/`), FEFO batch selection, single-strip retail dispense, and live 5-stage animated demand cascade timeline.
+- **Human-in-the-Loop Field Approvals (`approvals.tsx`)**: Pending task notifications, customs shipment review, biometric confirmation, and instant LangGraph resumption.
+- **Sovereign Prescription Scanner (`scan-rx.tsx`)**: Local-only OCR pipeline with zero patient PII stored, doctor NMC registration validation, and Schedule H compliance checking.
+- **IoT Cold-Chain Telemetry (`cold-chain.tsx`)**: Real-time 2°C–8°C SVG thermal chart, Arrhenius kinetic calculation, and autonomous Excursion Analyst quarantine lock.
+- **Network Copilot & Replay (`copilot.tsx` & `cascade/`)**: RLS-isolated conversational assistant with grounded reference chips and interactive multi-speed (1x/2x/4x) cascade timeline replay.
+- **Offline Resilience & Failure Injection**: `@react-native-community/netinfo` with `GlobalOfflineBanner`, deterministic event idempotency recovery, and in-app dev resilience simulator.
+
+### Mobile Visual Walkthrough
+
+| Screen | Description | UI Screenshot |
+| :--- | :--- | :--- |
+| **Home Dashboard** | Operational KPIs, SSE connection badge, and live activity stream. | ![Home](docs/screenshots/mobile/01_home_dashboard.png) |
+| **Pharmacy POS Lite** | Instant barcode lookup, FEFO batch locks, and 5-stage cascade timeline. | ![POS Lite](docs/screenshots/mobile/02_pos_barcode_and_cascade.png) |
+| **HITL Approvals** | Biometric field authorization for cross-border shipments and regulatory patches. | ![HITL Approvals](docs/screenshots/mobile/03_hitl_approvals.png) |
+| **Prescription Scanner** | Sovereign OCR, doctor registration audit, and Schedule H sale linking. | ![Scan Rx](docs/screenshots/mobile/04_prescription_scanner.png) |
+| **Cold-Chain Monitor** | Real-time thermal sensor chart (2°C–8°C) and autonomous quarantine alerts. | ![Cold Chain](docs/screenshots/mobile/05_coldchain_monitor.png) |
+| **Copilot & Replay** | RLS conversational assistant and interactive 1x/2x/4x cascade history replay. | ![Copilot & Replay](docs/screenshots/mobile/06_copilot_and_replay.png) |
+
+### Mobile Quick Start (Path A — Expo Go)
+```powershell
+# 1. Start backend with LAN support (auto-detects laptop Wi-Fi IP):
+python scripts\start_all.py --lan
+
+# 2. Launch Expo development server:
+cd mobile
+npx expo start
+
+# 3. Scan the terminal QR code with your phone camera (iOS) or Expo Go app (Android).
+# 4. In mobile Settings, verify LAN backend connectivity and tap any quick-login role chip!
+```
+
+### Standalone Android APK (Path B — EAS Build)
+```powershell
+cd mobile
+npx eas-cli build -p android --profile preview
+```
+*(Configured via `mobile/eas.json` and `mobile/app.config.ts` with cleartext HTTP support for local dev testing.)*
+
+---
+
+## 7. Comprehensive Documentation Index
 
 All technical documentation is organized under the [`docs/`](./docs) directory:
 
@@ -182,7 +231,7 @@ All technical documentation is organized under the [`docs/`](./docs) directory:
 
 ---
 
-## 7. Deferred Items List (Post-MVP Roadmap)
+## 8. Deferred Items List (Post-MVP Roadmap)
 
 Per `AGENTS.md`, the following technologies were strictly excluded from the MVP to eliminate runtime bloat and ensure zero-friction onboarding:
 
@@ -197,7 +246,7 @@ Per `AGENTS.md`, the following technologies were strictly excluded from the MVP 
 
 ---
 
-## 8. How AI Built This
+## 9. How AI Built This
 
 MediFlux was designed, implemented, and verified using an autonomous AI-assisted multi-agent engineering workflow across **30 tasks** and **8 phases**:
 - **Phase 1**: System Architecture & Foundational Scaffolding (Tasks 1–4)
@@ -208,11 +257,12 @@ MediFlux was designed, implemented, and verified using an autonomous AI-assisted
 - **Phase 6**: Frontend Real-Time Operational UI (Tasks 25–27)
 - **Phase 7**: Enterprise Packaging & Desktop Client (Task 28)
 - **Phase 8**: Hardening, Benchmarking & MVP Submission (Tasks 29–30)
+- **Mobile Expansion**: Autonomous Mobile Field App & Resilience (Tasks M1–M10)
 
 For the complete technical breakdown of architectural decisions, prompts, and verification evidence, see [`docs/HOW_AI_BUILT_THIS.md`](./docs/HOW_AI_BUILT_THIS.md).
 
 ---
 
-## 9. License
+## 10. License
 
 This repository and its contents are proprietary submission artifacts for the Autonomous Supply Chain RFP evaluation. All rights reserved.

@@ -1965,6 +1965,27 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   - Backend: 7/7 dedicated test cases in `backend/tests/test_task_m9_mobile_polish_and_resilience.py` passing (100%); full mobile test suite M1–M9 passing 85/85 tests (100%); `ruff check backend/app/ backend/tests/` passing with 0 warnings.
   - Mobile: `npm run check` (typecheck + lint + test) passing cleanly with 23/23 Jest tests passing (100%); `npx expo export --platform web` bundling cleanly (2,390 modules).
 
+### Task M10: Mobile Distribution, Documentation & Demo Integration
+- Configured evaluation run paths:
+  - **Path A (Expo Go LAN)**: Auto-detects active Wi-Fi IPv4 address via `scripts/start_all.py --lan`, binds FastAPI to `0.0.0.0:8000`, writes `mobile/.env.local`, and enables instant camera QR connection from physical iPhone or Android phones.
+  - **Path B (EAS Build Android APK)**: Created `mobile/eas.json` with internal preview APK profile and enabled `usesCleartextTraffic: true` via `expo-build-properties` in `mobile/app.config.ts` for local development HTTP communication.
+- Comprehensive documentation suite:
+  - Authored `docs/MOBILE.md`: Complete thin-client decoupled architecture, screen-to-endpoint mapping table, run options (Path A, B, C, D), Windows Firewall setup, test matrix, failure-injection harness, and known limitations.
+  - Updated `README.md`: Added dedicated Section 6 featuring mobile capabilities, embedded screenshots from `docs/screenshots/mobile/`, and quick-start instructions.
+  - Updated `docs/ARCHITECTURE.md`: Added decoupled presentation tier diagram (Web, Desktop, Mobile) illustrating zero proprietary client locks over the public FastAPI and SSE streams.
+  - Updated `docs/API_GUIDE.md`: Added Section 7 detailing the 5 mobile endpoints (`/devices`, `/mobile/summary`, `/products/by-barcode/{code}`, `/events/recent`, `/cascade`).
+  - Created formal specification document `docs/specs/task-m10-spec.md`.
+- Demo script & narrative integration:
+  - Updated `docs/DEMO_SCRIPT.md` with 5-step Mobile App Walkthrough segment (`[9:30 - 12:45]`): Barcode POS & Cascade, Cross-Border Shipment HITL Approval, Sovereign Prescription Scan, Cold-Chain Quarantine Alert, and Network Copilot Replay.
+  - Highlighted core architectural talking point: *"The mobile app is a thin client built strictly over the public OpenAPI REST endpoints and Server-Sent Events stream, proving that external developers can build custom clients over our public API."*
+- Verification, secrets check, and release tagging:
+  - Exported OpenAPI 3.1 JSON to `docs/openapi.json` (95 total paths verified).
+  - Executed `scripts/check_secrets.py` confirming 0 leaked keys or private tokens.
+  - Verified `.env.example` and `mobile/.env.example` environment templates.
+  - Verified consecutive repeatability of `scripts.reset_demo` + `scripts.run_mobile_demo` twice back-to-back.
+  - Verified full test suite pass rate: 85/85 mobile pytest tests passing, `ruff check` 0 warnings, `npm run check` 23/23 Jest tests passing, and Expo web export bundling cleanly.
+
+
 
 
 

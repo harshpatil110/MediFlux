@@ -52,7 +52,30 @@ MediFlux/
 
 ---
 
-## 2. Design System Alignment (`design.md`)
+## 2. Decoupled Thin-Client Architecture
+
+> [!IMPORTANT]
+> **Core Architectural Proposition**:
+> *"The MediFlux mobile application is a thin client built strictly over the public OpenAPI REST endpoints (`/api/v1`) and Server-Sent Events stream (`/api/v1/stream`), with Supabase Auth and Row-Level Security (RLS) node scoping. This proves that our architecture is fully decoupled—anyone (hospital information systems, third-party logistics partners, or independent software vendors) can build custom clients over our public API."*
+
+All state mutations in the mobile app invoke standard public REST endpoints. No proprietary backend bridges, backdoor RPCs, or private database connections are utilized.
+
+### Screens & Backend Endpoints Mapping
+
+| Mobile Screen | File Location | Backend API Endpoints | Scope / Purpose |
+| :--- | :--- | :--- | :--- |
+| **Home Dashboard** | `app/(tabs)/index.tsx` | `GET /api/v1/mobile/summary`<br>`GET /api/v1/events/recent`<br>`GET /api/v1/events/stream` | RLS-scoped 2x2 KPI metrics, recent activity feed, and live SSE event subscription. |
+| **Pharmacy POS Lite** | `app/(tabs)/sell.tsx` | `GET /api/v1/products/by-barcode/{code}`<br>`POST /api/v1/events/sale`<br>`GET /api/v1/cascade/{correlation_id}` | EAN-13 barcode lookup, FEFO batch selection, idempotent retail dispense, and live 5-stage cascade trace. |
+| **HITL Approvals** | `app/(tabs)/approvals.tsx`<br>`app/approvals/[id].tsx` | `GET /api/v1/hitl/tasks`<br>`POST /api/v1/hitl/tasks/{id}/approve`<br>`POST /api/v1/hitl/tasks/{id}/reject` | Pending human governance queue, policy RBAC verification, biometric decision modal, and LangGraph resumption. |
+| **Prescription Scanner** | `app/(tabs)/scan-rx.tsx`<br>`app/prescriptions/[id].tsx` | `GET /api/v1/prescriptions`<br>`POST /api/v1/prescriptions/upload`<br>`GET /api/v1/prescriptions/{id}` | Sovereign on-device OCR pipeline, NMC doctor validation, Schedule H compliance check, and POS sale linking. |
+| **Cold-Chain Monitor** | `app/(tabs)/cold-chain.tsx`<br>`app/cold-chain/[id].tsx` | `GET /api/v1/coldchain/batches`<br>`GET /api/v1/coldchain/telemetry`<br>`POST /api/v1/coldchain/simulate` | IoT sensor telemetry chart (2°C–8°C), Arrhenius kinetic degradation analysis, and Excursion Analyst auto-quarantine. |
+| **Network Copilot** | `app/(tabs)/copilot.tsx` | `POST /api/v1/copilot/query` | RLS-isolated conversational assistant, role-aware suggestion chips, and tappable deep-link reference chips. |
+| **Cascade History & Replay** | `app/cascade/index.tsx`<br>`app/cascade/[id].tsx` | `GET /api/v1/cascade`<br>`GET /api/v1/cascade/{correlation_id}` | Paginated cascade history list with outcome filters and interactive 1x/2x/4x speed timeline replay. |
+| **Settings & Push Registration** | `app/(auth)/settings.tsx` | `GET /api/v1/me`<br>`POST /api/v1/devices`<br>`DELETE /api/v1/devices/{token}` | Dynamic backend target switcher, Expo push token lifecycle management, and dev failure-injection panel. |
+
+---
+
+## 3. Design System Alignment (`design.md`)
 
 The mobile application strictly conforms to the **Warm Editorial Minimalism** design system:
 - **Canvas**: Warm Ivory (`#E8E4D3`, `#DFDBCA`), Surface (`#FFFFFF`), Elevated (`#F4F1E6`).
@@ -63,32 +86,10 @@ The mobile application strictly conforms to the **Warm Editorial Minimalism** de
 
 ---
 
-## 3. Development & Testing Run Options
+## 4. Run Options & Distribution Paths
 
-### Option A: Expo Web (Fastest & Zero Setup on PC)
-You can run and test the complete mobile application directly in your PC browser with a responsive mobile viewport:
-
-```powershell
-cd mobile
-npm run web
-```
-- Open `http://localhost:8081` in Chrome or Edge.
-- Press `F12` and toggle the device toolbar (`Ctrl+Shift+M`) to view as iPhone 14 or Pixel 7.
-- Default backend URL: `http://localhost:8000`.
-
-### Option B: Android Emulator (Android Studio / AVD)
-When running an Android Virtual Device (AVD):
-
-```powershell
-cd mobile
-npm run android
-```
-- Android Emulator routes `10.0.2.2` to the host machine's `localhost`.
-- Backend URL: `http://10.0.2.2:8000`.
-- In the mobile app's Settings screen, tap the **Android Emulator** 1-tap preset.
-
-### Option C: Physical Mobile Phone (Expo Go via LAN)
-To test on a physical iOS or Android phone on the same Wi-Fi network:
+### Path A: Physical Phone via Expo Go (Recommended & Fastest for Evaluators)
+Run on an iOS or Android physical smartphone on the same Wi-Fi network:
 
 1. **Start the backend in LAN mode:**
    ```powershell
@@ -96,17 +97,65 @@ To test on a physical iOS or Android phone on the same Wi-Fi network:
    # or
    .\scripts\start-all.ps1 -Lan
    ```
-   This automatically detects your laptop's Wi-Fi IPv4 address (e.g. `http://192.168.1.15:8000` or `http://172.20.10.4:8000`), binds FastAPI to `0.0.0.0:8000`, and writes the address to `mobile/.env.local`.
+   This automatically detects your laptop's Wi-Fi IPv4 address (e.g. `http://192.168.1.50:8000`), binds FastAPI to `0.0.0.0:8000`, and writes the address to `mobile/.env.local`.
 
-2. **Start the Expo development server:**
+2. **Install Expo Go:**
+   - Install **Expo Go** from the Apple App Store (iOS) or Google Play Store (Android).
+   - Ensure your phone and laptop are connected to the same Wi-Fi network.
+
+3. **Start the Expo development server:**
    ```powershell
    cd mobile
    npx expo start
    ```
 
-3. **Open in Expo Go:**
+4. **Launch & Verify:**
    - Scan the terminal QR code with your phone camera (iOS) or Expo Go app (Android).
-   - In the mobile app, tap the top `ConnectionBanner` or open Settings to verify that the auto-detected LAN URL is active and `/health` probe passes.
+   - On first launch, open **Settings**, verify your laptop's LAN IP is populated, and tap **"PROBE /health"** to confirm `Backend reachable (HTTP 200)`.
+   - Tap any seeded quick-login role chip (`Pharmacy`, `Stockist`, `Distributor`, `Manufacturer`, `Admin`) to enter the application immediately!
+
+### Path B: Standalone Android APK via EAS Build (`mobile/eas.json`)
+For production or physical field device distribution without Expo Go:
+
+1. **EAS Build Configuration (`mobile/eas.json`):**
+   ```json
+   {
+     "cli": { "version": ">= 12.0.0" },
+     "build": {
+       "preview": {
+         "distribution": "internal",
+         "android": {
+           "buildType": "apk"
+         }
+       }
+     }
+   }
+   ```
+2. **Cleartext HTTP Support (`mobile/app.config.ts`):**
+   Configured via `expo-build-properties` with `usesCleartextTraffic: true`, allowing the standalone `.apk` to communicate directly with local development backend servers (`http://192.168.x.x:8000`) over cleartext HTTP.
+3. **Trigger EAS APK Build:**
+   ```powershell
+   cd mobile
+   npx eas-cli build -p android --profile preview
+   ```
+   This compiles a standalone `.apk` installable directly on any Android device via USB sideloading or direct download link.
+
+### Path C: PC Browser Responsive Viewport (Instant Web Client)
+Test the mobile application directly on PC without installing mobile tooling:
+```powershell
+cd mobile
+npm run web
+```
+- Open `http://localhost:8081` in Chrome or Edge.
+- Press `F12` and toggle device toolbar (`Ctrl+Shift+M`) to view responsive layout at 390×844 (iPhone 14 / Pixel 7).
+
+### Path D: Android Emulator (AVD)
+```powershell
+cd mobile
+npm run android
+```
+- The Android Emulator routes host `localhost` via `10.0.2.2:8000`.
+- In mobile Settings, tap the **"Emulator (10.0.2.2)"** 1-tap preset.
 
 ---
 
@@ -214,4 +263,23 @@ python -m scripts.run_mobile_demo
 # 5. Re-generate high-DPI screenshots
 python scripts\capture_mobile_screenshots.py
 ```
+
+---
+
+## 10. Known Limitations & Operational Considerations
+
+1. **Remote Push Notifications on iOS (Expo Go Limitation):**
+   - In Expo Go for iOS, remote push notification tokens (`ExponentPushToken[...]`) are restricted by Apple sandboxing policies.
+   - For complete end-to-end remote APNs push testing on iOS, build the standalone binary via EAS (`Path B`).
+   - On physical Android devices in Expo Go, remote push tokens register and receive background notifications cleanly.
+   - Stage A local notifications and in-app alert banners function 100% reliably across all platforms (Android, iOS, Web).
+
+2. **Offline Resilience & POS Idempotency:**
+   - When network connectivity is severed mid-transaction, the mobile client holds the deterministic `event_id` in memory.
+   - Upon network reconnection, retrying the transaction invokes `POST /api/v1/events/sale` with the exact same `event_id`. The server's idempotency guard detects the replay, returning the recorded transaction and cascade correlation ID with `idempotent_replay: true` without decrementing inventory twice.
+
+3. **Sovereign Prescription Processing & Privacy:**
+   - Raw prescription camera captures are processed locally with zero patient PII transmitted or stored in the database.
+   - Ephemeral image caches in `expo-file-system` are explicitly purged upon extraction completion (`File.deleteAsync()`), ensuring complete compliance with the Digital Personal Data Protection (DPDP) Act 2023.
+
 

@@ -183,3 +183,176 @@ function verifyMediFluxWebhook(rawBodyBuffer, secret, signatureHeader) {
 | `422 Unprocessable` | `Validation error` | Pydantic schema validation failure (e.g. quantity must be $> 0$). |
 | `429 Too Many Requests` | `Rate limit exceeded for API key` | Request burst exceeded token-bucket capacity. Wait for `Retry-After` seconds. |
 | `500 Server Error` | `Internal server error` | Unexpected server condition. Correlation ID is logged in response headers. |
+
+---
+
+## 7. Mobile Client Endpoints Reference (`/api/v1`)
+
+The MediFlux mobile app operates as a thin client over the standard public API. The following 5 endpoints provide specialized high-performance queries for mobile and edge field devices:
+
+### 7.1 Push Device Tokens (`POST` / `DELETE /api/v1/devices`)
+
+Register or unregister Expo device push tokens (`ExponentPushToken[...]`) for role-filtered background push notifications.
+
+- **Register Token (`POST /api/v1/devices`):**
+  ```bash
+  curl -X POST "http://localhost:8000/api/v1/devices" \
+    -H "Authorization: Bearer <token>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+      "platform": "android"
+    }'
+  ```
+  *Response (201 Created):*
+  ```json
+  {
+    "status": "registered",
+    "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+    "user_id": "usr-pharmacy-01",
+    "node_id": "11111111-1111-1111-1111-111111111111",
+    "role": "pharmacy",
+    "platform": "android"
+  }
+  ```
+
+- **Unregister Token (`DELETE /api/v1/devices/{token}`):**
+  ```bash
+  curl -X DELETE "http://localhost:8000/api/v1/devices/ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]" \
+    -H "Authorization: Bearer <token>"
+  ```
+  *Response (200 OK):*
+  ```json
+  {
+    "status": "deleted",
+    "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+  }
+  ```
+
+### 7.2 Mobile Operational Summary (`GET /api/v1/mobile/summary`)
+
+Single high-performance round-trip returning RLS-scoped operational KPIs, pending approval counts, low stock warnings, and node metadata for the mobile Home dashboard.
+
+- **Request:**
+  ```bash
+  curl -X GET "http://localhost:8000/api/v1/mobile/summary" \
+    -H "Authorization: Bearer <token>"
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "node_id": "11111111-1111-1111-1111-111111111111",
+    "node_name": "Apollo Pharmacy - Connaught Place",
+    "role": "pharmacy",
+    "kpis": {
+      "today_sales_count": 14,
+      "pending_approvals_count": 0,
+      "low_stock_items_count": 2,
+      "active_cold_chain_alerts": 0
+    },
+    "recent_events": [
+      {
+        "event_id": "e-pos-001",
+        "topic": "pos.sales",
+        "timestamp": "2026-11-17T00:10:00Z",
+        "summary": "Dispensed 1 strip Paracetamol 650mg"
+      }
+    ]
+  }
+  ```
+
+### 7.3 Barcode Product & FEFO Batch Lookup (`GET /api/v1/products/by-barcode/{code}`)
+
+Resolves standard EAN-13 barcodes to product details and FEFO-sorted available batches (First-Expiry, First-Out), flagging near-expiry and quarantined batches.
+
+- **Request:**
+  ```bash
+  curl -X GET "http://localhost:8000/api/v1/products/by-barcode/8901000000018" \
+    -H "Authorization: Bearer <token>"
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "id": "d39cde87-c4d4-582f-9281-5f3429e29b2b",
+    "name": "Paracetamol 650mg Tablets",
+    "generic_name": "Paracetamol",
+    "sku": "MED-PCM-650",
+    "barcode": "8901000000018",
+    "schedule_class": "OTC",
+    "requires_prescription": false,
+    "is_lifesaving": true,
+    "is_cold_chain": false,
+    "unit_price": 32.50,
+    "batches": [
+      {
+        "batch_id": "btch-pcm-01",
+        "batch_no": "B-PCM-26A",
+        "batch_number": "B-PCM-26A",
+        "expiry_date": "2027-01-15",
+        "days_to_expiry": 45,
+        "is_near_expiry": true,
+        "is_quarantined": false,
+        "available_quantity": 24,
+        "safety_stock": 20
+      }
+    ]
+  }
+  ```
+
+### 7.4 Recent Events Polling Fallback (`GET /api/v1/events/recent`)
+
+Lightweight polling fallback used by mobile clients when SSE streaming is interrupted or when operating in background low-power mode.
+
+- **Request:**
+  ```bash
+  curl -X GET "http://localhost:8000/api/v1/events/recent?limit=10&since_seq=100" \
+    -H "Authorization: Bearer <token>"
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "events": [
+      {
+        "id": "ev-01",
+        "seq": 101,
+        "topic": "pos.sales",
+        "event_type": "pos.sales",
+        "timestamp": "2026-11-17T00:15:00Z",
+        "payload": { "product_id": "MED-PCM-650", "quantity": 1 }
+      }
+    ],
+    "count": 1
+  }
+  ```
+
+### 7.5 Cascade History & 5-Stage Replay (`GET /api/v1/cascade` & `GET /api/v1/cascade/{id}`)
+
+Lists past multi-tier demand cascades with outcome filters and provides complete 5-stage progression telemetry for animated visual replays.
+
+- **List Cascades (`GET /api/v1/cascade`):**
+  ```bash
+  curl -X GET "http://localhost:8000/api/v1/cascade?limit=10&outcome=complete" \
+    -H "Authorization: Bearer <token>"
+  ```
+- **Get 5-Stage Cascade Trace (`GET /api/v1/cascade/{correlation_id}`):**
+  ```bash
+  curl -X GET "http://localhost:8000/api/v1/cascade/casc-sim-001" \
+    -H "Authorization: Bearer <token>"
+  ```
+  *Response (200 OK):*
+  ```json
+  {
+    "correlation_id": "casc-sim-001",
+    "status": "complete",
+    "product_name": "Paracetamol 650mg Tablets",
+    "steps": [
+      { "stage": 1, "tier": "Pharmacy Edge", "status": "completed", "action": "Stock decremented to 14 units" },
+      { "stage": 2, "tier": "Stockist Hub", "status": "completed", "action": "PO-DEL-2026-081 created" },
+      { "stage": 3, "tier": "Distributor Layer", "status": "completed", "action": "Dispatch Reefer DL-1VB-9042" },
+      { "stage": 4, "tier": "Manufacturer Plant", "status": "completed", "action": "Packaging Line-A2 scheduled" },
+      { "stage": 5, "tier": "Audit Ledger", "status": "completed", "action": "Forward SHA-256 hash sealed" }
+    ],
+    "duration_ms": 38.4
+  }
+  ```
+

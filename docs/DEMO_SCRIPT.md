@@ -210,10 +210,69 @@ Presents live network health:
 
 ---
 
+## Mobile App Walkthrough Segment (5 Steps) `[9:30 - 12:45]`
+
+> [!IMPORTANT]
+> **Key Presenter Talking Point**:
+> *"The MediFlux mobile app is a thin, sovereign client built strictly over our public OpenAPI REST endpoints and Server-Sent Events stream. It proves that our multi-agent supply chain core is completely decoupled—enabling hospitals, third-party logistics partners, or independent developers to rapidly deploy native field applications on top of MediFlux."*
+
+### Mobile Step 1: Scan Barcode & Dispense on Phone `[9:30 - 10:15]`
+- **Action**: Open the mobile app on phone (via Expo Go or Android APK).
+- **Navigation**: Switch to the **Sell** tab.
+- **Workflow**:
+  1. Point the camera at a printed strip barcode from `fixtures/barcodes/` (or scan EAN-13 `8901000000018` for Paracetamol 650mg).
+  2. The app instantaneously queries `GET /api/v1/products/by-barcode/{code}` and renders the FEFO-sorted batch list (`B-PCM-26A`).
+  3. Tap **"Dispense 1 Strip"**.
+  4. Watch the live **5-Stage Cascade Timeline** animate smoothly across all four tiers directly on the phone display in under 50 milliseconds.
+
+### Mobile Step 2: Approve Cross-Border Shipment from Phone `[10:15 - 10:55]`
+- **Action**: Switch to the **Approvals** tab.
+- **Workflow**:
+  1. Select a pending `cross_border_shipment` governance task (`hitl-task-001`).
+  2. Inspect the customs clearance details, shipment payload, and AI agent justification.
+  3. Tap **"Approve Shipment"** with a field note.
+  4. Confirm via biometric / confirmation modal.
+  5. The mobile client sends `POST /api/v1/hitl/tasks/{id}/approve`, resuming the paused LangGraph workflow in real time.
+
+### Mobile Step 3: Sovereign Prescription Camera Capture `[10:55 - 11:30]`
+- **Action**: Switch to the **Scan Rx** tab.
+- **Workflow**:
+  1. Capture a photo of a doctor's prescription (or tap "Load Test Fixture").
+  2. Observe on-device sovereign OCR parsing: doctor MCI/NMC registration number verified, Schedule H antibiotic identified, and patient PII redacted locally with zero privacy leak.
+  3. Tap **"Link to POS Sale"** to authorize dispensing restricted Schedule H medications.
+
+### Mobile Step 4: Real-Time Cold-Chain Alert & Auto-Quarantine `[11:30 - 12:00]`
+- **Action**: Switch to the **Cold Chain** tab.
+- **Workflow**:
+  1. Trigger an excursion simulation from the backend (`python -m scripts.simulate`).
+  2. Observe the real-time SVG telemetry chart breach the 8.0°C upper threshold.
+  3. Receive an instant in-app alert banner notifying the operator that the autonomous Excursion Analyst has placed batch `BIO-INS-01` into quarantined status.
+  4. Tap the notification banner to deep-link directly into `/cold-chain/BIO-INS-01`.
+
+### Mobile Step 5: Network Copilot Query & Cascade Replay `[12:00 - 12:45]`
+- **Action**: Switch to the **Copilot** tab.
+- **Workflow**:
+  1. Tap the suggested prompt: *"Which critical medicines are near reorder threshold?"*
+  2. Observe the streaming response with grounded, pharmacy-scoped inventory levels and clickable reference chips.
+  3. Tap a reference chip to deep-link to the **Cascade History** screen.
+  4. Open past cascade trace `casc-sim-001`, select **2x Speed**, and tap **Play Replay** to watch the animated 5-stage progression recreate the demand propagation event.
+
+> [!NOTE]
+> **Mobile Demo Video Recording**:
+> A high-resolution demonstration recording of this complete 5-step mobile walkthrough can be captured using `scripts/capture_mobile_screenshots.py` or screencast to `docs/mobile_demo_video.mp4`.
+
+---
+
 ## Scripted Automated Execution
 
-To run the complete 10-step sequence deterministically in under 15 seconds:
+To run the complete 10-step web sequence deterministically:
 ```powershell
 python -m scripts.run_demo --mode replay
+```
+
+To run the complete 8-step mobile journey deterministically:
+```powershell
+python -m scripts.reset_demo
+python -m scripts.run_mobile_demo
 ```
 

@@ -69,6 +69,48 @@ flowchart TD
     class P1,P2,P3 tier4;
 ```
 
+### 2.1 Decoupled Client Tier (Web, Desktop, and Mobile)
+
+All human interactions, retail dispensing, field logistics, and governance operations connect through a completely decoupled client presentation layer:
+
+```mermaid
+flowchart LR
+    subgraph Clients ["Decoupled Presentation Layer"]
+        C1["React 18 Web Portal<br/>(11 Operational Screens)"]
+        C2["Tauri Desktop Shell<br/>(Cross-Platform Bundle)"]
+        C3["React Native Mobile App<br/>(Expo 51 + TypeScript)"]
+    end
+
+    subgraph APIPlane ["MediFlux API & Streaming Control Plane"]
+        GW["FastAPI Ingestion Engine (/api/v1)"]
+        SSE["Server-Sent Events (/api/v1/stream)"]
+        AUTH["Supabase Auth & RLS Node Scoping"]
+    end
+
+    subgraph Core ["Autonomous Multi-Agent Core"]
+        BUS["In-Process Async EventBus"]
+        LG["LangGraph State Machines (6 Graphs)"]
+        DB["Supabase PostgreSQL + pgvector (32 Tables)"]
+    end
+
+    C1 -->|REST / OpenAPI| GW
+    C2 -->|REST / OpenAPI| GW
+    C3 -->|REST / OpenAPI| GW
+    GW --> AUTH
+    GW --> BUS
+    BUS --> SSE
+    SSE -.->|Real-time Telemetry| C1
+    SSE -.->|Real-time Telemetry| C2
+    SSE -.->|Live Event Stream| C3
+    BUS --> LG
+    LG <--> DB
+```
+
+> [!IMPORTANT]
+> **Zero Proprietary Client Locks**:
+> The React Native mobile client (`mobile/`) communicates exclusively with the public OpenAPI 3.1 endpoints and SSE stream. This guarantees that external enterprise systems—such as hospital pharmacy management systems, third-party logistics (3PL) telematics hardware, or distributor warehouse scanners—can integrate without proprietary SDKs.
+
+
 ---
 
 ## 3. Event Ingestion, State Machine & Streaming Architecture

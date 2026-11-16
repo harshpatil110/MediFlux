@@ -33,6 +33,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    [
+      'expo-build-properties',
+      {
+        android: {
+          usesCleartextTraffic: true,
+        },
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
