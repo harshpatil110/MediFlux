@@ -31,8 +31,19 @@ class NotFoundError(AppException):
     status_code = 404
     code = "NOT_FOUND"
 
-    def __init__(self, message: str = "Resource not found", details: dict[str, Any] | None = None) -> None:
-        super().__init__(message=message, code=self.code, status_code=self.status_code, details=details)
+    def __init__(
+        self,
+        message: str = "Resource not found",
+        details: dict[str, Any] | None = None,
+        code: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            code=code or self.code,
+            status_code=status_code or self.status_code,
+            details=details,
+        )
 
 
 class UnauthorizedError(AppException):
@@ -41,8 +52,19 @@ class UnauthorizedError(AppException):
     status_code = 401
     code = "UNAUTHORIZED"
 
-    def __init__(self, message: str = "Authentication required", details: dict[str, Any] | None = None) -> None:
-        super().__init__(message=message, code=self.code, status_code=self.status_code, details=details)
+    def __init__(
+        self,
+        message: str = "Authentication required",
+        details: dict[str, Any] | None = None,
+        code: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            code=code or self.code,
+            status_code=status_code or self.status_code,
+            details=details,
+        )
 
 
 class ForbiddenError(AppException):
@@ -51,8 +73,19 @@ class ForbiddenError(AppException):
     status_code = 403
     code = "FORBIDDEN"
 
-    def __init__(self, message: str = "Access forbidden", details: dict[str, Any] | None = None) -> None:
-        super().__init__(message=message, code=self.code, status_code=self.status_code, details=details)
+    def __init__(
+        self,
+        message: str = "Access forbidden",
+        details: dict[str, Any] | None = None,
+        code: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            code=code or self.code,
+            status_code=status_code or self.status_code,
+            details=details,
+        )
 
 
 class ValidationError(AppException):
@@ -61,8 +94,19 @@ class ValidationError(AppException):
     status_code = 422
     code = "VALIDATION_ERROR"
 
-    def __init__(self, message: str = "Validation failed", details: dict[str, Any] | None = None) -> None:
-        super().__init__(message=message, code=self.code, status_code=self.status_code, details=details)
+    def __init__(
+        self,
+        message: str = "Validation failed",
+        details: dict[str, Any] | None = None,
+        code: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            code=code or self.code,
+            status_code=status_code or self.status_code,
+            details=details,
+        )
 
 
 class ConflictError(AppException):
@@ -71,6 +115,16 @@ class ConflictError(AppException):
     status_code = 409
     code = "CONFLICT"
 
-    def __init__(self, message: str = "Resource conflict", details: dict[str, Any] | None = None) -> None:
-        super().__init__(message=message, code=self.code, status_code=self.status_code, details=details)
-
+    def __init__(
+        self,
+        message: str = "Resource conflict",
+        details: dict[str, Any] | None = None,
+        code: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            code=code or self.code,
+            status_code=status_code or self.status_code,
+            details=details,
+        )

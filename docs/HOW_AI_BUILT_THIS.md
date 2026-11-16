@@ -1821,3 +1821,38 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 - Enhanced `CascadeTimeline.tsx` with 5-stage progression, approval review navigation, formatted output grid, and raw JSON toggle.
 - Created `mobile/app/(tabs)/sell.tsx` integrating full counter POS flow.
 - Verified with 9 automated pytest test cases (`backend/tests/test_task_m4_pos_lite_and_cascade.py`), total 28/28 mobile tests passing, `ruff check` passing, and `npm run typecheck` passing.
+
+### Task M5: Mobile Human-in-the-Loop (HITL) Approvals
+- Aligned `config/hitl_policies.yaml` and `backend/config/hitl_policies.yaml` defining canonical policies for all 5 task types (`cross_border_shipment`, `batch_modification`, `regulatory_activation`, `doctor_verification`, `schedule_h_override`) with allowed roles, risk levels, and timeout windows.
+- Updated `backend/app/core/hitl_policy.py` with alias normalization, allowed role resolution, and policy introspectors.
+- Enhanced `backend/app/api/v1/endpoints/hitl.py` with:
+  - Auto-expiry sweep for pending tasks exceeding `timeout_minutes`.
+  - Canonical `GET /api/v1/hitl/tasks` with status filtering (`pending`, `decided`, `approved`, `rejected`, `expired`) and per-task user permissions (`can_current_user_decide`).
+  - Canonical `POST /api/v1/hitl/tasks/{id}/decision` with strict 403 RBAC enforcement (`HITL_FORBIDDEN_ROLE`), already-finalized idempotency (200 OK with `already_finalized: true`), and graph cascade resumption (advances cascade trace from `waiting_approval` to `completed` and paused distributor step to `done`).
+  - `POST /api/v1/hitl/tasks/trigger` simulation endpoint creating paused cascade traces and broadcasting `hitl` SSE events.
+  - `GET /api/v1/hitl/policies` exposing public policy registry.
+- Exported `docs/openapi.json` and regenerated TypeScript API clients (`packages/shared/src/generated-api.ts`, `mobile/src/api/generated.ts`).
+- Installed `expo-local-authentication` in `mobile/`.
+- Built `mobile/src/features/approvals/renderers.tsx` with type-specific visual cards:
+  - `CrossBorderShipmentRenderer`: Origin/destination countries, international port, customs broker, cold-chain temp logs, and drug manifest table.
+  - `BatchModificationRenderer`: Target batch number, side-by-side field diff (old value vs new value), reason, and QA auditor identity.
+  - `RegulatoryActivationRenderer`: Target node, jurisdiction, compliance score, checklist, and regulatory license credentials.
+  - `PrescriptionOverrideRenderer`: Doctor registration number, patient age, diagnosis, dosage justification, and safety flag.
+  - `GenericJsonRenderer`: Fallback expandable tree for custom/arbitrary payloads.
+- Built Approvals List screen (`mobile/app/(tabs)/approvals.tsx`):
+  - Segmented toggle (`Pending` / `Decided`), live countdown timer (`Xm Ys remaining`), priority-coded risk badges, and empty-state guidance.
+  - Role policy banner explaining decision authority for current active user.
+  - Quick action demo button (`⚡ Simulate Cross-Border Shipment Hold`) triggering real backend HITL tasks on the fly.
+  - Real-time updates via `useEventStream` subscribing to `hitl` and `hitl.decided` channels.
+- Built Approvals Detail screen (`mobile/app/approvals/[id].tsx`):
+  - Dynamic type-specific payload renderer.
+  - Live timer countdown with automatic expiry transition.
+  - Biometric confirmation modal with `LocalAuthentication.authenticateAsync` (or PIN fallback), prompt message, and non-optimistic server-first outcome.
+  - Rejection note prompt requirement.
+  - Post-decision banner with cryptographic audit entry ID and deep-link button (`View Resumed Cascade Trace`) navigating to `mobile/app/cascade/[id].tsx`.
+- Updated `mobile/app/(tabs)/_layout.tsx` with dynamic `tabBarBadge` displaying the pending approval count updated in real time via SSE.
+- Created specification document `docs/specs/task-m5-spec.md`.
+- Verified with automated tests:
+  - Backend: 5/5 dedicated test cases in `backend/tests/test_task_m5_mobile_approvals.py` passing; all 20/20 HITL test cases passing; `ruff check app/ tests/` passing with 0 warnings.
+  - Mobile: TypeScript check `npm run typecheck` passing cleanly (0 errors), `npm run lint` passing (0 errors), and `npx expo export --platform web` bundling cleanly.
+

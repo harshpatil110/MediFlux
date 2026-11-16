@@ -1,60 +1,155 @@
 policies:
-  in_progress_batch_change:
-    enabled: true
-    required_roles: ["manufacturer_admin", "compliance_officer", "admin"]
-    expiry_hours: 24
-    description: "Modifying or reprioritizing a production batch currently in status in_progress."
-  
+  # 1. Canonical Mobile Task Types (Task M5)
   cross_border_shipment:
     enabled: true
-    required_roles: ["logistics_manager", "compliance_officer", "admin"]
+    allowed_roles: ["admin", "distributor", "stockist", "regulator", "logistics_manager", "compliance_officer"]
+    required_roles: ["admin", "distributor", "stockist", "regulator", "logistics_manager", "compliance_officer"]
+    risk_level: "high"
+    timeout_minutes: 720
     expiry_hours: 12
     description: "Dispatching shipments crossing regional or international borders."
-  
-  schedule_h_override:
-    enabled: true
-    required_roles: ["pharmacist_in_charge", "compliance_officer", "admin"]
-    expiry_hours: 6
-    description: "Fulfilling Schedule H medication orders without automated doctor prescription verification."
-  
-  module_activation:
-    enabled: true
-    required_roles: ["system_admin", "compliance_officer", "admin"]
-    expiry_hours: 48
-    description: "Activating a new WASM or python policy module version."
 
-  reorder_approval:
+  batch_modification:
     enabled: true
-    required_roles: ["pharmacist_in_charge", "stockist_admin", "admin"]
+    allowed_roles: ["admin", "manufacturer", "manufacturer_admin", "compliance_officer"]
+    required_roles: ["admin", "manufacturer", "manufacturer_admin", "compliance_officer"]
+    risk_level: "high"
+    timeout_minutes: 1440
     expiry_hours: 24
-    description: "Approval for bulk inventory replenishment reorders."
+    description: "Modifying or reprioritizing a production batch currently in status in_progress."
 
-  regulatory_hot_swap:
+  regulatory_activation:
     enabled: true
-    required_roles: ["compliance_officer", "admin", "pharmacist_in_charge", "system_admin"]
+    allowed_roles: ["admin", "regulator", "compliance_officer", "system_admin"]
+    required_roles: ["admin", "regulator", "compliance_officer", "system_admin"]
+    risk_level: "critical"
+    timeout_minutes: 2880
     expiry_hours: 48
     description: "Approval for hot-swapping regulatory-mandated price ceiling or compliance module updates."
 
-  regulatory_clarification:
+  doctor_verification:
     enabled: true
-    required_roles: ["compliance_officer", "admin"]
+    allowed_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "compliance_officer"]
+    required_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "compliance_officer"]
+    risk_level: "medium"
+    timeout_minutes: 720
+    expiry_hours: 12
+    description: "Verification of unregistered or unknown prescribing doctor credentials before dispensing."
+
+  schedule_h_override:
+    enabled: true
+    allowed_roles: ["admin", "regulator", "stockist", "compliance_officer"]
+    required_roles: ["admin", "regulator", "stockist", "compliance_officer"]
+    risk_level: "high"
+    timeout_minutes: 360
+    expiry_hours: 6
+    description: "Fulfilling Schedule H medication orders without automated doctor prescription verification."
+
+  # Aliases & Legacy Canonical Mappings
+  in_progress_batch_modification:
+    enabled: true
+    allowed_roles: ["admin", "manufacturer", "manufacturer_admin", "compliance_officer"]
+    required_roles: ["admin", "manufacturer", "manufacturer_admin", "compliance_officer"]
+    risk_level: "high"
+    timeout_minutes: 1440
     expiry_hours: 24
-    description: "Clarification and verification for ambiguous or low-confidence regulatory notices."
+    description: "Modifying or reprioritizing a production batch currently in status in_progress."
+
+  in_progress_batch_change:
+    enabled: true
+    allowed_roles: ["admin", "manufacturer", "manufacturer_admin", "compliance_officer"]
+    required_roles: ["admin", "manufacturer", "manufacturer_admin", "compliance_officer"]
+    risk_level: "high"
+    timeout_minutes: 1440
+    expiry_hours: 24
+    description: "Modifying or reprioritizing a production batch currently in status in_progress."
+
+  regulatory_hot_swap:
+    enabled: true
+    allowed_roles: ["admin", "regulator", "compliance_officer", "system_admin"]
+    required_roles: ["admin", "regulator", "compliance_officer", "system_admin"]
+    risk_level: "critical"
+    timeout_minutes: 2880
+    expiry_hours: 48
+    description: "Approval for hot-swapping regulatory-mandated price ceiling or compliance module updates."
+
+  regulatory_module_activation:
+    enabled: true
+    allowed_roles: ["admin", "regulator", "compliance_officer", "system_admin"]
+    required_roles: ["admin", "regulator", "compliance_officer", "system_admin"]
+    risk_level: "critical"
+    timeout_minutes: 2880
+    expiry_hours: 48
+    description: "Approval for hot-swapping regulatory-mandated price ceiling or compliance module updates."
 
   prescription_doctor_verification:
     enabled: true
-    required_roles: ["pharmacist_in_charge", "compliance_officer", "admin"]
+    allowed_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "compliance_officer"]
+    required_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "compliance_officer"]
+    risk_level: "medium"
+    timeout_minutes: 720
     expiry_hours: 12
     description: "Verification of unregistered or unknown prescribing doctor credentials before dispensing."
 
   prescription_unknown_drug:
     enabled: true
-    required_roles: ["pharmacist_in_charge", "compliance_officer", "admin"]
+    allowed_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "compliance_officer"]
+    required_roles: ["admin", "regulator", "stockist", "pharmacist_in_charge", "compliance_officer"]
+    risk_level: "medium"
+    timeout_minutes: 720
     expiry_hours: 12
     description: "Clinical review and schedule classification for unlisted or experimental medication."
 
+  compliance_hold:
+    enabled: true
+    allowed_roles: ["admin", "regulator", "stockist", "compliance_officer"]
+    required_roles: ["admin", "regulator", "stockist", "compliance_officer"]
+    risk_level: "high"
+    timeout_minutes: 360
+    expiry_hours: 6
+    description: "Fulfilling Schedule H medication orders without automated doctor prescription verification."
+
+  module_activation:
+    enabled: true
+    allowed_roles: ["admin", "regulator", "system_admin", "compliance_officer"]
+    required_roles: ["admin", "regulator", "system_admin", "compliance_officer"]
+    risk_level: "critical"
+    timeout_minutes: 2880
+    expiry_hours: 48
+    description: "Activating a new WASM or python policy module version."
+
+  reorder_approval:
+    enabled: true
+    allowed_roles: ["admin", "stockist", "pharmacist_in_charge", "stockist_admin"]
+    required_roles: ["admin", "stockist", "pharmacist_in_charge", "stockist_admin"]
+    risk_level: "medium"
+    timeout_minutes: 1440
+    expiry_hours: 24
+    description: "Approval for bulk inventory replenishment reorders."
+
+  regulatory_clarification:
+    enabled: true
+    allowed_roles: ["admin", "regulator", "compliance_officer"]
+    required_roles: ["admin", "regulator", "compliance_officer"]
+    risk_level: "medium"
+    timeout_minutes: 1440
+    expiry_hours: 24
+    description: "Clarification and verification for ambiguous or low-confidence regulatory notices."
+
+  coldchain_high_value:
+    enabled: true
+    allowed_roles: ["admin", "distributor", "stockist", "logistics_manager"]
+    required_roles: ["admin", "distributor", "stockist", "logistics_manager"]
+    risk_level: "medium"
+    timeout_minutes: 720
+    expiry_hours: 12
+    description: "Cold-chain temperature excursion disposition authorization."
+
   cascade_partial_failure_escalation:
     enabled: true
-    required_roles: ["admin", "system_admin", "compliance_officer"]
+    allowed_roles: ["admin", "stockist", "distributor", "regulator", "system_admin", "compliance_officer"]
+    required_roles: ["admin", "stockist", "distributor", "regulator", "system_admin", "compliance_officer"]
+    risk_level: "high"
+    timeout_minutes: 1440
     expiry_hours: 24
     description: "Escalation for demand cascade failure across supply chain tiers."

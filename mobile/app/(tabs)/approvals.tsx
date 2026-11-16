@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,114 +8,314 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { usePendingHitlTasks } from '../../src/api/hooks';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../src/api/client';
 import { colors, spacing, typography, radii } from '../../src/theme/tokens';
 import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
 import { EmptyState } from '../../src/components/EmptyState';
+import { useAuth } from '../../src/features/auth/AuthContext';
+import { useEventStream } from '../../src/hooks/useEventStream';
+
+type FilterTab = 'pending' | 'decided';
+
+function formatRelativeTime(dateStr?: string | Date | null): string {
+  if (!dateStr) return '—';
+  try {
+    const diff = Math.max(0, (Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  } catch {
+    return '—';
+  }
+}
+
+function formatCountdown(expiresAt?: string | Date | null): { text: string; isExpired: boolean } {
+  if (!expiresAt) return { text: 'No Expiry', isExpired: false };
+  try {
+    const remaining = (new Date(expiresAt).getTime() - Date.now()) / 1000;
+    if (remaining <= 0) return { text: 'EXPIRED', isExpired: true };
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = Math.floor(remaining % 60);
+    if (h > 0) return { text: `Expires in ${h}h ${m}m ${s}s`, isExpired: false };
+    if (m > 0) return { text: `Expires in ${m}m ${s}s`, isExpired: false };
+    return { text: `Expires in ${s}s`, isExpired: false };
+  } catch {
+    return { text: '—', isExpired: false };
+  }
+}
 
 export default function ApprovalsScreen() {
-  const { data: tasks, loading, refetch } = usePendingHitlTasks();
-  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const router = useRouter();
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<FilterTab>('pending');
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [triggering, setTriggering] = useState<boolean>(false);
+  const [triggerMessage, setTriggerMessage] = useState<string | null>(null);
+  const [, setTick] = useState<number>(0);
 
-  const handleDecision = async (taskId: string, decision: 'approved' | 'rejected') => {
-    setDecidingId(taskId);
+  const fetchTasks = useCallback(async () => {
     try {
-      await apiClient.post(`/api/v1/hitl/${taskId}/decision`, {
-        decision,
-        reason: `Field decision submitted from mobile operator client`,
-      });
-      await refetch();
+      const data = await apiClient.get<any[]>('/api/v1/hitl/tasks?status=all');
+      setTasks(Array.isArray(data) ? data : []);
     } catch {
-      // In Task M1, refresh to clear
-      await refetch();
+      // Retain existing state on fetch error
     } finally {
-      setDecidingId(null);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // Live ticking countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Live SSE listener on hitl topic
+  const { lastEvent } = useEventStream('hitl');
+  useEffect(() => {
+    if (lastEvent) {
+      fetchTasks();
+    }
+  }, [lastEvent, fetchTasks]);
+
+  const handleSimulateCrossBorder = async () => {
+    setTriggering(true);
+    setTriggerMessage(null);
+    try {
+      await apiClient.post('/api/v1/hitl/tasks/trigger', {
+        task_type: 'cross_border_shipment',
+      });
+      setTriggerMessage('Cross-Border Shipment task simulated!');
+      await fetchTasks();
+      setTimeout(() => setTriggerMessage(null), 4000);
+    } catch {
+      setTriggerMessage('Simulation failed to trigger.');
+    } finally {
+      setTriggering(false);
     }
   };
 
-  const pendingList = tasks || [];
+  const pendingTasks = useMemo(
+    () => tasks.filter((t) => t.status === 'pending'),
+    [tasks]
+  );
+
+  const decidedTasks = useMemo(
+    () => tasks.filter((t) => t.status !== 'pending'),
+    [tasks]
+  );
+
+  const displayedList = activeTab === 'pending' ? pendingTasks : decidedTasks;
+
+  const isPharmacyRole = user?.role?.toLowerCase() === 'pharmacy';
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent.primary} />
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={fetchTasks}
+          tintColor={colors.accent.primary}
+        />
       }
     >
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.tagRow}>
           <Text style={styles.subtitle}>HUMAN-IN-THE-LOOP CONTROL PLANE</Text>
           <Badge
-            label={pendingList.length > 0 ? `${pendingList.length} PENDING` : 'ALL CLEAR'}
-            variant={pendingList.length > 0 ? 'amber' : 'emerald'}
+            label={pendingTasks.length > 0 ? `${pendingTasks.length} PENDING` : 'ALL CLEAR'}
+            variant={pendingTasks.length > 0 ? 'amber' : 'emerald'}
           />
         </View>
         <Text style={styles.title}>Field Approvals Queue</Text>
         <Text style={styles.description}>
-          Autonomous agent recommendations exceeding confidence or risk thresholds require operator sign-off.
+          Inspect and decide autonomous agent recommendations requiring human oversight.
         </Text>
       </View>
 
-      {loading && pendingList.length === 0 ? (
+      {/* Role Policy Banner */}
+      {isPharmacyRole && (
+        <View style={styles.roleBanner}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.text.secondary} />
+          <Text style={styles.roleBannerText}>
+            VIEW-ONLY MODE — Your role can inspect HITL tasks, but decisions require Stockist, Distributor, Manufacturer, Regulator, or Admin authorization.
+          </Text>
+        </View>
+      )}
+
+      {/* Quick Demo Trigger Bar */}
+      <View style={styles.triggerBar}>
+        <TouchableOpacity
+          style={[styles.triggerBtn, triggering && styles.btnDisabled]}
+          onPress={handleSimulateCrossBorder}
+          disabled={triggering}
+          activeOpacity={0.8}
+        >
+          {triggering ? (
+            <ActivityIndicator size="small" color={colors.accent.primary} />
+          ) : (
+            <>
+              <Ionicons name="flash-outline" size={14} color={colors.accent.primary} />
+              <Text style={styles.triggerBtnText}>⚡ Simulate Cross-Border Shipment Hold</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        {triggerMessage && (
+          <Text style={styles.triggerSuccessText}>{triggerMessage}</Text>
+        )}
+      </View>
+
+      {/* Segmented Filter Tabs */}
+      <View style={styles.segmentedContainer}>
+        <TouchableOpacity
+          style={[styles.segmentBtn, activeTab === 'pending' && styles.segmentActive]}
+          onPress={() => setActiveTab('pending')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.segmentText,
+              activeTab === 'pending' && styles.segmentTextActive,
+            ]}
+          >
+            Pending ({pendingTasks.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.segmentBtn, activeTab === 'decided' && styles.segmentActive]}
+          onPress={() => setActiveTab('decided')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.segmentText,
+              activeTab === 'decided' && styles.segmentTextActive,
+            ]}
+          >
+            Decided ({decidedTasks.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Content List */}
+      {loading && tasks.length === 0 ? (
         <ActivityIndicator size="large" color={colors.accent.primary} style={styles.loader} />
-      ) : pendingList.length === 0 ? (
+      ) : displayedList.length === 0 ? (
         <EmptyState
-          title="No Pending Approvals"
-          description="All autonomous purchase orders, batch transfers, and quarantine actions are cleared."
+          title={activeTab === 'pending' ? 'No Pending Approvals' : 'No Decided Tasks'}
+          description={
+            activeTab === 'pending'
+              ? 'All autonomous purchase orders, batch transfers, and shipments are cleared.'
+              : 'Decided tasks will be archived here once approved, rejected, or expired.'
+          }
           actionLabel="REFRESH QUEUE"
-          onAction={refetch}
+          onAction={fetchTasks}
         />
       ) : (
-        pendingList.map((task: any) => {
-          const isProcessing = decidingId === task.id;
+        displayedList.map((task: any) => {
+          const isPending = task.status === 'pending';
+          const countdown = formatCountdown(task.expires_at);
+          const relativeAge = formatRelativeTime(task.created_at);
+          const formattedType = String(
+            task.task_type || task.action_type || 'APPROVAL'
+          )
+            .replace(/_/g, ' ')
+            .toUpperCase();
+
+          const riskVariant =
+            task.risk_level === 'critical' || task.risk_level === 'high'
+              ? 'coral'
+              : task.risk_level === 'medium'
+              ? 'amber'
+              : 'neutral';
+
+          const statusVariant =
+            task.status === 'approved'
+              ? 'emerald'
+              : task.status === 'rejected'
+              ? 'coral'
+              : task.status === 'expired'
+              ? 'neutral'
+              : 'amber';
+
           return (
-            <Card
+            <TouchableOpacity
               key={task.id}
-              title={task.title || `Task #${task.id?.slice(0, 8)}`}
-              subtitle={task.task_type || 'DECISION REQUIRED'}
-              headerRight={
-                <Badge
-                  label={task.risk_level || 'HIGH RISK'}
-                  variant={task.risk_level === 'high' ? 'coral' : 'amber'}
-                />
+              activeOpacity={0.9}
+              onPress={() =>
+                router.push({
+                  pathname: '/approvals/[id]',
+                  params: { id: task.id },
+                } as any)
               }
             >
-              <Text style={styles.taskDesc}>{task.description || task.summary}</Text>
+              <Card
+                title={task.title || `Task #${task.id?.slice(0, 8)}`}
+                subtitle={formattedType}
+                headerRight={
+                  <View style={styles.headerRightWrapper}>
+                    {!isPending && (
+                      <Badge
+                        label={String(task.status).toUpperCase()}
+                        variant={statusVariant}
+                      />
+                    )}
+                    <Badge
+                      label={String(task.risk_level || 'MEDIUM').toUpperCase()}
+                      variant={riskVariant}
+                    />
+                  </View>
+                }
+              >
+                <Text style={styles.taskSummary} numberOfLines={2}>
+                  {task.summary || task.description || task.reasoning}
+                </Text>
 
-              {task.proposed_action && (
-                <View style={styles.actionPreview}>
-                  <Text style={styles.actionPreviewLabel}>PROPOSED AGENT ACTION:</Text>
-                  <Text style={styles.actionPreviewText}>{JSON.stringify(task.proposed_action)}</Text>
+                <View style={styles.metaRow}>
+                  <View style={styles.agentCol}>
+                    <Ionicons name="hardware-chip-outline" size={13} color={colors.text.secondary} />
+                    <Text style={styles.agentText} numberOfLines={1}>
+                      {task.requesting_agent || 'Autonomous Agent'} • {task.node_name || 'Network Node'}
+                    </Text>
+                  </View>
                 </View>
-              )}
 
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={[styles.rejectBtn, isProcessing && styles.btnDisabled]}
-                  onPress={() => handleDecision(task.id, 'rejected')}
-                  disabled={isProcessing}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.rejectBtnText}>REJECT</Text>
-                </TouchableOpacity>
+                <View style={styles.cardFooter}>
+                  <Text style={styles.ageText}>{relativeAge}</Text>
 
-                <TouchableOpacity
-                  style={[styles.approveBtn, isProcessing && styles.btnDisabled]}
-                  onPress={() => handleDecision(task.id, 'approved')}
-                  disabled={isProcessing}
-                  activeOpacity={0.8}
-                >
-                  {isProcessing ? (
-                    <ActivityIndicator size="small" color={colors.text.onAccent} />
+                  {isPending ? (
+                    countdown.isExpired ? (
+                      <Badge label="EXPIRED" variant="neutral" />
+                    ) : (
+                      <View style={styles.countdownBox}>
+                        <Ionicons name="time-outline" size={12} color={colors.status.warning} />
+                        <Text style={styles.countdownText}>{countdown.text}</Text>
+                      </View>
+                    )
                   ) : (
-                    <Text style={styles.approveBtnText}>APPROVE ACTION →</Text>
+                    <Text style={styles.decidedInfoText}>
+                      Decided: {formatRelativeTime(task.decided_at || task.created_at)}
+                    </Text>
                   )}
-                </TouchableOpacity>
-              </View>
-            </Card>
+                </View>
+              </Card>
+            </TouchableOpacity>
           );
         })
       )}
@@ -159,69 +359,148 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     lineHeight: typography.fontSize.caption * 1.5,
   },
-  loader: {
-    marginTop: spacing.xxl,
-  },
-  taskDesc: {
-    fontSize: typography.fontSize.body,
-    color: colors.text.primary,
-    lineHeight: typography.fontSize.body * 1.45,
-    marginBottom: spacing.md,
-  },
-  actionPreview: {
+
+  // Role Banner
+  roleBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
     backgroundColor: colors.canvas.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
     padding: spacing.sm,
     borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    marginBottom: spacing.md,
+    marginBottom: spacing.base,
   },
-  actionPreviewLabel: {
+  roleBannerText: {
+    fontSize: typography.fontSize.caption,
+    color: colors.text.secondary,
+    flex: 1,
+    lineHeight: typography.fontSize.caption * 1.45,
+  },
+
+  // Quick Demo Trigger
+  triggerBar: {
+    marginBottom: spacing.base,
+  },
+  triggerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.accent.subtle,
+    borderWidth: 1,
+    borderColor: colors.accent.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.base,
+    borderRadius: radii.sm,
+  },
+  triggerBtnText: {
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.accent.primary,
+    letterSpacing: typography.letterSpacing.wide,
+  },
+  triggerSuccessText: {
     fontSize: typography.fontSize.micro,
+    color: colors.status.success,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    fontFamily: typography.fontFamily.mono,
+  },
+
+  // Segmented Filter
+  segmentedContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.canvas.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: radii.sm,
+    padding: 3,
+    marginBottom: spacing.base,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: radii.sm,
+  },
+  segmentActive: {
+    backgroundColor: colors.canvas.surface,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  segmentText: {
+    fontSize: typography.fontSize.caption,
     fontWeight: typography.fontWeight.bold,
     color: colors.text.secondary,
     letterSpacing: typography.letterSpacing.wide,
-    marginBottom: 2,
   },
-  actionPreviewText: {
-    fontSize: typography.fontSize.micro,
-    fontFamily: 'monospace',
+  segmentTextActive: {
     color: colors.text.primary,
   },
-  actionsRow: {
+
+  // Task Cards
+  loader: {
+    marginTop: spacing.xxl,
+  },
+  headerRightWrapper: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  rejectBtn: {
+  taskSummary: {
+    fontSize: typography.fontSize.body,
+    color: colors.text.primary,
+    lineHeight: typography.fontSize.body * 1.45,
+    marginBottom: spacing.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  agentCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.status.danger,
-    backgroundColor: colors.status.dangerSubtle,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radii.sm,
+  },
+  agentText: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.secondary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+    paddingTop: spacing.xs + 2,
+    marginTop: spacing.xs,
   },
-  rejectBtnText: {
-    color: colors.status.danger,
-    fontSize: typography.fontSize.caption,
-    fontWeight: typography.fontWeight.bold,
-    letterSpacing: typography.letterSpacing.wide,
+  ageText: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.muted,
   },
-  approveBtn: {
-    flex: 2,
-    backgroundColor: colors.accent.primary,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radii.sm,
+  countdownBox: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  approveBtnText: {
-    color: colors.text.onAccent,
-    fontSize: typography.fontSize.caption,
+  countdownText: {
+    fontSize: typography.fontSize.micro,
     fontWeight: typography.fontWeight.bold,
-    letterSpacing: typography.letterSpacing.wide,
+    color: colors.status.warning,
+    fontFamily: typography.fontFamily.mono,
+  },
+  decidedInfoText: {
+    fontSize: typography.fontSize.micro,
+    color: colors.text.secondary,
+    fontFamily: typography.fontFamily.mono,
   },
   btnDisabled: {
     opacity: 0.6,
   },
 });
-

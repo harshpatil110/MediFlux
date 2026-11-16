@@ -1,14 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../src/theme/tokens';
 import { useAuth } from '../../src/features/auth/AuthContext';
 import { isTabVisibleForRole } from '../../src/features/auth/roleMap';
 import { RoleNodeHeaderBadge } from '../../src/components/RoleNodeHeaderBadge';
+import { useEventStream } from '../../src/hooks/useEventStream';
+import { apiClient } from '../../src/api/client';
 
 export default function TabsLayout() {
   const { user } = useAuth();
   const role = user?.role;
+  const [pendingCount, setPendingCount] = useState<number>(0);
+
+  const fetchPendingApprovals = useCallback(async () => {
+    try {
+      const data = await apiClient.get<any[]>('/api/v1/hitl/tasks?status=pending');
+      if (Array.isArray(data)) {
+        setPendingCount(data.length);
+      }
+    } catch {
+      // Retain previous count on error
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingApprovals();
+  }, [fetchPendingApprovals]);
+
+  // Live SSE update when new hitl task is created or decided
+  const { lastEvent } = useEventStream('hitl');
+  useEffect(() => {
+    if (lastEvent) {
+      fetchPendingApprovals();
+    }
+  }, [lastEvent, fetchPendingApprovals]);
 
   return (
     <Tabs
@@ -72,6 +98,13 @@ export default function TabsLayout() {
           title: 'Approvals',
           headerTitle: 'HITL Decisions Queue',
           href: isTabVisibleForRole(role, 'approvals') ? undefined : null,
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: colors.status.warning,
+            color: colors.text.primary,
+            fontSize: 10,
+            fontWeight: '700',
+          },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkbox-outline" size={size - 2} color={color} />
           ),
