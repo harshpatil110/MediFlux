@@ -133,7 +133,8 @@ export const LoginPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="operator@mediflux.in"
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-teal)]"
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-[#1E1E1B] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-teal)]"
+                  style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
                 />
               </div>
             </div>
@@ -150,7 +151,8 @@ export const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-teal)]"
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-[#1E1E1B] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-teal)]"
+                  style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
                 />
               </div>
             </div>
@@ -173,7 +175,10 @@ export const LoginPage: React.FC = () => {
           </form>
 
           {/* Technical Compliance Checklist */}
-          <div className="p-4 bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 text-xs text-[var(--text-secondary)]">
+          <div
+            className="p-4 bg-white dark:bg-[#1E1E1B] border border-[var(--border-subtle)] space-y-2 text-xs text-[var(--text-secondary)]"
+            style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
+          >
             <div className="font-semibold text-[var(--text-primary)] flex items-center gap-2 text-xs font-mono">
               <ShieldCheck className="w-4 h-4 text-[var(--accent-teal)]" />
               Production Security Directives
@@ -207,7 +212,8 @@ export const LoginPage: React.FC = () => {
               return (
                 <div
                   key={demo.role}
-                  className="p-4 bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--accent-teal)] transition-all flex flex-col justify-between space-y-3 group"
+                  className="p-4 bg-white dark:bg-[#1E1E1B] border border-[var(--border-subtle)] hover:border-[var(--accent-teal)] transition-all flex flex-col justify-between space-y-3 group"
+                  style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">

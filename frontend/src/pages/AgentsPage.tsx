@@ -503,7 +503,10 @@ export const AgentsPage: React.FC = () => {
       {/* --------------------------------------------------------------------- */}
       {selectedRun && (
         <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 flex justify-end">
-          <div className="w-full max-w-xl bg-[var(--surface)] border-l border-[var(--border)] h-full overflow-y-auto p-6 space-y-5 shadow-2xl">
+          <div
+            className="w-full max-w-xl bg-white dark:bg-[#1E1E1B] border-l border-[var(--border)] h-full overflow-y-auto p-6 space-y-5 shadow-2xl"
+            style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
+          >
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
               <div>

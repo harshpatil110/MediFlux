@@ -116,9 +116,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] flex flex-col transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white dark:bg-[#1E1E1B] border-r border-[var(--border-subtle)] flex flex-col transition-transform duration-200 ease-in-out ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
+        style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
       >
         {/* Brand Banner */}
         <div className="h-16 px-6 border-b border-[var(--border-subtle)] flex items-center justify-between">

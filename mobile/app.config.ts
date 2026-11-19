@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: 'in.mediflux.mobile',
   },
   android: {
-    versionCode: 1,
+    versionCode: 2,
     permissions: ['CAMERA', 'INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',

@@ -7,6 +7,9 @@ const monorepoRoot = path.resolve(projectRoot, '..');
 
 const config = getDefaultConfig(projectRoot);
 
+// Ensure stable worker memory allocation across platforms
+config.maxWorkers = process.env.CI ? config.maxWorkers : Math.min(require('os').cpus().length, 4);
+
 // 1. Watch monorepo packages/shared
 config.watchFolders = [
   path.resolve(monorepoRoot, 'packages', 'shared'),

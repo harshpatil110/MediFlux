@@ -11,7 +11,9 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://mediflux-backend.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://mediflux-backend.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://drjyczgwntuibykxodgs.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_NEx8s6S7CR4eM4J5QuDifw_mCI1ezZ_"
       },
       "android": {
         "buildType": "apk"
@@ -23,7 +25,9 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://mediflux-backend.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://mediflux-backend.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://drjyczgwntuibykxodgs.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_NEx8s6S7CR4eM4J5QuDifw_mCI1ezZ_"
       }
     }
   },
@@ -31,4 +35,3 @@
     "production": {}
   }
 }
-

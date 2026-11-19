@@ -151,11 +151,12 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] border-2 border-[var(--border-subtle)] shadow-2xl space-y-5 p-6 relative"
+        className="w-full max-w-lg bg-white dark:bg-[#1E1E1B] border-2 border-[var(--border-subtle)] shadow-2xl space-y-5 p-6 relative"
+        style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -184,7 +185,10 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
         </div>
 
         {/* Runtime Badge Row */}
-        <div className="flex items-center justify-between p-2.5 bg-[#F4F1E6] dark:bg-[#242420] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs font-mono">
+        <div
+          className="flex items-center justify-between p-2.5 bg-[#F4F1E6] dark:bg-[#242420] border border-[var(--border-subtle)] text-xs font-mono"
+          style={{ backgroundColor: "var(--canvas-elevated, #F4F1E6)" }}
+        >
           <div className="flex items-center gap-2">
             <Monitor className="w-3.5 h-3.5 text-[var(--accent-teal)]" />
             <span className="text-[var(--text-secondary)]">Active Environment:</span>
@@ -205,7 +209,10 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
         </div>
 
         {/* Live Status Indicator Bar */}
-        <div className="p-3 border border-[var(--border-subtle)] bg-[#F4F1E6] dark:bg-[#242420] bg-[var(--bg-canvas)] space-y-2">
+        <div
+          className="p-3 border border-[var(--border-subtle)] bg-[#F4F1E6] dark:bg-[#242420] space-y-2"
+          style={{ backgroundColor: "var(--canvas-elevated, #F4F1E6)" }}
+        >
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-[var(--text-secondary)]">Live Probe Status:</span>
             {testingStatus === "testing" ? (
@@ -252,13 +259,15 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
               value={candidateUrl}
               onChange={(e) => setCandidateUrl(e.target.value)}
               placeholder="http://localhost:8000"
-              className="flex-1 px-3 py-2 text-xs font-mono bg-[#F4F1E6] dark:bg-[#242420] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-teal)]"
+              className="flex-1 px-3 py-2 text-xs font-mono bg-[#F4F1E6] dark:bg-[#242420] border border-[var(--border-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-teal)]"
+              style={{ backgroundColor: "var(--canvas-elevated, #F4F1E6)" }}
             />
             <button
               type="button"
               disabled={testingStatus === "testing"}
               onClick={() => pingCandidateUrl(candidateUrl)}
-              className="px-3 py-2 bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] font-semibold shrink-0 transition-colors"
+              className="px-3 py-2 bg-white dark:bg-[#1E1E1B] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] font-semibold shrink-0 transition-colors"
+              style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
             >
               Test Ping
             </button>
@@ -273,7 +282,8 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
                 setCandidateUrl("http://localhost:8000");
                 pingCandidateUrl("http://localhost:8000");
               }}
-              className="px-2 py-0.5 text-[10px] bg-white dark:bg-[#1E1E1B] bg-[var(--bg-canvas)] hover:border-[var(--accent-teal)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
+              className="px-2 py-0.5 text-[10px] bg-white dark:bg-[#1E1E1B] hover:border-[var(--accent-teal)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
+              style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
             >
               localhost:8000
             </button>
@@ -283,7 +293,8 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
                 setCandidateUrl("http://127.0.0.1:8000");
                 pingCandidateUrl("http://127.0.0.1:8000");
               }}
-              className="px-2 py-0.5 text-[10px] bg-white dark:bg-[#1E1E1B] bg-[var(--bg-canvas)] hover:border-[var(--accent-teal)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
+              className="px-2 py-0.5 text-[10px] bg-white dark:bg-[#1E1E1B] hover:border-[var(--accent-teal)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
+              style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
             >
               127.0.0.1:8000
             </button>
@@ -291,7 +302,10 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
         </div>
 
         {/* Native Notification Test Buttons */}
-        <div className="p-3 bg-[#F4F1E6] dark:bg-[#242420] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] space-y-2">
+        <div
+          className="p-3 bg-[#F4F1E6] dark:bg-[#242420] border border-[var(--border-subtle)] space-y-2"
+          style={{ backgroundColor: "var(--canvas-elevated, #F4F1E6)" }}
+        >
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-[var(--text-secondary)] flex items-center gap-1.5 font-semibold">
               <Bell className="w-3.5 h-3.5 text-[var(--accent-teal)]" />
@@ -304,14 +318,16 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
             <button
               type="button"
               onClick={() => testNotification("hitl")}
-              className="flex-1 py-1.5 px-2 bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 py-1.5 px-2 bg-white dark:bg-[#1E1E1B] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] flex items-center justify-center gap-1.5 transition-colors"
+              style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
             >
               🔔 Test Approval Alert
             </button>
             <button
               type="button"
               onClick={() => testNotification("quarantine")}
-              className="flex-1 py-1.5 px-2 bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 py-1.5 px-2 bg-white dark:bg-[#1E1E1B] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] flex items-center justify-center gap-1.5 transition-colors"
+              style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
             >
               ❄️ Test Quarantine Alert
             </button>
@@ -319,7 +335,10 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
         </div>
 
         {/* Demo State & Replay Controls */}
-        <div className="p-3 bg-[#F4F1E6] dark:bg-[#242420] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] flex items-center justify-between">
+        <div
+          className="p-3 bg-[#F4F1E6] dark:bg-[#242420] border border-[var(--border-subtle)] flex items-center justify-between"
+          style={{ backgroundColor: "var(--canvas-elevated, #F4F1E6)" }}
+        >
           <div className="space-y-0.5">
             <span className="text-xs font-mono font-bold text-[var(--text-primary)] block">
               Demo Environment State
@@ -333,6 +352,7 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
             disabled={isResettingDemo}
             onClick={handleResetDemoState}
             className="px-3 py-1.5 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] text-xs font-mono flex items-center gap-1.5 transition-colors text-[var(--text-primary)] disabled:opacity-50"
+            style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
           >
             <RotateCcw className={`w-3.5 h-3.5 text-[var(--accent-teal)] ${isResettingDemo ? "animate-spin" : ""}`} />
             <span>{isResettingDemo ? "Resetting..." : "Reset Demo"}</span>
@@ -353,7 +373,8 @@ export const BackendSettingsModal: React.FC<BackendSettingsModalProps> = ({ isOp
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] text-xs font-mono text-[var(--text-primary)]"
+              className="px-4 py-2 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] hover:bg-[#F4F1E6] dark:hover:bg-[#242420] text-xs font-mono text-[var(--text-primary)]"
+              style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
             >
               Cancel
             </button>

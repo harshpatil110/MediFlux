@@ -78,11 +78,20 @@ export const SseDebugPanel: React.FC<SseDebugPanelProps> = ({ isOpen, onClose })
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col transition-transform duration-200">
+    <div
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white dark:bg-[#1E1E1B] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col transition-transform duration-200"
+      style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
+    >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[#F4F1E6] dark:bg-[#242420] bg-[var(--bg-canvas)]">
+      <div
+        className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[#F4F1E6] dark:bg-[#242420]"
+        style={{ backgroundColor: "var(--canvas-elevated, #F4F1E6)" }}
+      >
         <div className="flex items-center gap-3">
-          <div className="p-1.5 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B] bg-[var(--bg-surface)]">
+          <div
+            className="p-1.5 border border-[var(--border-subtle)] bg-white dark:bg-[#1E1E1B]"
+            style={{ backgroundColor: "var(--surface, #FFFFFF)" }}
+          >
             <Radio className="w-4 h-4 text-[var(--accent-teal)]" />
           </div>
           <div>
