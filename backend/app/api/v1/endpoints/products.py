@@ -10,12 +10,12 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
+from supabase import Client
 
 from app.core.exceptions import AppException
 from app.core.security import CurrentUser, get_current_user_optional, get_service_db_client
 from app.schemas.base import ProductResponse
 from app.schemas.common import PaginatedResponse
-from supabase import Client
 
 logger = logging.getLogger("mediflux.api.products")
 
@@ -367,7 +367,15 @@ async def list_products(
             pass
 
     # 2. Filter local catalog
-    filtered = DEFAULT_PRODUCTS
+    # Demo seeding also registers UUID aliases for catalog products. Show each
+    # formulation once while preserving those aliases for inventory lookups.
+    canonical_names = {
+        product["name"].strip().casefold() for product in DEFAULT_PRODUCTS if product.get("sku")
+    }
+    filtered = [
+        product for product in DEFAULT_PRODUCTS
+        if product.get("sku") or product["name"].strip().casefold() not in canonical_names
+    ]
     if search_query:
         s = search_query.lower()
         filtered = [

@@ -5,12 +5,12 @@ from typing import Annotated, Any
 import jwt
 from fastapi import Header, Request
 from pydantic import BaseModel, Field
+from supabase import Client, create_client
 from supabase.client import ClientOptions
 
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
 from app.db.client import get_supabase_client
-from supabase import Client, create_client
 
 
 # -----------------------------------------------------------------------------
