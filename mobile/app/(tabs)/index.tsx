@@ -28,37 +28,36 @@ export default function HomeScreen() {
     events,
     refreshRecent,
     reconnect,
-  } = useEventStream('*');
+  } = useEventStream('*', { enabled: Boolean(user) });
 
   const [summary, setSummary] = useState<MobileSummaryResponse | null>(null);
   const [loadingSummary, setLoadingSummary] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const fetchSummary = useCallback(async () => {
+    if (!user) return;
     try {
       const data = await apiClient.get<MobileSummaryResponse>('/api/v1/mobile/summary');
       setSummary(data);
     } catch {
       // Keep optimistic baseline if request fails
-      if (!summary) {
-        setSummary({
-          events_today: 4,
-          low_stock_count: 2,
-          open_approvals: 2,
-          quarantined_batches: user?.role === 'pharmacy' ? 0 : 1,
-          last_cascade_correlation_id: 'casc-8f92a1b4c3d2',
-          scope: {
-            role: user?.role || 'pharmacy',
-            node_id: user?.node_id || null,
-            node_name: user?.node_name || 'Assigned Node',
-          },
-          generated_at: new Date().toISOString(),
-        });
-      }
+      setSummary((previous) => previous ?? ({
+        events_today: 4,
+        low_stock_count: 2,
+        open_approvals: 2,
+        quarantined_batches: user.role === 'pharmacy' ? 0 : 1,
+        last_cascade_correlation_id: 'casc-8f92a1b4c3d2',
+        scope: {
+          role: user.role,
+          node_id: user.node_id,
+          node_name: user.node_name || 'Assigned Node',
+        },
+        generated_at: new Date().toISOString(),
+      }));
     } finally {
       setLoadingSummary(false);
     }
-  }, [user, summary]);
+  }, [user]);
 
   useEffect(() => {
     fetchSummary();

@@ -14,6 +14,7 @@ export default function TabsLayout() {
   const [pendingCount, setPendingCount] = useState<number>(0);
 
   const fetchPendingApprovals = useCallback(async () => {
+    if (!user) return;
     try {
       const data = await apiClient.get<any[]>('/api/v1/hitl/tasks?status=pending');
       if (Array.isArray(data)) {
@@ -22,14 +23,14 @@ export default function TabsLayout() {
     } catch {
       // Retain previous count on error
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchPendingApprovals();
   }, [fetchPendingApprovals]);
 
   // Live SSE update when new hitl task is created or decided
-  const { lastEvent } = useEventStream('hitl');
+  const { lastEvent } = useEventStream('hitl', { enabled: Boolean(user) });
   useEffect(() => {
     if (lastEvent) {
       fetchPendingApprovals();

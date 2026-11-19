@@ -58,18 +58,22 @@ async def check_web(browser: Browser, api_url: str, web_url: str) -> None:
     await context.close()
 
 
-async def check_mobile(browser: Browser, api_url: str, mobile_url: str) -> None:
+async def check_mobile(
+    browser: Browser, api_url: str, mobile_url: str, *, configure_backend: bool = True
+) -> None:
     """Exercise real mobile login, barcode dispensing, and live SSE event delivery."""
     context = await browser.new_context(viewport={"width": 390, "height": 844})
-    await context.add_init_script(
-        f"localStorage.setItem('mediflux_mobile_backend_url', {api_url!r})"
-    )
+    if configure_backend:
+        await context.add_init_script(
+            f"localStorage.setItem('mediflux_mobile_backend_url', {api_url!r})"
+        )
     page = await context.new_page()
     errors: list[str] = []
     failures: list[str] = []
     auth_requests: list[str] = []
     page.on("request", lambda request: auth_requests.append(request.url)
-            if request.url.endswith(("/api/v1/me", "/api/v1/devices")) else None)
+            if request.url.endswith(("/api/v1/me", "/api/v1/devices", "/api/v1/mobile/summary"))
+            else None)
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("response", lambda response: failures.append(response.url)
             if response.url.startswith(api_url) and response.status >= 400 else None)
@@ -82,7 +86,7 @@ async def check_mobile(browser: Browser, api_url: str, mobile_url: str) -> None:
     await page.wait_for_timeout(500)
     count = len(auth_requests)
     await page.wait_for_timeout(1500)
-    assert len(auth_requests) == count, "Mobile session restoration loops while idle"
+    assert len(auth_requests) == count, "Mobile session or summary requests loop while idle"
     marker = f"Browser stream regression {uuid.uuid4().hex[:8]}"
     response = await context.request.post(f"{api_url}/api/v1/events", data={
         "event_id": str(uuid.uuid4()), "type": "pos.sales",
@@ -131,12 +135,15 @@ async def main() -> None:
     parser.add_argument("--web-url", default="http://127.0.0.1:5173")
     parser.add_argument("--mobile-url", default="http://127.0.0.1:8081")
     parser.add_argument("--desktop-cdp")
+    parser.add_argument("--mobile-default-backend", action="store_true",
+                        help="Check mobile URL selection without injecting a server override.")
     args = parser.parse_args()
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch()
         try:
             await check_web(browser, args.api_url, args.web_url)
-            await check_mobile(browser, args.api_url, args.mobile_url)
+            await check_mobile(browser, args.api_url, args.mobile_url,
+                               configure_backend=not args.mobile_default_backend)
             if args.desktop_cdp:
                 desktop = await playwright.chromium.connect_over_cdp(args.desktop_cdp)
                 await check_desktop(desktop.contexts[0].pages[0], args.api_url)

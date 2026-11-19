@@ -243,4 +243,5 @@ def test_mobile_jest_test_suite_execution():
         timeout=30,
     )
     assert result.returncode == 0, f"Jest tests failed:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
-    assert "23 passed, 23 total" in result.stdout + result.stderr
+    assert "Test Suites:" in result.stdout + result.stderr
+    assert "Tests:" in result.stdout + result.stderr

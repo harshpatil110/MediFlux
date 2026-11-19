@@ -2006,3 +2006,23 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 - Details, reproduction commands, and limits: `docs/specs/system-verification-2026-11-19.md`. Physical-device/native signing tests and the deferred Tauri scaffold were not run. Existing dependency advisories and the frontend bundle-size warning remain; no broad framework upgrade was attempted.
 - Final desktop release check: `npm run desktop:build` produces the unsigned 74,683,277-byte portable `desktop/out/MediFlux Control Tower 1.0.0.exe`. Expo's online compatibility check also required Jest 29 and image picker 15.1; dependencies were aligned and rechecked.
 - Final rerun after dependency alignment: 406 Python tests pass in 48.88 seconds; 23 Jest tests pass; the online Expo compatibility check and all platform exports pass. The browser verification also passes against the portable desktop binary.
+
+### Mobile browser connectivity correction — 19 November 2026
+
+- Fixed localhost mobile previews selecting a generated phone LAN address while
+  FastAPI listened on loopback. Browser defaults follow the serving host; native
+  clients retain LAN/emulator behavior and explicit custom servers remain supported.
+- Recover saved generated LAN presets after a successful local health check, load
+  backend configuration before authentication, and notify health/SSE consumers when
+  Settings saves a new server.
+- Removed the Home summary request loop and gated Home/approval requests on a user.
+- Added ten URL regression cases (33 mobile tests total) and an option to exercise
+  browser workflows without injecting a backend override. Removed an obsolete
+  assertion fixing the Jest suite size at 23 tests.
+- Verified fresh/stale browser configuration, pharmacy login, session restore,
+  immediate Settings updates, stable idle requests, live events, sale/cascade and
+  mobile screens. TypeScript, Android/iOS/web exports, frontend build, backend Ruff,
+  and 406 Python tests pass. Python checks require UTF-8 output on this Windows setup;
+  frontend assets must finish building before the existing file-based UI smoke test.
+- Details and remaining upstream animation warning:
+  `docs/specs/mobile-browser-connection-fix.md`.

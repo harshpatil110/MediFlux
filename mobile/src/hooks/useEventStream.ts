@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import EventSource from 'react-native-sse';
 import { apiClient } from '../api/client';
-import { getBackendUrl } from '../lib/config';
+import { getBackendUrl, useBackendUrl } from '../lib/config';
 import { useNetworkStatus } from './useNetworkStatus';
 
 export type StreamConnectionStatus = 'connecting' | 'open' | 'retrying' | 'failed';
@@ -60,6 +60,7 @@ export function useEventStream(
   } = options;
 
   const { isOnline } = useNetworkStatus();
+  const backendUrl = useBackendUrl();
 
   const [status, setStatus] = useState<StreamConnectionStatus>('connecting');
   const [isPollingFallback, setIsPollingFallback] = useState<boolean>(false);
@@ -306,6 +307,7 @@ export function useEventStream(
     },
     [
       enabled,
+      backendUrl,
       isOnline,
       topics,
       eventSourceFactory,

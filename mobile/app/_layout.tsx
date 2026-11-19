@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { loadBackendUrl } from '../src/lib/config';
 import * as Notifications from 'expo-notifications';
 import { ThemeProvider } from '../src/theme/ThemeContext';
 import { AuthProvider, useAuth } from '../src/features/auth/AuthContext';
@@ -155,6 +156,24 @@ function NotificationBridge({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [backendReady, setBackendReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void loadBackendUrl().then(() => {
+      if (mounted) setBackendReady(true);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  if (!backendReady) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator color={colors.accent.primary} accessibilityLabel="Loading server settings" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>

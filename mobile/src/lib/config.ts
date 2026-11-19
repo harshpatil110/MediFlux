@@ -1,13 +1,31 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { storage } from './storage';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 
 const STORAGE_KEY_BACKEND_URL = 'mediflux_mobile_backend_url';
 
+function getConfiguredLanUrl(): string | undefined {
+  const extra = Constants.expoConfig?.extra as { lanApiUrl?: string } | undefined;
+  return process.env.EXPO_PUBLIC_LAN_API_URL || extra?.lanApiUrl;
+}
+
 export function getDefaultBackendUrl(): string {
-  // 1. Check Expo extra configuration
   const extra = Constants.expoConfig?.extra as { apiUrl?: string; lanApiUrl?: string } | undefined;
+  const configuredApiUrl =
+    (extra?.apiUrl !== 'http://localhost:8000' ? extra?.apiUrl : undefined) ||
+    process.env.EXPO_PUBLIC_API_URL;
+  const lanUrl = getConfiguredLanUrl();
+
+  // A generated phone address can outlive its Wi-Fi network. Browser previews
+  // reach the API on the host serving the page; explicit separate API URLs win.
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hostname) {
+    if (!configuredApiUrl || configuredApiUrl === lanUrl || configuredApiUrl === 'http://localhost:8000') {
+      return `http://${window.location.hostname}:8000`;
+    }
+  }
+
+  // Native clients keep the configured API / LAN address and emulator defaults.
   if (extra?.apiUrl && extra.apiUrl !== 'http://localhost:8000') {
     return extra.apiUrl;
   }
@@ -31,18 +49,46 @@ export function getDefaultBackendUrl(): string {
 }
 
 let currentBackendUrl: string = getDefaultBackendUrl();
+const backendUrlListeners = new Set<() => void>();
+
+function updateBackendUrl(url: string): void {
+  currentBackendUrl = url.trim().replace(/\/+$/, '');
+  backendUrlListeners.forEach((listener) => listener());
+}
+
+function subscribeBackendUrl(listener: () => void): () => void {
+  backendUrlListeners.add(listener);
+  return () => { backendUrlListeners.delete(listener); };
+}
+
+export function useBackendUrl(): string {
+  return useSyncExternalStore(subscribeBackendUrl, getBackendUrl, getDefaultBackendUrl);
+}
 
 export async function loadBackendUrl(): Promise<string> {
   try {
     const saved = await storage.getItem(STORAGE_KEY_BACKEND_URL);
     if (saved && saved.trim()) {
-      currentBackendUrl = saved.trim().replace(/\/+$/, '');
+      const sanitized = saved.trim().replace(/\/+$/, '');
+      const defaultUrl = getDefaultBackendUrl();
+      // Repair the old generated LAN preset only when the local API is healthy.
+      // Other saved server choices always remain explicit user overrides.
+      if (
+        Platform.OS === 'web' && typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
+        sanitized === getConfiguredLanUrl()?.replace(/\/+$/, '') && sanitized !== defaultUrl &&
+        (await checkBackendHealth(defaultUrl)).reachable
+      ) {
+        await setBackendUrl(defaultUrl);
+        return currentBackendUrl;
+      }
+      updateBackendUrl(sanitized);
       return currentBackendUrl;
     }
   } catch {
     // Keep default
   }
-  currentBackendUrl = getDefaultBackendUrl();
+  updateBackendUrl(getDefaultBackendUrl());
   return currentBackendUrl;
 }
 
@@ -51,9 +97,8 @@ export function getBackendUrl(): string {
 }
 
 export async function setBackendUrl(url: string): Promise<void> {
-  const sanitized = url.trim().replace(/\/+$/, '');
-  currentBackendUrl = sanitized;
-  await storage.setItem(STORAGE_KEY_BACKEND_URL, sanitized);
+  updateBackendUrl(url);
+  await storage.setItem(STORAGE_KEY_BACKEND_URL, currentBackendUrl);
 }
 
 export function getLanPresetUrls(): Array<{ label: string; url: string; description: string }> {
@@ -148,6 +193,7 @@ export async function checkBackendHealth(targetUrl?: string): Promise<HealthChec
 }
 
 export function useBackendHealth(pollIntervalMs: number = 30000) {
+  const backendUrl = useBackendUrl();
   const [health, setHealth] = useState<HealthCheckResult>({
     reachable: false,
     latencyMs: null,
@@ -163,10 +209,7 @@ export function useBackendHealth(pollIntervalMs: number = 30000) {
   }, []);
 
   useEffect(() => {
-    // Initial load and check
-    loadBackendUrl().then((url) => {
-      refresh(url);
-    });
+    void refresh(backendUrl);
 
     if (pollIntervalMs > 0) {
       const interval = setInterval(() => {
@@ -174,7 +217,7 @@ export function useBackendHealth(pollIntervalMs: number = 30000) {
       }, pollIntervalMs);
       return () => clearInterval(interval);
     }
-  }, [refresh, pollIntervalMs]);
+  }, [backendUrl, refresh, pollIntervalMs]);
 
   return { health, refresh, setUrl: setBackendUrl };
 }
