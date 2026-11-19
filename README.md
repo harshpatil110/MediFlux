@@ -188,16 +188,13 @@ MediFlux includes a production-grade, native **React Native (Expo 51 + TypeScrip
 | **Copilot & Replay** | RLS conversational assistant and interactive 1x/2x/4x cascade history replay. | ![Copilot & Replay](docs/screenshots/mobile/06_copilot_and_replay.png) |
 
 ### Mobile Quick Start (Path A — Expo Go)
-```powershell
-# 1. Start backend with LAN support (auto-detects laptop Wi-Fi IP):
-python scripts\start_all.py --lan
+The mobile app defaults to `https://mediflux-backend.vercel.app` over HTTPS. Reviewers can use Expo Go or a preview APK without starting the backend on a laptop. Settings includes a cloud preset and optional local development targets.
 
-# 2. Launch Expo development server:
+```powershell
 cd mobile
 npx expo start
 
-# 3. Scan the terminal QR code with your phone camera (iOS) or Expo Go app (Android).
-# 4. In mobile Settings, verify LAN backend connectivity and tap any quick-login role chip!
+# Scan the QR code with Expo Go, then sign in.
 ```
 
 ### Standalone Android APK (Path B — EAS Build)
@@ -205,7 +202,7 @@ npx expo start
 cd mobile
 npx eas-cli build -p android --profile preview
 ```
-*(Configured via `mobile/eas.json` and `mobile/app.config.ts` with cleartext HTTP support for local dev testing.)*
+The preview APK has the Vercel URL embedded. EAS login or `EXPO_TOKEN` is required to build it; once installed, it connects over HTTPS without local backend setup. The local server presets remain available in Settings for development.
 
 ---
 

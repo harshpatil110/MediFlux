@@ -46,7 +46,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     typedRoutes: true,
   },
   extra: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000',
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://mediflux-backend.vercel.app',
     lanApiUrl: process.env.EXPO_PUBLIC_LAN_API_URL || '',
     environment: process.env.NODE_ENV || 'development',
   },

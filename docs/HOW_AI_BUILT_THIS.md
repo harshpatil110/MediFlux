@@ -2026,3 +2026,18 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   frontend assets must finish building before the existing file-based UI smoke test.
 - Details and remaining upstream animation warning:
   `docs/specs/mobile-browser-connection-fix.md`.
+
+### Mobile Vercel backend migration — 19 November 2026
+
+- Verified the live Vercel API, authenticated mobile routes, and CORS. The backend
+  already allowed the required origins.
+- Set the mobile, Expo, EAS preview, and production defaults to the hosted HTTPS
+  API; added one time migration of saved local addresses and a cloud Settings preset.
+- Extended request/health timeouts for cold starts and made Vercel SSE disconnects
+  fall back to 4 second polling with a teal live sync label.
+- Mobile TypeScript, 35 Jest tests, Expo public config, and Android export passed.
+  A Chromium stream failure check confirmed cloud polling and successful recent
+  event responses. The full Python suite passed 406 tests, backend Ruff and the
+  frontend build passed, and the tracked-file secrets scan found no credentials.
+  EAS CLI reported `Not logged in` with no supplied token, so APK build/download
+  awaits EAS access. See `docs/specs/mobile-vercel-backend-migration.md`.

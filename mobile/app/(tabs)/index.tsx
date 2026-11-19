@@ -79,9 +79,9 @@ export default function HomeScreen() {
     statusDotColor = '#10B981';
     statusVariant = 'emerald';
   } else if (isPollingFallback) {
-    statusBadgeLabel = 'POLLING FALLBACK (Stream Retrying)';
-    statusDotColor = '#F59E0B';
-    statusVariant = 'amber';
+    statusBadgeLabel = 'CLOUD SYNC ACTIVE (POLLING)';
+    statusDotColor = '#00AEBB';
+    statusVariant = 'teal';
   } else if (streamStatus === 'retrying' || streamStatus === 'connecting') {
     statusBadgeLabel = 'RECONNECTING STREAM...';
     statusDotColor = '#F59E0B';

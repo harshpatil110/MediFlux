@@ -89,33 +89,25 @@ The mobile application strictly conforms to the **Warm Editorial Minimalism** de
 ## 4. Run Options & Distribution Paths
 
 ### Path A: Physical Phone via Expo Go (Recommended & Fastest for Evaluators)
-Run on an iOS or Android physical smartphone on the same Wi-Fi network:
+The mobile app defaults to the hosted API at `https://mediflux-backend.vercel.app` over HTTPS. The backend does not need to run on your laptop.
 
-1. **Start the backend in LAN mode:**
-   ```powershell
-   python scripts\start_all.py --lan
-   # or
-   .\scripts\start-all.ps1 -Lan
-   ```
-   This automatically detects your laptop's Wi-Fi IPv4 address (e.g. `http://192.168.1.50:8000`), binds FastAPI to `0.0.0.0:8000`, and writes the address to `mobile/.env.local`.
-
-2. **Install Expo Go:**
+1. **Install Expo Go:**
    - Install **Expo Go** from the Apple App Store (iOS) or Google Play Store (Android).
-   - Ensure your phone and laptop are connected to the same Wi-Fi network.
+   - Ensure the phone can reach the internet. The phone must reach the Expo development server to load the app.
 
-3. **Start the Expo development server:**
+2. **Start the Expo development server:**
    ```powershell
    cd mobile
    npx expo start
    ```
 
-4. **Launch & Verify:**
+3. **Launch & Verify:**
    - Scan the terminal QR code with your phone camera (iOS) or Expo Go app (Android).
-   - On first launch, open **Settings**, verify your laptop's LAN IP is populated, and tap **"PROBE /health"** to confirm `Backend reachable (HTTP 200)`.
+   - In **Settings**, the Cloud Backend (Vercel) preset is first; tap **"PROBE /health"** to confirm connectivity.
    - Tap any seeded quick-login role chip (`Pharmacy`, `Stockist`, `Distributor`, `Manufacturer`, `Admin`) to enter the application immediately!
 
 ### Path B: Standalone Android APK via EAS Build (`mobile/eas.json`)
-For production or physical field device distribution without Expo Go:
+For physical field device distribution without Expo Go, the preview APK embeds `https://mediflux-backend.vercel.app` and connects without a local backend:
 
 1. **EAS Build Configuration (`mobile/eas.json`):**
    ```json
@@ -124,6 +116,7 @@ For production or physical field device distribution without Expo Go:
      "build": {
        "preview": {
          "distribution": "internal",
+         "env": { "EXPO_PUBLIC_API_URL": "https://mediflux-backend.vercel.app" },
          "android": {
            "buildType": "apk"
          }
@@ -131,14 +124,12 @@ For production or physical field device distribution without Expo Go:
      }
    }
    ```
-2. **Cleartext HTTP Support (`mobile/app.config.ts`):**
-   Configured via `expo-build-properties` with `usesCleartextTraffic: true`, allowing the standalone `.apk` to communicate directly with local development backend servers (`http://192.168.x.x:8000`) over cleartext HTTP.
-3. **Trigger EAS APK Build:**
+2. **Trigger EAS APK Build after signing in to EAS:**
    ```powershell
    cd mobile
    npx eas-cli build -p android --profile preview
    ```
-   This compiles a standalone `.apk` installable directly on any Android device via USB sideloading or direct download link.
+   This compiles a standalone `.apk` installable directly on Android devices. `expo-build-properties` still allows HTTP when an operator explicitly selects a local development server.
 
 ### Path C: PC Browser Responsive Viewport (Instant Web Client)
 Test the mobile application directly on PC without installing mobile tooling:
@@ -154,8 +145,7 @@ npm run web
 cd mobile
 npm run android
 ```
-- The Android Emulator routes host `localhost` via `10.0.2.2:8000`.
-- In mobile Settings, tap the **"Emulator (10.0.2.2)"** 1-tap preset.
+- The app uses the hosted backend by default. To use a local backend, tap the **Android Emulator** preset in Settings (`10.0.2.2:8000`).
 
 ---
 

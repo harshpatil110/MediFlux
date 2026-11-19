@@ -9,12 +9,18 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mediflux-backend.vercel.app"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mediflux-backend.vercel.app"
+      }
     }
   },
   "submit": {

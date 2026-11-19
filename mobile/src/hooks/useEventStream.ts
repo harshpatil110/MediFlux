@@ -28,7 +28,7 @@ export interface UseEventStreamOptions {
   initialBackoffMs?: number; // default: 1000
   maxBackoffMs?: number; // default: 15000
   maxFailuresBeforePolling?: number; // default: 3
-  pollingIntervalMs?: number; // default: 3000
+  pollingIntervalMs?: number; // default: 4000
   streamRecoveryProbeMs?: number; // default: 10000
   eventSourceFactory?: (url: string, options: any) => any;
 }
@@ -54,7 +54,7 @@ export function useEventStream(
     initialBackoffMs = 1000,
     maxBackoffMs = 15000,
     maxFailuresBeforePolling = 3,
-    pollingIntervalMs = 3000,
+    pollingIntervalMs = 4000,
     streamRecoveryProbeMs = 10000,
     eventSourceFactory,
   } = options;
@@ -94,12 +94,13 @@ export function useEventStream(
 
   const closeEventSource = useCallback(() => {
     if (eventSourceRef.current) {
+      const source = eventSourceRef.current;
+      eventSourceRef.current = null;
       try {
-        eventSourceRef.current.close();
+        source.close();
       } catch {
         // Ignore close errors
       }
-      eventSourceRef.current = null;
     }
   }, []);
 
@@ -283,12 +284,14 @@ export function useEventStream(
           }
         });
 
-        es.addEventListener('error', () => {
-          if (!isComponentMountedRef.current) return;
+        const handleDisconnect = () => {
+          if (!isComponentMountedRef.current || eventSourceRef.current !== es) return;
           closeEventSource();
           consecutiveFailuresRef.current += 1;
 
-          if (consecutiveFailuresRef.current >= maxFailuresBeforePolling) {
+          if (isRecoveryProbe) return;
+          const isVercel = new URL(baseUrl).hostname.endsWith('.vercel.app');
+          if (isVercel || consecutiveFailuresRef.current >= maxFailuresBeforePolling) {
             startPollingFallback();
           } else {
             setStatus('retrying');
@@ -299,7 +302,9 @@ export function useEventStream(
               connectStream();
             }, backoff);
           }
-        });
+        };
+        es.addEventListener('error', handleDisconnect);
+        es.addEventListener('close', handleDisconnect);
       } catch {
         consecutiveFailuresRef.current += 1;
         startPollingFallback();

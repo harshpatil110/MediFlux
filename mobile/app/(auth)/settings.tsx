@@ -17,6 +17,7 @@ import {
   setBackendUrl,
   checkBackendHealth,
   getLanPresetUrls,
+  DEFAULT_CLOUD_BACKEND_URL,
   HealthCheckResult,
 } from '../../src/lib/config';
 import { useAuth } from '../../src/features/auth/AuthContext';
@@ -111,6 +112,12 @@ export default function SettingsScreen() {
     setTimeout(() => {
       setSavedSuccess(false);
     }, 2000);
+  };
+
+  const handleResetBackend = async () => {
+    setUrl(DEFAULT_CLOUD_BACKEND_URL);
+    await setBackendUrl(DEFAULT_CLOUD_BACKEND_URL);
+    setSavedSuccess(true);
   };
 
   const handleLogout = async () => {
@@ -331,6 +338,11 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity style={[styles.testButton, { marginTop: spacing.sm }]}
+          onPress={() => { void handleResetBackend(); }} activeOpacity={0.8}>
+          <Text style={styles.testButtonText}>RESET TO CLOUD DEFAULT</Text>
+        </TouchableOpacity>
+
         {testResult && (
           <View
             style={[
@@ -364,7 +376,7 @@ export default function SettingsScreen() {
       <View style={styles.presetsSection}>
         <Text style={styles.presetSectionTitle}>1-TAP ENVIRONMENT PRESETS</Text>
         <Text style={styles.presetSectionSubtitle}>
-          Select your host environment to automatically populate the URL:
+          Select a backend to connect immediately:
         </Text>
 
         {presets.map((preset) => {
@@ -376,6 +388,7 @@ export default function SettingsScreen() {
               onPress={() => {
                 setUrl(preset.url);
                 setSavedSuccess(false);
+                void setBackendUrl(preset.url);
               }}
               activeOpacity={0.7}
             >

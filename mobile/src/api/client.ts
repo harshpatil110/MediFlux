@@ -21,7 +21,7 @@ export type ForceLogoutHandler = (reason?: string) => Promise<void> | void;
 
 class ApiClient {
   private authContext: AuthContext = {};
-  private defaultTimeoutMs: number = 15000;
+  private defaultTimeoutMs: number = 25000;
   private onRefresh: RefreshHandler | null = null;
   private onForceLogout: ForceLogoutHandler | null = null;
   private isRefreshing: boolean = false;
