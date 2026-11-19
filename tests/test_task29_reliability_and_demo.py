@@ -56,9 +56,10 @@ class DummySchema(BaseModel):
 # 1. Fault Injection: All Failure Modes & Transparent Failover < 100ms
 # =============================================================================
 @pytest.mark.asyncio
-async def test_fault_injection_all_failure_modes() -> None:
+async def test_fault_injection_all_failure_modes(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test 7 fault injection scenarios with transparent failover under 100ms and sovereign privacy isolation."""
     clear_all_faults()
+    monkeypatch.setattr(settings, "OPENROUTER_API_KEY", "test-openrouter-key")
     router = LLMRouter()
 
     # Secondary provider mock that succeeds immediately
@@ -309,18 +310,19 @@ async def test_duplicate_event_idempotency_returns_200_duplicate() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         headers = {"Authorization": "Bearer mock-pharmacist-token"}
 
-        # 1. First submission -> 202 Accepted
+        # Mobile sale ingestion returns its completed result synchronously.
         res1 = await client.post("/api/v1/events/sale", headers=headers, json=sale_payload)
-        assert res1.status_code == 202
+        assert res1.status_code == 200
         data1 = res1.json()
-        assert data1["status"] == "accepted"
+        assert data1["status"] == "succeeded"
         assert data1["event_id"] == event_id
 
         # 2. Second submission with identical event_id -> 200 Duplicate
         res2 = await client.post("/api/v1/events/sale", headers=headers, json=sale_payload)
         assert res2.status_code == 200
         data2 = res2.json()
-        assert data2["status"] == "duplicate"
+        assert data2["status"] == "succeeded"
+        assert data2["idempotent_replay"] is True
         assert data2["applied"] is False
 
 

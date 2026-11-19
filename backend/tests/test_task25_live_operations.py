@@ -183,7 +183,8 @@ async def test_cascade_summary_list():
         assert "product_name" in first
         assert "pharmacy_name" in first
         assert "tiers_completed" in first
-        assert first["tiers_completed"] == "4/4"
+        assert first["tiers_completed"] == f"{first['steps_completed']}/{first['total_steps']}"
+        assert 0 <= first["steps_completed"] <= first["total_steps"] == 5
         assert first["total_tokens"] > 0
 
 

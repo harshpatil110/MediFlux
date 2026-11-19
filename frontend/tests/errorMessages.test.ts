@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert";
-import { normalizeErrorMessage, normalizeLlmError, ERROR_CATALOG } from "../src/lib/errorMessages.ts";
+import { normalizeErrorMessage, normalizeLlmError } from "../src/lib/errorMessages.ts";
 
 function runTests() {
   console.log("Running errorMessages.ts test suite...");

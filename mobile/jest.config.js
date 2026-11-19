@@ -8,8 +8,8 @@ module.exports = {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        isolatedModules: true,
         tsconfig: {
+          isolatedModules: true,
           target: 'ES2022',
           module: 'commonjs',
           jsx: 'react-jsx',

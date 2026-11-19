@@ -482,7 +482,8 @@ export const api = {
       if (params?.search) q.set("search", params.search);
       if (params?.limit) q.set("limit", String(params.limit));
       const qs = q.toString() ? `?${q.toString()}` : "";
-      return apiRequest<AuditLedgerEntry[]>(`/api/v1/audit${qs}`);
+      return apiRequest<{ items: AuditLedgerEntry[] }>(`/api/v1/audit${qs}`)
+        .then((response) => response.items);
     },
     verifyChain: () =>
       apiRequest<AuditVerificationResult>("/api/v1/audit/verify", { method: "POST" }),

@@ -5,7 +5,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getApiBaseUrl } from "../config/env";
-import { getStoredToken, getStoredUser } from "../lib/api";
+import { getStoredUser } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import type { SystemEvent } from "../types/api";
 
 export type SseConnectionState = "connecting" | "connected" | "reconnecting" | "closed";
@@ -18,6 +19,8 @@ interface UseEventStreamOptions {
 
 export function useEventStream(options: UseEventStreamOptions = {}) {
   const { topics = ["*"], maxEvents = 100, enabled = true } = options;
+  const { token } = useAuth();
+  const joinedTopics = topics.length > 0 ? topics.join(",") : "*";
 
   const [events, setEvents] = useState<SystemEvent[]>([]);
   const [connectionState, setConnectionState] = useState<SseConnectionState>("closed");
@@ -33,7 +36,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
   }, []);
 
   const connect = useCallback(() => {
-    if (!enabled) return;
+    if (!enabled || !token) return;
 
     // Abort existing connection if any
     if (abortControllerRef.current) {
@@ -46,12 +49,10 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const token = getStoredToken();
     const user = getStoredUser();
 
     // Build URL with query params
     const query = new URLSearchParams();
-    const joinedTopics = topics.length > 0 ? topics.join(",") : "*";
     query.set("topics", joinedTopics);
 
     if (lastEventIdRef.current) {
@@ -163,6 +164,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
             }
           }
         }
+        throw new Error("SSE stream ended; reconnecting");
       })
       .catch((err) => {
         if (err.name === "AbortError") {
@@ -180,7 +182,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
           connect();
         }, delay);
       });
-  }, [enabled, maxEvents, topics]);
+  }, [enabled, maxEvents, joinedTopics, token]);
 
   useEffect(() => {
     connect();
