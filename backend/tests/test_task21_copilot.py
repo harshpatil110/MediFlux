@@ -122,7 +122,7 @@ async def test_stockout_risk_copilot_query():
         # 3. References array contains structured citations
         refs = body["references"]
         assert len(refs) > 0
-        node_ref = next((r for r in refs if r["type"] == "node"), None)
+        node_ref = next((r for r in refs if r["type"] == "inventory"), None)
         assert node_ref is not None
         assert "id" in node_ref
         assert "label" in node_ref

@@ -80,3 +80,4 @@ plugins: [
 - [x] **AC4 — OpenAPI Schema Synchronization**: `docs/openapi.json` exported with 95 paths including all mobile routes, and verified in `docs/API_GUIDE.md`.
 - [x] **AC5 — Clean Secrets & Demo Repeatability**: `python -m scripts.check_secrets` confirms 0 leaked secrets; `python -m scripts.reset_demo && python -m scripts.run_mobile_demo` passes consecutively back-to-back.
 - [x] **AC6 — Full Test Suite Pass Rate**: All 85 mobile pytest backend tests pass (100%), ruff check passes with 0 warnings, mobile `npm run check` passes with 23/23 Jest tests, and Expo web export bundles cleanly.
+

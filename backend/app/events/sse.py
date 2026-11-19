@@ -89,6 +89,7 @@ async def sse_event_stream(
     topics: list[str],
     last_event_id: str | None = None,
     visible_nodes: set[str] | None = None,
+    named_events: bool = True,
 ) -> AsyncGenerator[ServerSentEvent, None]:
     """Generate Server-Sent Events from replay history and live event bus subscriptions.
 
@@ -107,7 +108,7 @@ async def sse_event_stream(
         for revt in replay_events:
             yield ServerSentEvent(
                 id=str(revt.event_id),
-                event=str(revt.type),
+                event=str(revt.type) if named_events else "message",
                 data=_format_sse_data(revt),
             )
 
@@ -136,7 +137,7 @@ async def sse_event_stream(
 
                 yield ServerSentEvent(
                     id=str(event.event_id),
-                    event=str(event.type),
+                    event=str(event.type) if named_events else "message",
                     data=_format_sse_data(event),
                 )
                 queue.task_done()

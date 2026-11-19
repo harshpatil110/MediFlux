@@ -1990,3 +1990,19 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
 
 
 
+
+### Whole-project verification and reliability fixes - 19 November 2026
+
+- Ran the complete repository suite: **406 passed**. The backend-only command also passes **363 tests**; this is a subset, not an additional test total.
+- Added shared isolated pytest configuration and restored settings between tests. Distinguished the backend test package from the root test package. Supplied dummy credentials for mocked provider tests and synchronized legacy assertions with the current documented mobile contracts.
+- Fixed the web Audit page's response-envelope crash, unstable SSE subscriptions, unauthenticated notification requests, and missing favicon. Added the missing ESLint dependencies/configuration; frontend lint, build, and all eight existing test scenarios pass.
+- Fixed mobile native notification calls on web, unauthenticated polling, SSE message names and CRLF parsing, missing `/api/v1` prefixes for devices/cold chain, and a profile-restore dependency loop that repeatedly registered push tokens.
+- Added the backward-compatible `named_events=false` stream option and two replay/live wire-format tests, preserving topic metadata and node visibility. Refreshed OpenAPI and all generated clients.
+- Aligned NetInfo, image picker, and secure store with Expo SDK 51. Mobile `npm run check` passes all 23 Jest tests, and web/Android/iOS exports succeed. Removed the deprecated ts-jest configuration setting.
+- Corrected Electron packaging to include the built frontend as a resource and resolve its installed path. Verified the packaged application renders, authenticates, and exposes its native preload bridge.
+- Prevented duplicate seeded formulations in product search and corrected the Supabase verifier's obsolete registry name and Windows console output. All **31/31 tables** pass read verification; the tracked-file secrets scanner passes.
+- Added `scripts/verify_clients.py` for actual Chromium regressions. It passes all 11 web routes, web POS/audit actions, idle stream stability, mobile login/session stability, live event delivery without reload, barcode sale with five cascade stages, approvals, prescription, cold-chain, and copilot screens, plus optional packaged desktop checks.
+- Ran the existing six-act replay demo, eight-step mobile demonstration, and seven-step end-to-end cascade/SSE/audit verifier successfully. A separate live local `OllamaProvider` call using installed `llama3.2:3b` returned `{"status": "ok"}`.
+- Details, reproduction commands, and limits: `docs/specs/system-verification-2026-11-19.md`. Physical-device/native signing tests and the deferred Tauri scaffold were not run. Existing dependency advisories and the frontend bundle-size warning remain; no broad framework upgrade was attempted.
+- Final desktop release check: `npm run desktop:build` produces the unsigned 74,683,277-byte portable `desktop/out/MediFlux Control Tower 1.0.0.exe`. Expo's online compatibility check also required Jest 29 and image picker 15.1; dependencies were aligned and rechecked.
+- Final rerun after dependency alignment: 406 Python tests pass in 48.88 seconds; 23 Jest tests pass; the online Expo compatibility check and all platform exports pass. The browser verification also passes against the portable desktop binary.
