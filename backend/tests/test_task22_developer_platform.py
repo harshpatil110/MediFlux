@@ -331,7 +331,8 @@ async def test_sample_third_party_client_flow() -> None:
     assert results["step4_inventory_read"]["count"] >= 1
 
     assert "step5_sale_posted" in results
-    assert results["step5_sale_posted"].get("status") in ("accepted", "duplicate")
+    assert results["step5_sale_posted"].get("status") == "succeeded"
+    assert results["step5_sale_posted"]["applied"] is True
 
     assert "step6_webhook_verified" in results
     assert results["step6_webhook_verified"]["last_event_signature_valid"] is True

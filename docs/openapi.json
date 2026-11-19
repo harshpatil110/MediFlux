@@ -10244,6 +10244,18 @@
             }
           },
           {
+            "description": "Set false to receive all topics as standard message events.",
+            "in": "query",
+            "name": "named_events",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Set false to receive all topics as standard message events.",
+              "title": "Named Events",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "header",
             "name": "Last-Event-ID",
             "required": false,
