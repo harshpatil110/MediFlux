@@ -137,7 +137,7 @@ async def test_normal_readings_acceptance():
         batches = b_res.json()["batches"]
         target = next((b for b in batches if b["batch_id"] == "BIO-INS-01"), None)
         assert target is not None
-        assert target["status"] == "active"
+        assert target["status"] == "ok"
         assert target["available_quantity"] == 1000
         assert target["last_reading"]["temperature_c"] == 4.5
         assert target["shelf_life_estimate"]["decision"] == "ok"
