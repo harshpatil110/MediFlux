@@ -203,8 +203,11 @@ def test_parse_and_repair_raises_llm_structured_error_when_no_fallback() -> None
 # 3. Fault Injection Context Manager (inject_llm_fault) Tests
 # =============================================================================
 @pytest.mark.asyncio
-async def test_inject_llm_fault_rate_limit_429_failover() -> None:
+async def test_inject_llm_fault_rate_limit_429_failover(monkeypatch: pytest.MonkeyPatch) -> None:
     """Simulating primary provider HTTP 429 triggers failover to next provider in < 100ms."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "OPENROUTER_API_KEY", "test-openrouter-key")
     router = LLMRouter()
 
     # Mock openrouter to succeed
@@ -233,8 +236,11 @@ async def test_inject_llm_fault_rate_limit_429_failover() -> None:
 
 
 @pytest.mark.asyncio
-async def test_inject_llm_fault_kill_failover() -> None:
+async def test_inject_llm_fault_kill_failover(monkeypatch: pytest.MonkeyPatch) -> None:
     """Simulating provider process kill triggers transparent failover."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "OPENROUTER_API_KEY", "test-openrouter-key")
     router = LLMRouter()
 
     async def mock_openrouter_complete(*args: Any, **kwargs: Any) -> RawCompletionResult:
