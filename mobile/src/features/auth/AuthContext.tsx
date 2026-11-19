@@ -62,6 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [session, setSession] = useState<SessionData | null>(null);
   const [user, setUser] = useState<UserData | null>(null);
+  const userRef = useRef<UserData | null>(null);
+  userRef.current = user;
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [registeredPushToken, setRegisteredPushToken] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getDevicePushToken(verifiedUser.user_id);
       const prefs = await loadNotificationPreferences();
-      await apiClient.post('/devices', {
+      await apiClient.post('/api/v1/devices', {
         token,
         platform: Platform.OS,
         preferences: prefs,
@@ -87,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const tokenToDelete = pushTokenRef.current;
     if (tokenToDelete) {
       try {
-        await apiClient.delete(`/devices/${encodeURIComponent(tokenToDelete)}`);
+        await apiClient.delete(`/api/v1/devices/${encodeURIComponent(tokenToDelete)}`);
       } catch {
         // Non-blocking
       }
@@ -194,8 +196,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           refreshToken: supaData.session.refresh_token,
           expiresAt: supaData.session.expires_at,
         };
-        if (user) {
-          await updateStoredSession(newSession, user);
+        if (userRef.current) {
+          await updateStoredSession(newSession, userRef.current);
         }
         return newSession.accessToken;
       }
@@ -227,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               refreshToken: data.refresh_token || refToken,
               expiresAt: Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
             };
-            const currentUser = user || parsed.user;
+            const currentUser = userRef.current || parsed.user;
             await updateStoredSession(newSession, currentUser);
             return newSession.accessToken;
           }
@@ -238,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return null;
-  }, [user, updateStoredSession]);
+  }, [updateStoredSession]);
 
   const reloadProfile = useCallback(async (): Promise<UserData | null> => {
     if (!session?.accessToken) return null;

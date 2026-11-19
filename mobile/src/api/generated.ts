@@ -1738,7 +1738,7 @@ export interface ApiOperations {
   /** Real-Time Server-Sent Events (SSE) Stream */
   'GET /api/v1/stream': {
     operationId: 'get__api_v1_stream';
-    parameters: { topics?: string; last_event_id?: string | null; "Last-Event-ID"?: string | null; "X-API-Key"?: string | null; authorization?: string | null };
+    parameters: { topics?: string; last_event_id?: string | null; named_events?: boolean; "Last-Event-ID"?: string | null; "X-API-Key"?: string | null; authorization?: string | null };
     requestBody: undefined;
     response: unknown;
   };

@@ -134,9 +134,10 @@ export function useEventStream(
   );
 
   const pollRecentEvents = useCallback(async () => {
-    if (!isComponentMountedRef.current) return;
+    if (!isComponentMountedRef.current || !enabled) return;
     try {
       const auth = apiClient.getAuth();
+      if (!auth.token) return;
       const baseUrl = getBackendUrl().replace(/\/+$/, '');
       const params = new URLSearchParams();
       if (lastEventIdRef.current) {
@@ -170,7 +171,7 @@ export function useEventStream(
     } catch {
       // Ignore polling blips
     }
-  }, [topics, addEvents]);
+  }, [enabled, topics, addEvents]);
 
   const startPollingFallback = useCallback(() => {
     setIsPollingFallback(true);
@@ -206,9 +207,11 @@ export function useEventStream(
       closeEventSource();
 
       const auth = apiClient.getAuth();
+      if (!auth.token) return;
       const baseUrl = getBackendUrl().replace(/\/+$/, '');
       const url = new URL(`${baseUrl}/api/v1/stream`);
       url.searchParams.append('topics', topics);
+      url.searchParams.append('named_events', 'false');
       if (lastEventIdRef.current) {
         url.searchParams.append('last_event_id', lastEventIdRef.current);
       }
@@ -230,7 +233,6 @@ export function useEventStream(
 
       const sourceOptions = {
         headers,
-        lineEndingCharacter: '\n',
       };
 
       try {

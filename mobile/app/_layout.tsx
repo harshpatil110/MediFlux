@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { ThemeProvider } from '../src/theme/ThemeContext';
 import { AuthProvider, useAuth } from '../src/features/auth/AuthContext';
@@ -48,6 +48,7 @@ function NotificationBridge({ children }: { children: React.ReactNode }) {
   const seenEventsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     void setupNotificationChannels();
 
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -64,6 +65,8 @@ function NotificationBridge({ children }: { children: React.ReactNode }) {
           handleNotificationTapPayload(data, router);
         }
       }
+    }).catch((error: unknown) => {
+      console.warn('Unable to restore the last notification response:', error);
     });
 
     return () => {
@@ -72,7 +75,7 @@ function NotificationBridge({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   // Live SSE listener for real-time local push alerts
-  const { lastEvent } = useEventStream('hitl,coldchain');
+  const { lastEvent } = useEventStream('hitl,coldchain', { enabled: Boolean(user) });
 
   useEffect(() => {
     if (!lastEvent) return;

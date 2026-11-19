@@ -58,8 +58,8 @@ export default function ColdChainScreen() {
   const fetchData = useCallback(async () => {
     try {
       const [batchesRes, quarantinesRes] = await Promise.all([
-        apiClient.get<any>('/coldchain/batches'),
-        apiClient.get<any>('/coldchain/quarantines'),
+        apiClient.get<any>('/api/v1/coldchain/batches'),
+        apiClient.get<any>('/api/v1/coldchain/quarantines'),
       ]);
 
       const rawBatches = Array.isArray(batchesRes) ? batchesRes : batchesRes?.batches || [];
@@ -96,7 +96,7 @@ export default function ColdChainScreen() {
   const handleSimulate = async (mode: 'normal' | 'excursion') => {
     setSimulating(mode);
     try {
-      await apiClient.post('/coldchain/simulate', {
+      await apiClient.post('/api/v1/coldchain/simulate', {
         mode,
         batch_id: 'BIO-INS-01',
         steps: 4,

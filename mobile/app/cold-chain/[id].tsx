@@ -41,7 +41,7 @@ export default function ColdChainBatchDetailScreen() {
     if (!id) return;
     try {
       setError(null);
-      const res = await apiClient.get<ColdChainBatchItem>(`/coldchain/batches/${id}`);
+      const res = await apiClient.get<ColdChainBatchItem>(`/api/v1/coldchain/batches/${id}`);
       setBatch(res);
     } catch (err: any) {
       setError(err?.message || 'Failed to load cold-chain batch details.');
