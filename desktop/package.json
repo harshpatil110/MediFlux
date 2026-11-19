@@ -33,8 +33,10 @@
     "files": [
       "main.cjs",
       "preload.cjs",
-      "icons/**/*",
-      "../frontend/dist/**/*"
+      "icons/**/*"
+    ],
+    "extraResources": [
+      { "from": "../frontend/dist", "to": "frontend" }
     ],
     "win": {
       "icon": "icons/icon.ico",

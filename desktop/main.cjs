@@ -55,7 +55,9 @@ function createMainWindow() {
   if (devUrl) {
     mainWindow.loadURL(devUrl);
   } else {
-    const indexPath = path.join(__dirname, "../frontend/dist/index.html");
+    const indexPath = app.isPackaged
+      ? path.join(process.resourcesPath, "frontend", "index.html")
+      : path.join(__dirname, "../frontend/dist/index.html");
     mainWindow.loadFile(indexPath);
   }
 

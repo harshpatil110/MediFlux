@@ -10,3 +10,5 @@ if str(ROOT_DIR) not in sys.path:
 BACKEND_DIR = ROOT_DIR / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+
+from scripts.pytest_support import restore_runtime_settings  # noqa: E402, F401

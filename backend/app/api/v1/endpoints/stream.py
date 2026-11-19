@@ -29,6 +29,7 @@ async def subscribe_event_stream(
     topics: str = Query("pos.sales", description="Comma-separated topics (e.g. pos.sales,agent.activity,*)"),
     last_event_id: str | None = Header(None, alias="Last-Event-ID"),
     last_event_id_query: str | None = Query(None, alias="last_event_id"),
+    named_events: bool = Query(True, description="Set false to receive all topics as standard message events."),
     x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> EventSourceResponse:
     """Stream live events over Server-Sent Events (SSE) with node scoping and reconnection replay."""
@@ -66,6 +67,7 @@ async def subscribe_event_stream(
             topics=topic_list,
             last_event_id=effective_last_id,
             visible_nodes=visible_nodes,
+            named_events=named_events,
         ),
         ping=15,
     )
