@@ -20,6 +20,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: 'in.mediflux.mobile',
   },
   android: {
+    versionCode: 1,
+    permissions: ['CAMERA', 'INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#031211',
@@ -33,6 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    'expo-font',
     [
       'expo-build-properties',
       {
@@ -46,6 +49,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     typedRoutes: true,
   },
   extra: {
+    eas: {
+      projectId: '07a2c88f-2613-4b36-a417-e2b814fe2a16',
+    },
     apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://mediflux-backend.vercel.app',
     lanApiUrl: process.env.EXPO_PUBLIC_LAN_API_URL || '',
     environment: process.env.NODE_ENV || 'development',

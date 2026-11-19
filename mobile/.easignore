@@ -1,0 +1,7 @@
+node_modules/
+.expo/
+dist/
+builds/*.apk
+eas_build_output.json
+.env.local
+.env.*.local

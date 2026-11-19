@@ -2041,3 +2041,17 @@ Implemented the production **React + TypeScript + Vite + Tailwind CSS** applicat
   frontend build passed, and the tracked-file secrets scan found no credentials.
   EAS CLI reported `Not logged in` with no supplied token, so APK build/download
   awaits EAS access. See `docs/specs/mobile-vercel-backend-migration.md`.
+
+### Android preview APK build — 20 November 2026
+
+- Linked the mobile app to its EAS project, set Android version code 1 and required
+  permissions, and kept the preview APK profile pointed at the Vercel HTTPS API.
+- Fixed Expo Doctor's two findings by removing redundant React Native types and
+  installing `expo-font` with its config plugin. Doctor passed 17/17 checks;
+  TypeScript, 35 mobile tests, the Android export, 406 Python tests, and backend
+  Ruff also passed.
+- Added repository-root `.easignore` for this monorepo. It excludes local build
+  output and reduced the EAS upload from 219 MB to 16.3 MB. The Android build
+  was accepted and queued under EAS build ID
+  `07034e16-116e-4cae-b2ba-8ff64bf1e78b`. See
+  `docs/specs/mobile-eas-apk-2026-11-20.md` for its build record.
