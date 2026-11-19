@@ -254,7 +254,10 @@ class DummyLLMResult(BaseModel):
 class TestLLMRouterAndFakeLLM:
     """Validate provider fallback chain, token accounting, and sovereign offline error."""
 
-    async def test_llm_router_fallback_and_token_accounting(self) -> None:
+    async def test_llm_router_fallback_and_token_accounting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "OPENROUTER_API_KEY", "test-openrouter-key")
         router = LLMRouter()
 
         # Primary provider fails (e.g. simulated 429), router falls back to secondary provider

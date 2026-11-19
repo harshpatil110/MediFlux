@@ -15,7 +15,7 @@ from app.db.client import get_supabase_client
 def main() -> None:
     client = get_supabase_client()
     if not client:
-        print("❌ Could not initialize Supabase client. Check credentials in .env")
+        print("[FAIL] Could not initialize Supabase client. Check credentials in .env")
         sys.exit(1)
 
     print(f"Connecting to Supabase at: {settings.SUPABASE_URL}")
@@ -38,7 +38,7 @@ def main() -> None:
         "production_batches",
         "demand_signals",
         "drug_schedules",
-        "doctor_registry_mock",
+        "doctor_registry",
         "prescriptions",
         "compliance_logs",
         "sensor_readings",
@@ -61,24 +61,24 @@ def main() -> None:
     for tbl in tables:
         try:
             client.table(tbl).select("*").limit(1).execute()
-            print(f"  ✅ {tbl}")
+            print(f"  [OK] {tbl}")
             success_count += 1
         except Exception as exc:
             err_msg = str(exc)
             if "PGRST205" in err_msg or "Could not find the table" in err_msg:
-                print(f"  ❌ {tbl} (Table not yet created)")
+                print(f"  [FAIL] {tbl} (Table not yet created)")
             else:
-                print(f"  ❌ {tbl}: {err_msg[:60]}")
+                print(f"  [FAIL] {tbl}: {err_msg[:60]}")
             missing_tables.append(tbl)
 
     print(f"\nResult: {success_count}/{len(tables)} tables verified.")
 
     if missing_tables:
-        print(f"\n⚠️ {len(missing_tables)} tables are pending migration in Supabase.")
-        print("Please follow Option A to paste and run the 3 SQL files in the Supabase Dashboard SQL Editor.")
+        print(f"\n[FAIL] {len(missing_tables)} tables could not be verified in Supabase.")
+        print("Review the errors above and the migrations in supabase/migrations.")
         sys.exit(1)
     else:
-        print("\n🎉 All MediFlux tables verified successfully on Supabase!")
+        print("\n[OK] All MediFlux tables verified successfully on Supabase!")
         sys.exit(0)
 
 
