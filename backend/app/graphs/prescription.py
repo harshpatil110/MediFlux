@@ -444,6 +444,52 @@ def _extract_initials(name_or_text: str | None) -> str | None:
     return "X.X."
 
 
+# Words that only ever describe how a medicine is taken, never the medicine
+# itself. A line made of these (plus a dose-frequency pattern) is a dosage
+# instruction, not a drug entry.
+_DOSAGE_WORDS = {
+    "after", "before", "with", "food", "meals", "meal", "empty", "stomach",
+    "morning", "afternoon", "evening", "night", "daily", "twice", "thrice",
+    "once", "tds", "tid", "bd", "bid", "od", "hs", "sos", "stat", "tab",
+    "tablet", "tablets", "cap", "capsule", "capsules", "pill", "pills",
+    "drop", "drops", "syrup", "days", "day", "weeks", "week", "x", "for",
+    "take", "sig", "dispense", "qty",
+}
+
+_DOSAGE_PATTERN = re.compile(
+    r"^\s*(?:sig\s*:)?\s*(?:"
+    r"\d+\s*-\s*\d+(?:\s*-\s*\d+){0,2}"  # 1-0-1, 1-1-1, 0-1-0-1
+    r"|\d+\s*(?:tab|tablet|caps?|pill|drop)s?\b"  # 1 tab, 2 capsules
+    r"|(?:take|tds|tid|bd|bid|od|hs|sos)\b"  # TDS, OD, take ...
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _is_dosage_line(text: str) -> bool:
+    """True if a line is a dosage/frequency instruction, not a medicine."""
+    s = text.strip()
+    if not s:
+        return False
+    if _DOSAGE_PATTERN.match(s):
+        return True
+    # A line whose words are all dosage words / numbers (e.g. "1-0-1 after
+    # food x 5", "twice daily after food") is also a dosage line.
+    tokens = [t for t in re.split(r"[\s,\-]+", s.lower()) if t]
+    if tokens and all(
+        t in _DOSAGE_WORDS or t.isdigit() or re.fullmatch(r"\d+(?:mg|g|ml|mcg|iu)?", t)
+        for t in tokens
+    ):
+        return True
+    return False
+
+
+def _strip_sig_prefix(text: str) -> str:
+    """Remove a leading 'Sig:' / bullet / numbering from a dosage line."""
+    s = re.sub(r"^\s*(?:sig\s*:)?\s*(?:\d+\.|\*|\-)?\s*", "", text, flags=re.IGNORECASE)
+    return s.strip()
+
+
 def _parse_text_deterministically(raw_text: str, meta: dict[str, Any]) -> dict[str, Any]:
     """Extract doctor name, reg no, patient initials, and drugs from raw OCR text and metadata."""
     # Check if metadata provides parsed fields first (embedded PNG tEXt chunks)
@@ -483,21 +529,53 @@ def _parse_text_deterministically(raw_text: str, meta: dict[str, Any]) -> dict[s
             pat_initials = _extract_initials(m_pat.group(1))
 
     if not drugs:
-        # Parse lines in raw_text looking for drug mentions
+        # Parse lines in raw_text looking for drug mentions. Dosage-only
+        # lines (e.g. "1-0-1 after food x 5", "Sig: 1 tab TDS x 5 days",
+        # "Dispense: Qty 15") are instructions, not medicines: attach them
+        # to the preceding drug instead of creating phantom drug entries.
         lines = raw_text.splitlines()
         for idx, line in enumerate(lines):
             line_str = line.strip()
+            if not line_str:
+                continue
+            low = line_str.lower()
+
+            # Dispense / quantity line: set quantity on the previous drug.
+            m_qty = re.match(r"(?:\d+\.|\*|\-)?\s*(?:dispense\s*:)?\s*qty\s+(\d+)", low)
+            if m_qty and drugs:
+                try:
+                    drugs[-1]["quantity"] = int(m_qty.group(1))
+                except ValueError:
+                    pass
+                continue
+
+            # Dosage / frequency line: attach to previous drug, never a drug.
+            if _is_dosage_line(line_str):
+                if drugs and not drugs[-1].get("frequency"):
+                    drugs[-1]["frequency"] = _strip_sig_prefix(line_str)
+                continue
+
             # Match numbered drug line e.g. "1. Paracetamol 500mg" or "Amoxicillin 500mg"
             m_drug = re.search(r"(?:(?:\d+\.|\*|\-)\s*)?([A-Za-z0-9\-]+(?:\s+[A-Za-z0-9\-]+)*\s+\d+\s*(?:mg|g|ml|mcg|IU|cap|tab)?)", line_str, re.IGNORECASE)
-            if m_drug and not any(kw in line_str.lower() for kw in ["patient:", "reg no:", "tel:", "date:", "dr.", "avenue", "clinic"]):
+            if m_drug and not any(kw in low for kw in ["patient:", "reg no:", "tel:", "date:", "dr.", "avenue", "clinic"]):
                 d_name = m_drug.group(1).strip()
+                # Guard: a captured "name" that is only dosage tokens
+                # (e.g. "1-0-1 after food x 5") is not a medicine.
+                if _is_dosage_line(d_name):
+                    if drugs and not drugs[-1].get("frequency"):
+                        drugs[-1]["frequency"] = d_name
+                    continue
+                # Dedupe: same medicine listed twice (OCR repeats lines).
+                norm = re.sub(r"\s+", " ", d_name.lower())
+                if any(re.sub(r"\s+", " ", d.get("name", "").lower()) == norm for d in drugs):
+                    continue
                 # Parse dose
                 m_dose = re.search(r"(\d+\s*(?:mg|g|ml|mcg|IU))", d_name, re.IGNORECASE)
                 dose = m_dose.group(1) if m_dose else ""
                 # Frequency on next line if available
                 freq = None
                 if idx + 1 < len(lines) and "sig:" in lines[idx + 1].lower():
-                    freq = lines[idx + 1].replace("Sig:", "").strip()
+                    freq = _strip_sig_prefix(lines[idx + 1])
                 drugs.append({
                     "name": d_name,
                     "dose": dose,
@@ -648,7 +726,7 @@ async def prescription_parser_node(state: PrescriptionState) -> dict[str, Any]:
     try:
         # Prompt structured extraction
         llm_messages = [
-            {"role": "system", "content": "You are a clinical OCR assistant. Extract doctor_name, doctor_registration_no, patient_initials, and drugs."},
+            {"role": "system", "content": "You are a clinical OCR assistant. Extract doctor_name, doctor_registration_no, patient_initials, and drugs. List each medicine once. Dosage or frequency lines (for example '1-0-1 after food', 'Sig: 1 tab TDS x 5 days', 'Dispense: Qty 15') are NOT medicines: record them as the frequency or quantity of the medicine above them, never as a separate drug."},
             {"role": "user", "content": f"Parse the following prescription scan text:\n\n{raw_text}"},
         ]
         # Attempt local Ollama query with sensitivity="sensitive"
